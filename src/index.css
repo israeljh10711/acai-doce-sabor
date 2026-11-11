@@ -3,27 +3,30 @@
 /*
  * Identidade visual do Açaí Doce Sabor.
  *
- * As cores vêm da logo oficial, medidas no arquivo recebido em 2026-11-11:
- * roxo do fundo #69054f, magenta da tigela #9e297e e verde das folhas #21961d.
+ * As três cores da marca são as do guia enviado pelo proprietário em 2026-11-11:
+ * Roxo Principal #6B0F4C, Magenta Açaí #9D2073 e Verde Folha #1EB949.
+ * Os outros tons de roxo, magenta e verde são versões mais escuras dessas três.
  * Os tons de creme são o fundo neutro escolhido para acompanhar a marca.
  */
 @theme {
   --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
   --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
 
-  /* Roxo da marca: 700 é a cor exata do fundo da logo. */
-  --color-plum-950: #2b0a22;
-  --color-plum-900: #40032f;
-  --color-plum-800: #55043f;
-  --color-plum-700: #69054f;
+  /* Roxo Principal: o 700 é a cor do guia. */
+  --color-plum-950: #2c0a21;
+  --color-plum-900: #42092f;
+  --color-plum-800: #570c3e;
+  --color-plum-700: #6b0f4c;
 
-  /* Magenta da tigela: cor das ações em fundo claro. */
-  --color-berry-600: #9e297e;
-  --color-berry-700: #84206a;
+  /* Magenta Açaí: o 600 é a cor do guia. Cor das ações em fundo claro. */
+  --color-berry-600: #9d2073;
+  --color-berry-700: #841b61;
+  --color-berry-100: #f6e3ef;
 
-  /* Verde das folhas: detalhes. O 700 é para texto em fundo claro. */
-  --color-leaf-500: #21961d;
-  --color-leaf-700: #1a7417;
+  /* Verde Folha: o 500 é a cor do guia, para detalhes. O 700 é para texto em fundo claro. */
+  --color-leaf-500: #1eb949;
+  --color-leaf-700: #127a33;
+  --color-leaf-100: #e3f6e9;
 
   --color-cream-50: #fdf8f0;
   --color-cream-100: #f7eddd;

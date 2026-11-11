@@ -1,21 +1,21 @@
 import logo96 from '../../assets/brand/logo-96.webp'
 import logo192 from '../../assets/brand/logo-192.webp'
 import logo384 from '../../assets/brand/logo-384.webp'
-import logoSoft384 from '../../assets/brand/logo-soft-384.webp'
-import logoSoft768 from '../../assets/brand/logo-soft-768.webp'
-import symbolSoft96 from '../../assets/brand/symbol-soft-96.webp'
-import symbolSoft192 from '../../assets/brand/symbol-soft-192.webp'
+import logoClean384 from '../../assets/brand/logo-clean-384.webp'
+import logoClean768 from '../../assets/brand/logo-clean-768.webp'
+import symbolClean96 from '../../assets/brand/symbol-clean-96.webp'
+import symbolClean192 from '../../assets/brand/symbol-clean-192.webp'
 import { storeInfo } from '../../services/storeInfo.ts'
 
 /**
- * Versões da logo oficial, todas recortadas do arquivo enviado pelo proprietário
+ * Versões da logo oficial, todas tiradas do arquivo enviado pelo proprietário
  * (o original fica em `assets/brand/logo-original.jpg`).
  *
- * - `badge`: a logo inteira em disco de borda nítida. Serve em qualquer fundo.
- * - `onBrand`: a logo inteira com a borda esfumada, para o fundo roxo da marca,
- *   onde o disco some e ficam só a tigela, as folhas e o nome.
- * - `symbolOnBrand`: só a tigela com as folhas, para tamanhos pequenos no fundo
- *   roxo, onde o nome em letra cursiva ficaria ilegível.
+ * - `badge`: a logo inteira dentro do disco roxo. Serve em qualquer fundo.
+ * - `onBrand`: a logo inteira sem o disco, só a tigela, as folhas e o nome.
+ *   Para o fundo roxo da marca, onde não deixa contorno nem halo.
+ * - `symbolOnBrand`: só a tigela com as folhas, sem o disco, para tamanhos pequenos
+ *   no fundo roxo, onde o nome em letra cursiva ficaria ilegível.
  */
 const versions = {
   badge: {
@@ -27,17 +27,17 @@ const versions = {
     ],
   },
   onBrand: {
-    fallback: logoSoft384,
+    fallback: logoClean384,
     files: [
-      [logoSoft384, 384],
-      [logoSoft768, 768],
+      [logoClean384, 384],
+      [logoClean768, 768],
     ],
   },
   symbolOnBrand: {
-    fallback: symbolSoft96,
+    fallback: symbolClean96,
     files: [
-      [symbolSoft96, 96],
-      [symbolSoft192, 192],
+      [symbolClean96, 96],
+      [symbolClean192, 192],
     ],
   },
 } as const

@@ -1,23 +1,27 @@
 // Gera os arquivos da logo usados pelo site, a partir do original recebido do proprietário.
 //
 // O original (`logo-original.jpg`, 1600 x 1600) é um JPG com o xadrez "de transparência"
-// desenhado no fundo. Aqui o círculo da logo é recortado e ganha transparência de verdade.
+// desenhado no fundo. Aqui a logo ganha transparência de verdade, de duas formas:
+//
+//   - com o disco roxo, recortado em círculo (serve em qualquer fundo);
+//   - sem o disco: o roxo do fundo é removido e ficam só a tigela, as folhas e o nome.
+//     Essa versão vai sobre o roxo do site e não deixa contorno nem halo.
 //
 // Saídas:
-//   src/assets/brand/logo-<px>.webp          logo inteira, disco de borda nítida (qualquer fundo)
-//   src/assets/brand/logo-soft-<px>.webp     logo inteira, borda esfumada (fundo roxo da marca)
-//   src/assets/brand/symbol-soft-<px>.webp   só a tigela com as folhas, borda esfumada (cabeçalho)
-//   public/favicon-32.png                    tigela com as folhas, disco nítido
-//   public/favicon-192.png                   logo inteira
-//   public/apple-touch-icon.png              logo inteira sobre quadrado na cor da marca
-//   assets/brand/logo-recortada.png          cópia mestra recortada
+//   src/assets/brand/logo-<px>.webp          logo inteira, com o disco
+//   src/assets/brand/logo-clean-<px>.webp    logo inteira, sem o disco
+//   src/assets/brand/symbol-clean-<px>.webp  só a tigela com as folhas, sem o disco
+//   public/favicon-32.png, favicon-192.png, favicon-512.png   tigela com as folhas, em círculo
+//   public/apple-touch-icon.png              tigela com as folhas, em quadrado opaco
+//   assets/brand/logo-recortada.png          cópia mestra com o disco
+//   assets/brand/logo-sem-fundo.png          cópia mestra sem o disco
 //
 // Só precisa rodar de novo se a logo mudar. Usa a biblioteca `sharp`, que não é dependência
 // do projeto. Para rodar, na pasta do projeto:
 //   npm install --no-save sharp
 //   node assets/brand/gerar-logo.mjs
 //
-// Se chegar um arquivo novo da logo, confira as medidas em FULL e SYMBOL antes de rodar.
+// Se chegar um arquivo novo da logo, confira as medidas abaixo antes de rodar.
 import { mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,36 +31,73 @@ const here = dirname(fileURLToPath(import.meta.url))
 const projectDir = join(here, '..', '..')
 const source = join(here, 'logo-original.jpg')
 
-/** Roxo do fundo da logo, medido no arquivo original. */
-const BRAND = '#69054f'
-
 // Medidas tiradas do arquivo original, em pixels.
-const FULL = { cx: 799.5, cy: 799.5, r: 637 } // círculo da logo, 3 px para dentro da borda
-const SYMBOL = { cx: 802, cy: 685, r: 330 } // tigela com as folhas, sem encostar no texto
+const DISC = { cx: 799.5, cy: 799.5, r: 637 } // círculo da logo, 3 px para dentro da borda
+const ARTWORK = { cx: 800, cy: 812, half: 520 } // tigela, folhas e nome
+const SYMBOL = { cx: 802, cy: 685, half: 330 } // tigela com as folhas, sem encostar no nome
 
-const hardMask = (r) =>
-  Buffer.from(
+/** Roxo do disco no arquivo original. Usado só para remover o fundo. */
+const DISC_COLOR = [0x69, 0x05, 0x4f]
+
+// Um pixel a menos de LOW da cor do disco vira transparente; a mais de HIGH fica opaco.
+const LOW = 14
+const HIGH = 44
+
+const extract = ({ cx, cy, half }) =>
+  sharp(source)
+    .extract({ left: Math.round(cx - half), top: Math.round(cy - half), width: half * 2, height: half * 2 })
+    .ensureAlpha()
+
+/** Recorte em círculo, com o disco roxo. */
+async function withDisc({ cx, cy, r }) {
+  const mask = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}"><circle cx="${r}" cy="${r}" r="${r}" fill="#fff"/></svg>`,
   )
+  return extract({ cx, cy, half: r }).composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer()
+}
 
-// Opaco até "start" do raio e transparente na borda: some no fundo roxo sem deixar contorno.
-const softMask = (r, start) =>
-  Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${r * 2}" height="${r * 2}"><defs><radialGradient id="g" cx="50%" cy="50%" r="50%"><stop offset="${start}" stop-color="#fff" stop-opacity="1"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`,
-  )
+/** Recorte sem o disco: remove o roxo do fundo e tudo o que está fora do círculo da logo. */
+async function withoutDisc(area) {
+  const size = area.half * 2
+  const { data } = await extract(area).raw().toBuffer({ resolveWithObject: true })
+  const left = Math.round(area.cx - area.half)
+  const top = Math.round(area.cy - area.half)
+  const limit = DISC.r - 8
 
-const cut = ({ cx, cy, r }, mask) =>
-  sharp(source)
-    .extract({ left: Math.round(cx - r), top: Math.round(cy - r), width: r * 2, height: r * 2 })
-    .ensureAlpha()
-    .composite([{ input: mask, blend: 'dest-in' }])
-    .png()
-    .toBuffer()
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4
+      let alpha = 0
 
-const fullHard = await cut(FULL, hardMask(FULL.r))
-const fullSoft = await cut(FULL, softMask(FULL.r, 0.9))
-const symbolHard = await cut(SYMBOL, hardMask(SYMBOL.r))
-const symbolSoft = await cut(SYMBOL, softMask(SYMBOL.r, 0.88))
+      if (Math.hypot(left + x + 0.5 - DISC.cx, top + y + 0.5 - DISC.cy) <= limit) {
+        const distance = Math.max(
+          Math.abs(data[i] - DISC_COLOR[0]),
+          Math.abs(data[i + 1] - DISC_COLOR[1]),
+          Math.abs(data[i + 2] - DISC_COLOR[2]),
+        )
+        const t = Math.min(1, Math.max(0, (distance - LOW) / (HIGH - LOW)))
+        alpha = t * t * (3 - 2 * t)
+      }
+
+      // Nas bordas, devolve a cor do desenho sem a parte de roxo que estava misturada nela.
+      if (alpha > 0 && alpha < 1) {
+        for (let c = 0; c < 3; c++) {
+          const front = (data[i + c] - (1 - alpha) * DISC_COLOR[c]) / alpha
+          data[i + c] = Math.max(0, Math.min(255, Math.round(front)))
+        }
+      }
+      data[i + 3] = Math.round(alpha * 255)
+    }
+  }
+
+  return sharp(data, { raw: { width: size, height: size, channels: 4 } }).png().toBuffer()
+}
+
+const logoDisc = await withDisc(DISC)
+const symbolDisc = await withDisc({ cx: SYMBOL.cx, cy: SYMBOL.cy, r: SYMBOL.half })
+const logoClean = await withoutDisc(ARTWORK)
+const symbolClean = await withoutDisc(SYMBOL)
+const symbolSquare = await extract(SYMBOL).png().toBuffer()
 
 const brandDir = join(projectDir, 'src', 'assets', 'brand')
 const publicDir = join(projectDir, 'public')
@@ -76,23 +117,20 @@ const webp = async (input, name, sizes) => {
   }
 }
 
-await webp(fullHard, 'logo', [96, 192, 384])
-await webp(fullSoft, 'logo-soft', [384, 768])
-await webp(symbolSoft, 'symbol-soft', [96, 192])
+await webp(logoDisc, 'logo', [96, 192, 384])
+await webp(logoClean, 'logo-clean', [384, 768])
+await webp(symbolClean, 'symbol-clean', [96, 192])
 
 const png = async (input, file, px) => {
   await sharp(input).resize(px, px).png({ compressionLevel: 9 }).toFile(file)
   report(file)
 }
-await png(symbolHard, join(publicDir, 'favicon-32.png'), 32)
-await png(fullHard, join(publicDir, 'favicon-192.png'), 192)
 
-// Ícone de tela inicial do iPhone: quadrado opaco, na cor da marca, com a logo dentro.
-const touch = join(publicDir, 'apple-touch-icon.png')
-await sharp({ create: { width: 180, height: 180, channels: 4, background: BRAND } })
-  .composite([{ input: await sharp(fullHard).resize(164, 164).toBuffer(), gravity: 'centre' }])
-  .png({ compressionLevel: 9 })
-  .toFile(touch)
-report(touch)
+for (const old of ['favicon.svg']) rmSync(join(publicDir, old), { force: true })
+await png(symbolDisc, join(publicDir, 'favicon-32.png'), 32)
+await png(symbolDisc, join(publicDir, 'favicon-192.png'), 192)
+await png(symbolDisc, join(publicDir, 'favicon-512.png'), 512)
+await png(symbolSquare, join(publicDir, 'apple-touch-icon.png'), 180)
 
-await png(fullHard, join(here, 'logo-recortada.png'), FULL.r * 2)
+await png(logoDisc, join(here, 'logo-recortada.png'), DISC.r * 2)
+await png(logoClean, join(here, 'logo-sem-fundo.png'), ARTWORK.half * 2)

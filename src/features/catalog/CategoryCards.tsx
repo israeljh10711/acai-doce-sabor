@@ -19,7 +19,7 @@ export function CategoryCards({ headingLevel: Heading, className = '' }: Categor
         <li key={category.slug}>
           <Link
             to={paths.configurator(category.slug)}
-            className="group flex h-full flex-col justify-between gap-8 rounded-2xl border border-cream-200 bg-white p-6 transition duration-200 hover:-translate-y-0.5 hover:border-berry-600 hover:shadow-[0_18px_36px_-24px_rgba(105,5,79,0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600 md:flex-row md:items-center lg:flex-col lg:items-stretch"
+            className="group flex h-full flex-col justify-between gap-8 rounded-2xl border border-cream-200 bg-white p-6 transition duration-200 hover:-translate-y-0.5 hover:border-berry-600 hover:shadow-[0_18px_36px_-24px_rgba(107,15,76,0.55)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600 md:flex-row md:items-center lg:flex-col lg:items-stretch"
           >
             <div>
               <Heading className="font-display text-2xl font-semibold tracking-tight text-plum-900">
