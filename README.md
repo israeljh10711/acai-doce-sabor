@@ -4,7 +4,7 @@ Plataforma de pedidos online da açaiteria Açaí Doce Sabor, de Teixeira, Para�
 
 ## Estado atual
 
-Em 2026-11-11 o projeto concluiu a Fase 1, a fundação: base técnica, navegação e páginas iniciais. O personalizador, a visualização 3D, o carrinho, os pedidos e o painel ainda não existem. Cada um entra em uma fase própria, descrita no roadmap da documentação.
+Em 2026-11-11 o projeto tem a fundação técnica (Fase 1) e a identidade visual com a logo oficial, a página inicial e a área Monte seu Pedido (Fase 2, aguardando a aprovação visual do proprietário). O personalizador, a visualização 3D, o carrinho, os pedidos e o painel ainda não existem. Cada um entra em uma fase própria, descrita no roadmap da documentação.
 
 ## Como rodar
 
@@ -27,15 +27,26 @@ O endereço local aparece no terminal. Por padrão é `http://localhost:5173`.
 | `npm run lint` | Verifica o código com o ESLint |
 | `npm run test` | Roda os testes uma vez |
 | `npm run test:watch` | Roda os testes de novo a cada alteração |
+| `npm run check:pages` | Abre cada página em seis larguras de tela, confere e fotografa |
+| `npm run check:contrast` | Mede o contraste de todos os textos contra o nível AA |
+
+Os dois comandos `check:` precisam do site rodando (`npm run dev`) e do Microsoft Edge instalado. Para conferir outro endereço, passe-o no fim: `npm run check:pages -- http://127.0.0.1:4173`.
 
 ## Estrutura
 
 ```
-assets/blender/        arquivos .blend editáveis
+assets/
+  blender/             arquivos .blend editáveis
+  brand/               logo original, cópia recortada e o script que gera os arquivos do site
 docs/                  documentação que acompanha o código
-public/models/         modelos GLB exportados do Blender
+public/                ícones do site
+  models/              modelos GLB exportados do Blender
 src/
-  components/          componentes reutilizáveis de interface
+  assets/brand/        versões da logo usadas nas páginas
+  components/
+    brand/             a logo
+    layout/            cabeçalho, rodapé e largura do conteúdo
+    ui/                botões
   pages/               páginas ligadas às rotas
   features/
     catalog/                 cardápio e regras de preço e de adicionais
@@ -51,7 +62,8 @@ src/
   types/
   utils/               moeda, telefone e formatação
 supabase/migrations/   SQL versionado do banco
-tests/                 testes de integração e de ponta a ponta
+tests/
+  browser/             conferências feitas em navegador de verdade
 ```
 
 As pastas que ainda estão vazias guardam um arquivo `.gitkeep`, só para existirem no repositório.
@@ -67,8 +79,10 @@ Tudo que começa com `VITE_` fica visível no navegador. Só valores públicos e
 - Nomes de código em inglês; textos de interface em português do Brasil.
 - Preços circulam em centavos, como números inteiros.
 - Regras de negócio ficam em funções puras, com testes ao lado do arquivo (`*.test.ts`).
-- O cardápio original da loja é a fonte de verdade. Sabores, tamanhos e preços não são inventados.
-- As cores em `src/index.css` e o ícone em `public/favicon.svg` são provisórios, até a logo oficial chegar.
+- O cardápio confirmado pelo proprietário é a fonte de verdade. Sabores, tamanhos e preços não são inventados.
+- As cores vêm da logo oficial e ficam em `src/index.css`. Use sempre os nomes de lá (`plum`, `berry`, `leaf`, `cream`), nunca um código de cor solto.
+- Os arquivos da logo em `src/assets/brand/` e em `public/` são gerados por `assets/brand/gerar-logo.mjs`. Não edite à mão.
+- Todo link ou botão tem pelo menos 44 px de altura e mostra o foco do teclado.
 
 ## Documentação
 

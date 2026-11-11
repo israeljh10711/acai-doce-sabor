@@ -8,6 +8,7 @@ export const storeInfo = {
   name: 'Açaí Doce Sabor',
   whatsapp: '(83) 99699-9980',
   instagramHandle: 'acaidocesabor',
+  instagramUrl: 'https://www.instagram.com/acaidocesabor/',
   address: {
     street: 'Rua Francisco Tota, 12',
     city: 'Teixeira',

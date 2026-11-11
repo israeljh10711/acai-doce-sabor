@@ -1,32 +1,43 @@
 import { Link, NavLink } from 'react-router'
 import { paths } from '../../paths.ts'
 import { storeInfo } from '../../services/storeInfo.ts'
+import { Logo } from '../brand/Logo.tsx'
+import { Container } from './Container.tsx'
 
 const focusRing =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
 
-const navLinkClass = `inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-medium text-white/85 transition-colors hover:text-white aria-[current=page]:bg-white/15 aria-[current=page]:text-white sm:px-3 ${focusRing}`
-
 export function SiteHeader() {
   return (
-    <header className="bg-brand-900 text-white">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-2 px-4 py-2 sm:gap-x-4 sm:px-6">
+    <header className="bg-plum-700 text-white">
+      <Container className="flex items-center justify-between gap-3 py-2.5">
         <Link
           to={paths.home}
-          className={`inline-flex min-h-11 items-center rounded-lg text-base font-bold tracking-tight sm:text-lg ${focusRing}`}
+          className={`-ml-1.5 inline-flex min-h-12 items-center gap-1.5 rounded-full pr-2 ${focusRing}`}
         >
-          {storeInfo.name}
+          <Logo version="symbolOnBrand" sizes="48px" className="size-12" decorative />
+          {/* Em telas muito estreitas o nome sai da vista, mas continua lido por leitores de tela. */}
+          <span className="font-display text-lg font-semibold tracking-tight max-[359px]:sr-only">
+            {storeInfo.name}
+          </span>
         </Link>
 
-        <nav aria-label="Navegação principal" className="flex items-center gap-1">
-          <NavLink to={paths.home} end className={navLinkClass}>
-            Início
+        <nav aria-label="Navegação principal" className="flex items-center gap-2">
+          <NavLink
+            to={paths.home}
+            end
+            className={`hidden min-h-11 items-center px-3 text-sm font-medium text-white/85 hover:text-white aria-[current=page]:text-white sm:inline-flex ${focusRing}`}
+          >
+            <span className="link-draw">Início</span>
           </NavLink>
-          <NavLink to={paths.buildOrder} className={navLinkClass}>
-            Monte seu Pedido
+          <NavLink
+            to={paths.buildOrder}
+            className={`inline-flex min-h-11 items-center rounded-full bg-cream-50 px-4 text-sm font-semibold text-plum-900 transition duration-200 hover:-translate-y-0.5 hover:bg-white active:translate-y-0 active:scale-[0.98] ${focusRing}`}
+          >
+            Montar pedido
           </NavLink>
         </nav>
-      </div>
+      </Container>
     </header>
   )
 }

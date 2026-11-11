@@ -1,28 +1,65 @@
 @import 'tailwindcss';
 
 /*
- * CORES PROVISÓRIAS.
- * Aproximadas das imagens de referência, só para a base do projeto ter forma.
- * A paleta final é definida na Fase 2, a partir da logo oficial.
+ * Identidade visual do Açaí Doce Sabor.
+ *
+ * As cores vêm da logo oficial, medidas no arquivo recebido em 2026-11-11:
+ * roxo do fundo #69054f, magenta da tigela #9e297e e verde das folhas #21961d.
+ * Os tons de creme são o fundo neutro escolhido para acompanhar a marca.
  */
 @theme {
-  --color-brand-950: #26062e;
-  --color-brand-900: #3b0a45;
-  --color-brand-700: #5c1a6b;
-  --color-brand-100: #f1e3f5;
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
 
-  --color-accent-600: #b0127f;
-  --color-accent-700: #8f0e67;
+  /* Roxo da marca: 700 é a cor exata do fundo da logo. */
+  --color-plum-950: #2b0a22;
+  --color-plum-900: #40032f;
+  --color-plum-800: #55043f;
+  --color-plum-700: #69054f;
 
-  --color-leaf-600: #3f8f3a;
+  /* Magenta da tigela: cor das ações em fundo claro. */
+  --color-berry-600: #9e297e;
+  --color-berry-700: #84206a;
 
-  --color-cream-50: #fdf6ea;
-  --color-cream-100: #f8ead2;
+  /* Verde das folhas: detalhes. O 700 é para texto em fundo claro. */
+  --color-leaf-500: #21961d;
+  --color-leaf-700: #1a7417;
+
+  --color-cream-50: #fdf8f0;
+  --color-cream-100: #f7eddd;
+  --color-cream-200: #ecdcc3;
+
+  --animate-rise: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 body {
   background-color: var(--color-cream-50);
-  color: var(--color-brand-950);
+  color: var(--color-plum-950);
+}
+
+/* Sublinhado que se desenha ao passar o ponteiro ou ao receber foco. */
+@utility link-draw {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 1.5px;
+  transition: background-size 0.25s ease;
+
+  &:hover,
+  &:focus-visible {
+    background-size: 100% 1.5px;
+  }
 }
 
 /* Respeita quem configurou o aparelho para reduzir movimento. */

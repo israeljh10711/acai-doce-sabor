@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useRouteError } from 'react-router'
+import { Container } from '../components/layout/Container.tsx'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
 
@@ -16,21 +17,23 @@ export function ErrorPage() {
   }, [error])
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-12 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight text-brand-900 sm:text-4xl">
-        Não foi possível abrir esta página
-      </h1>
-      <p className="mt-3 max-w-prose text-lg text-brand-950/80">
-        Aconteceu um erro inesperado. Volte ao início para tentar de novo.
-      </p>
+    <main>
+      <Container className="py-12 sm:py-16">
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-plum-900 sm:text-5xl">
+          Não foi possível abrir esta página
+        </h1>
+        <p className="mt-3 max-w-prose text-lg text-plum-950/75">
+          Aconteceu um erro inesperado. Volte ao início para tentar de novo.
+        </p>
 
-      {/* Link comum, de propósito: recarrega o site inteiro e limpa o estado com erro. */}
-      <a
-        href={paths.home}
-        className="mt-6 inline-flex min-h-11 items-center font-semibold text-accent-700 underline underline-offset-4 hover:text-accent-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600"
-      >
-        Voltar ao início
-      </a>
+        {/* Link comum, de propósito: recarrega o site inteiro e limpa o estado com erro. */}
+        <a
+          href={paths.home}
+          className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-berry-600 px-6 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-berry-700 active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600"
+        >
+          Voltar ao início
+        </a>
+      </Container>
     </main>
   )
 }
