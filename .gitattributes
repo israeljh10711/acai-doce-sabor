@@ -1,0 +1,11 @@
+# Texto sempre com fim de linha LF no repositório, em qualquer sistema.
+* text=auto eol=lf
+
+# Arquivos binários: o Git não tenta converter nem comparar como texto.
+*.glb binary
+*.blend binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.webp binary
+*.ico binary

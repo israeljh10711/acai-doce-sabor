@@ -1,0 +1,38 @@
+@import 'tailwindcss';
+
+/*
+ * CORES PROVISÓRIAS.
+ * Aproximadas das imagens de referência, só para a base do projeto ter forma.
+ * A paleta final é definida na Fase 2, a partir da logo oficial.
+ */
+@theme {
+  --color-brand-950: #26062e;
+  --color-brand-900: #3b0a45;
+  --color-brand-700: #5c1a6b;
+  --color-brand-100: #f1e3f5;
+
+  --color-accent-600: #b0127f;
+  --color-accent-700: #8f0e67;
+
+  --color-leaf-600: #3f8f3a;
+
+  --color-cream-50: #fdf6ea;
+  --color-cream-100: #f8ead2;
+}
+
+body {
+  background-color: var(--color-cream-50);
+  color: var(--color-brand-950);
+}
+
+/* Respeita quem configurou o aparelho para reduzir movimento. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
