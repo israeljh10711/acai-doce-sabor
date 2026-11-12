@@ -15,7 +15,7 @@ export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
  * @param {string} profileDir pasta de perfil descartável do navegador
  * @param {number} port porta de depuração
  */
-export async function openBrowser(profileDir, port = 9333) {
+export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
   mkdirSync(profileDir, { recursive: true })
 
   const browser = spawn(
@@ -28,6 +28,7 @@ export async function openBrowser(profileDir, port = 9333) {
       '--disable-extensions',
       `--user-data-dir=${profileDir}`,
       `--remote-debugging-port=${port}`,
+      ...extraArgs,
       'about:blank',
     ],
     { stdio: 'ignore' },
@@ -122,9 +123,22 @@ export async function openBrowser(profileDir, port = 9333) {
     await sleep(1200)
   }
 
-  /** Erros e avisos do console desde a última navegação. */
+  /**
+   * Erros e avisos do console desde a última navegação.
+   * Fica de fora um único aviso conhecido: o compilador de sombreadores do Direct3D, usado pelo
+   * Edge sem janela deste computador, avisa sobre precisão numérica ("warning X4122") na
+   * primeira compilação. Não é erro do site e não aparece em celulares.
+   */
+  const isKnownDriverNotice = (event) => {
+    if (event.method !== 'Runtime.consoleAPICalled' || event.params.type !== 'warning') return false
+    // o three manda o título e o texto do aviso em partes separadas
+    const text = event.params.args.map((arg) => String(arg.value ?? arg.description ?? '')).join(' ')
+    return text.includes('Program Info Log') && /warning X\d+/.test(text) && !/\berror\b/i.test(text)
+  }
+
   const consoleProblems = () =>
     events
+      .filter((event) => !isKnownDriverNotice(event))
       .filter(
         (event) =>
           event.method === 'Runtime.exceptionThrown' ||
