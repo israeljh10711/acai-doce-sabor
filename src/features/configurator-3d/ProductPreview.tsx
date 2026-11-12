@@ -1,7 +1,8 @@
 import { Suspense, lazy, useMemo } from 'react'
-import { ProductIllustration } from '../catalog/illustration/ProductIllustration.tsx'
 import type { CategorySlug } from '../catalog/categories.ts'
+import { IngredientPreview } from './IngredientPreview.tsx'
 import { layoutScene } from './layout.ts'
+import { PreviewSkeleton } from './PreviewSkeleton.tsx'
 import { SceneErrorBoundary } from './SceneErrorBoundary.tsx'
 import type { PreviewMode } from './usePreview3D.ts'
 
@@ -25,8 +26,9 @@ type ProductPreviewProps = {
 }
 
 /**
- * Prévia do produto: a ilustração 2D aparece na hora e dá lugar ao 3D quando ele fica pronto.
- * Sem WebGL, ou se o 3D falhar, a ilustração 2D continua.
+ * Prévia do produto: enquanto o 3D carrega, uma área neutra com brilho (nunca um desenho do
+ * produto); depois, o 3D. Sem WebGL, ou se o 3D falhar, as miniaturas realistas dos ingredientes
+ * escolhidos.
  */
 export function ProductPreview({
   slug,
@@ -45,21 +47,12 @@ export function ProductPreview({
     () => layoutScene({ slug, sizeId, flavorId, toppings }),
     [slug, sizeId, flavorId, toppings],
   )
-  const illustration = (
-    <ProductIllustration
-      slug={slug}
-      sizeId={sizeId}
-      flavorId={flavorId}
-      toppings={toppings}
-      title={title}
-      decorative
-      className="absolute inset-0 size-full"
-    />
-  )
-
   return (
     <div role="img" aria-label={title} data-preview={mode} className={`relative ${className}`}>
-      {mode !== '3d' && illustration}
+      {mode === 'loading' && <PreviewSkeleton />}
+      {mode === 'unavailable' && (
+        <IngredientPreview slug={slug} sizeId={sizeId} flavorId={flavorId} toppings={toppings} />
+      )}
       {mode !== 'unavailable' && (
         <SceneErrorBoundary fallback={null} onError={onError}>
           <Suspense fallback={null}>

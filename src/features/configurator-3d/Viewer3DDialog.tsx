@@ -79,7 +79,7 @@ export function Viewer3DDialog({ product, selection, title, open, onClose }: Vie
             <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-acai-800">
               {preview.mode !== 'unavailable' && <Rotate className="size-4" />}
               {preview.mode === 'unavailable'
-                ? 'A visualização 3D não está disponível neste aparelho. Mostramos a prévia ilustrada.'
+                ? 'A visualização 3D não está disponível neste aparelho. Mostramos os ingredientes escolhidos.'
                 : 'Arraste para girar.'}
             </p>
             <p className="mt-1 text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>

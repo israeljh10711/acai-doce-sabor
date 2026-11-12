@@ -40,7 +40,7 @@ const helpers = `
     window.__scene(root)?.traverse((o) => { if (o.name === 'topping:' + id) count = o.userData.pieces ?? o.children.length });
     return count;
   };
-  window.__toppings2d = () => [...document.querySelectorAll('[aria-label="Prévia do pedido"] svg [data-topping]')].map((g) => g.dataset.topping).sort();
+  window.__toppings2d = () => [...document.querySelectorAll('[aria-label="Prévia do pedido"] [data-topping]')].map((g) => g.dataset.topping).sort();
   window.__expectedPieces = async (input, id) => {
     const { layoutScene } = await import('/src/features/configurator-3d/layout.ts');
     return layoutScene(input).toppings.find((t) => t.toppingId === id)?.pieces.length ?? -1;
@@ -97,6 +97,7 @@ await session('principal', 9337, [], async ({ browser, page, click }) => {
     await eventually(browser, `${at} a prévia passa a ser 3D`, `__mode()`, '3d')
     check(`${at} antes do tamanho, "Adicionar Granola" desabilitado`, await browser.evaluate(`__blocked('Adicionar Granola')`), true)
     check(`${at} antes do tamanho, Banana desabilitada`, await browser.evaluate(`__blocked('Banana')`), true)
+    check(`${at} nenhuma prévia em desenho (só o 3D ou a área de espera)`, await browser.evaluate(`document.querySelector('[aria-label="Prévia do pedido"] svg [data-topping]') === null`), true)
     await eventually(browser, `${at} 3D antes do tamanho: só o recipiente, vazio`, `__names('container:').concat(__names('base:'))`, ['container-pote-150'])
     check(`${at} dica de girar só no computador`, await browser.evaluate(`__text().includes('Arraste a imagem para girar.')`), desktop)
     check(`${at} botão "Ver em 3D" só no celular`, await browser.evaluate(`!!__button('Ver em 3D') && __button('Ver em 3D').offsetParent !== null`), !desktop)
@@ -193,16 +194,16 @@ await session('principal', 9337, [], async ({ browser, page, click }) => {
   check('movimento reduzido: total R$ 15,00', await browser.evaluate(`__q('#resumo').innerText.includes('R$ 15,00')`), true)
 })
 
-// Aparelho sem WebGL: fica a prévia ilustrada, com o aviso, e sem o botão "Ver em 3D".
+// Aparelho sem WebGL: ficam as miniaturas dos ingredientes escolhidos, com o aviso, e sem o botão "Ver em 3D".
 await session('sem-webgl', 9338, ['--disable-webgl', '--disable-3d-apis'], async ({ browser, page, click }) => {
   await page('/monte-seu-pedido/acai-tradicional', { width: 390, height: 844 })
   check('sem WebGL: prévia ilustrada', await browser.evaluate(`__mode()`), 'unavailable')
-  check('sem WebGL: aviso visível', await browser.evaluate(`__text().includes('A visualização 3D não está disponível neste aparelho. Mostramos a prévia ilustrada.')`), true)
+  check('sem WebGL: aviso visível', await browser.evaluate(`__text().includes('A visualização 3D não está disponível neste aparelho. Mostramos os ingredientes escolhidos.')`), true)
   check('sem WebGL: sem "Ver em 3D"', await browser.evaluate(`!__button('Ver em 3D')`), true)
   await click(`__radio('copo-500')`)
   await click(`__button('Adicionar Granola')`)
   await click(`__button('Banana')`)
-  check('sem WebGL: a ilustração mostra só o escolhido', await browser.evaluate(`__toppings2d()`), ['banana', 'granola'])
+  check('sem WebGL: as miniaturas mostram só o escolhido', await browser.evaluate(`__toppings2d()`), ['banana', 'granola'])
   writeFileSync(join(outDir, 'sem-webgl-390.png'), await browser.screenshot())
 })
 

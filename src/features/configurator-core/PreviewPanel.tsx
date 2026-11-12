@@ -12,7 +12,7 @@ import { previewTitle } from './messages.ts'
 import type { ConfiguratorApi } from './useConfigurator.ts'
 
 const UNAVAILABLE_TEXT =
-  'A visualização 3D não está disponível neste aparelho. Mostramos a prévia ilustrada.'
+  'A visualização 3D não está disponível neste aparelho. Mostramos os ingredientes escolhidos.'
 
 const pill =
   'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
