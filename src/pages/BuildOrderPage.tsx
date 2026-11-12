@@ -17,7 +17,7 @@ export function BuildOrderPage() {
         Escolha por onde começar. No açaí, as frutas e as caldas entram à parte dos adicionais.
       </p>
 
-      <CategoryCards headingLevel="h2" className="mt-8" />
+      <CategoryCards headingLevel="h2" priority className="mt-8" />
     </Container>
   )
 }

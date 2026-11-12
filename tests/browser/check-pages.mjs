@@ -76,6 +76,21 @@ try {
     for (const route of routes) {
       const expectedTitle = route.title ?? `${route.h1} | ${STORE}`
       await browser.goto(baseUrl + route.path, viewport)
+      // Imagens com carregamento preguiçoso só baixam perto da tela: rola a página inteira,
+      // espera cada imagem terminar (ou falhar) e volta ao topo antes de conferir.
+      await browser.evaluate(`(async () => {
+        for (let y = 0; y < document.documentElement.scrollHeight; y += innerHeight / 2) {
+          scrollTo(0, y)
+          await new Promise((resolve) => setTimeout(resolve, 60))
+        }
+        await Promise.all([...document.images].map((img) => img.complete ? null : new Promise((resolve) => {
+          img.addEventListener('load', resolve, { once: true })
+          img.addEventListener('error', resolve, { once: true })
+          setTimeout(resolve, 5000)
+        })))
+        scrollTo(0, 0)
+        return true
+      })()`)
       const info = JSON.parse(await browser.evaluate(inspect))
       const consoleProblems = browser.consoleProblems()
 
