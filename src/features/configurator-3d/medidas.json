@@ -3,7 +3,8 @@
   "observacao": "Medidas típicas de mercado, em metros. São aproximações até o proprietário informar as medidas reais dos recipientes. Lidas pelo script do Blender (assets/blender/scripts/recipientes.py) e pelo site.",
   "monte": {
     "acai": 0.55,
-    "shake": 0.3
+    "shake": 0.3,
+    "expoente": 2.6
   },
   "acai": {
     "pote-150": { "tipo": "pote", "raioBoca": 0.039, "raioFundo": 0.030, "altura": 0.043, "parede": 0.0010 },

@@ -37,3 +37,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Python: cache dos scripts do Blender
+__pycache__/
