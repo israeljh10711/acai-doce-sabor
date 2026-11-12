@@ -10,7 +10,7 @@ import { paths } from '../paths.ts'
  */
 export function ErrorPage() {
   const error = useRouteError()
-  usePageTitle('Não foi possível abrir a página')
+  usePageTitle('Não foi possível abrir a página', { noindex: true })
 
   useEffect(() => {
     console.error(error)

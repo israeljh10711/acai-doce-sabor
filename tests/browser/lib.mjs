@@ -95,13 +95,22 @@ export async function openBrowser(profileDir, port = 9333) {
   await send('Runtime.enable')
   await send('Log.enable')
 
-  /** Abre um endereço em um tamanho de tela e espera as fontes e a animação de entrada. */
-  const goto = async (url, { width, height, dpr = 1, mobile = width < 900 }) => {
+  /**
+   * Abre um endereço em um tamanho de tela e espera as fontes e a animação de entrada.
+   * O Edge sem janela se apresenta com "reduzir movimento" ligado; por padrão a
+   * conferência simula um aparelho comum. `reducedMotion: true` simula o contrário.
+   */
+  const goto = async (url, { width, height, dpr = 1, mobile = width < 900, reducedMotion = false }) => {
     await send('Emulation.setDeviceMetricsOverride', {
       width,
       height,
       deviceScaleFactor: dpr,
       mobile,
+    })
+    await send('Emulation.setEmulatedMedia', {
+      features: [
+        { name: 'prefers-reduced-motion', value: reducedMotion ? 'reduce' : 'no-preference' },
+      ],
     })
     events.length = 0
     await send('Page.navigate', { url })

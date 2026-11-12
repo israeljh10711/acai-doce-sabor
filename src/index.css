@@ -65,6 +65,74 @@ body {
   }
 }
 
+/*
+ * Grade do personalizador.
+ * Celular: uma coluna, com a prévia fixa no topo. O pai é flex, e não grade, para a
+ * prévia poder ficar fixa durante toda a rolagem (numa grade ela ficaria presa à
+ * própria linha).
+ * 1024 px: prévia à esquerda; passos à direita.
+ * 1280 px: tamanho | prévia | ingredientes e resumo, como nas referências do proprietário.
+ */
+.configurator-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.configurator-grid > .cfg-preview {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin-inline: -1rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--color-cream-50);
+  border-bottom: 1px solid var(--color-cream-200);
+}
+
+@media (width >= 40rem) {
+  .configurator-grid > .cfg-preview {
+    margin-inline: -1.5rem;
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (width >= 64rem) {
+  .configurator-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas:
+      'preview base'
+      'preview extras';
+    align-items: start;
+    column-gap: 3rem;
+  }
+
+  .configurator-grid > .cfg-preview {
+    grid-area: preview;
+    top: 1.5rem;
+    margin-inline: 0;
+    padding: 0;
+    background-color: transparent;
+    border-bottom: 0;
+  }
+
+  .configurator-grid > .cfg-base {
+    grid-area: base;
+  }
+
+  .configurator-grid > .cfg-extras {
+    grid-area: extras;
+  }
+}
+
+@media (width >= 80rem) {
+  .configurator-grid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 4.6fr) minmax(0, 4.6fr);
+    grid-template-areas: 'base preview extras';
+    column-gap: 2.5rem;
+  }
+}
+
 /* Respeita quem configurou o aparelho para reduzir movimento. */
 @media (prefers-reduced-motion: reduce) {
   *,

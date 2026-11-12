@@ -27,7 +27,12 @@ const viewports = [
 
 // Ao mudar o título de uma página, atualize aqui também.
 const routes = [
-  { name: 'inicio', path: '/', h1: 'Açaí montado do seu jeito.', title: STORE },
+  {
+    name: 'inicio',
+    path: '/',
+    h1: 'Açaí montado do seu jeito.',
+    title: `${STORE} | Açaí e milk-shake em Teixeira, PB`,
+  },
   { name: 'monte-seu-pedido', path: '/monte-seu-pedido', h1: 'Monte seu Pedido' },
   { name: 'acai-oca', path: '/monte-seu-pedido/acai-oca', h1: 'Açaí Oca' },
   { name: 'acai-tradicional', path: '/monte-seu-pedido/acai-tradicional', h1: 'Açaí Tradicional' },
@@ -42,6 +47,8 @@ const fonts = ['Fraunces Variable', 'Figtree Variable']
 const inspect = `JSON.stringify({
   title: document.title,
   titleElements: document.querySelectorAll('title').length,
+  description: document.querySelector('meta[name="description"]')?.content ?? '',
+  noindex: document.querySelector('meta[name="robots"]')?.content === 'noindex',
   h1: document.querySelector('h1')?.textContent ?? null,
   lang: document.documentElement.lang,
   scrollWidth: document.documentElement.scrollWidth,
@@ -77,6 +84,10 @@ try {
       if (info.title !== expectedTitle)
         failures.push(`título "${info.title}" (esperado "${expectedTitle}")`)
       if (info.titleElements !== 1) failures.push(`${info.titleElements} elementos <title>`)
+      if (info.description.length < 50) failures.push(`descrição curta ou ausente: "${info.description}"`)
+      const expectNoindex = route.h1 === 'Página não encontrada'
+      if (info.noindex !== expectNoindex)
+        failures.push(expectNoindex ? 'falta noindex' : 'noindex em página que deve aparecer na busca')
       if (info.lang !== 'pt-BR') failures.push(`lang "${info.lang}"`)
       if (info.scrollWidth > info.clientWidth)
         failures.push(`rolagem horizontal: conteúdo ${info.scrollWidth}px em tela de ${info.clientWidth}px`)

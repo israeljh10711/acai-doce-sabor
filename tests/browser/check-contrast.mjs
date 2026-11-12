@@ -66,6 +66,7 @@ const measure = `(() => {
   }
 
   const results = []
+  let skippedDisabled = 0
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
   const seen = new Set()
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -77,6 +78,11 @@ const measure = `(() => {
     const style = getComputedStyle(element)
     const box = element.getBoundingClientRect()
     if (style.visibility === 'hidden' || style.display === 'none') continue
+    // A WCAG dispensa de contraste os controles inativos (desabilitados).
+    if (element.closest('button:disabled, input:disabled, fieldset:disabled')) {
+      skippedDisabled++
+      continue
+    }
     if (box.width <= 1 || box.height <= 1) continue // texto só para leitor de tela
 
     let opacity = 1
@@ -96,7 +102,7 @@ const measure = `(() => {
       size: Math.round(size),
     })
   }
-  return JSON.stringify(results)
+  return JSON.stringify({ results, skippedDisabled })
 })()`
 
 const browser = await openBrowser(
@@ -105,13 +111,15 @@ const browser = await openBrowser(
 )
 let failures = 0
 let measured = 0
+let skipped = 0
 let lowest = { ratio: Infinity }
 
 try {
   for (const viewport of viewports) {
     for (const route of routes) {
       await browser.goto(baseUrl + route, viewport)
-      const items = JSON.parse(await browser.evaluate(measure))
+      const { results: items, skippedDisabled } = JSON.parse(await browser.evaluate(measure))
+      skipped += skippedDisabled
       const bad = items.filter((item) => item.ratio < item.needed)
       const min = items.reduce((a, b) => (b.ratio < a.ratio ? b : a))
 
@@ -134,7 +142,9 @@ try {
   browser.close()
 }
 
-console.log(`TOTAL: ${measured} textos medidos, ${failures} abaixo do AA`)
+console.log(
+  `TOTAL: ${measured} textos medidos, ${failures} abaixo do AA (${skipped} em controles desabilitados, dispensados pela WCAG)`,
+)
 if (measured) {
   console.log(
     `MENOR CONTRASTE: ${lowest.ratio}:1 em "${lowest.text}" (${lowest.route}, ${lowest.width}px)`,

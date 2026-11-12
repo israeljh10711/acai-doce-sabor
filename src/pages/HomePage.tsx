@@ -73,8 +73,9 @@ export function HomePage() {
           role="note"
           className="rounded-xl border border-cream-200 bg-white px-4 py-3 text-sm text-plum-950/80"
         >
-          Site em construção: o pedido online ainda não está disponível. Por enquanto, os pedidos
-          são feitos pelo WhatsApp da loja.
+          Site em construção: você já pode montar seu açaí ou milk-shake e ver o preço, mas o envio
+          do pedido pelo site ainda não está disponível. Por enquanto, os pedidos são feitos pelo
+          WhatsApp da loja.
         </p>
       </Container>
 

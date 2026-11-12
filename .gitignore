@@ -18,6 +18,9 @@ coverage
 .env.*
 !.env.example
 
+# Supabase CLI: cache local
+supabase/.temp/
+
 # Blender: cópias de segurança automáticas e arquivos de teste da integração
 *.blend1
 *.blend2

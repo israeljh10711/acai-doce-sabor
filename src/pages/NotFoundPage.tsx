@@ -4,7 +4,7 @@ import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
 
 export function NotFoundPage() {
-  usePageTitle('Página não encontrada')
+  usePageTitle('Página não encontrada', { noindex: true })
 
   return (
     <Container className="py-10 sm:py-16">

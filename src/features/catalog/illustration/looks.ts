@@ -15,7 +15,7 @@ export type ContainerShape = {
   height: number
 }
 
-const AÇAI_SHAPES: Record<string, ContainerShape> = {
+const ACAI_SHAPES: Record<string, ContainerShape> = {
   'pote-150': { kind: 'pote', top: 40, bottom: 33, height: 46 },
   'pote-200': { kind: 'pote', top: 44, bottom: 36, height: 52 },
   'pote-250': { kind: 'pote', top: 47, bottom: 38, height: 58 },
@@ -34,16 +34,18 @@ const SHAKE_SHAPES: Record<string, ContainerShape> = {
 }
 
 export function shapeFor(slug: CategorySlug, sizeId: string): ContainerShape | undefined {
-  return (slug === 'milk-shake' ? SHAKE_SHAPES : AÇAI_SHAPES)[sizeId]
+  const shapes = slug === 'milk-shake' ? SHAKE_SHAPES : ACAI_SHAPES
+  return Object.hasOwn(shapes, sizeId) ? shapes[sizeId] : undefined
 }
 
-/** Cor do açaí: o corpo, mais escuro, e o topo. */
-export const ACAI_COLORS = { body: '#3a0f3f', top: '#4b1552', shine: '#6d2c77' }
+/** Cores da base: o corpo, o topo e o brilho. */
+export type BaseColors = { body: string; top: string; shine: string }
+
+/** Cor do açaí. */
+export const ACAI_COLORS: BaseColors = { body: '#3a0f3f', top: '#4b1552', shine: '#6d2c77' }
 
 /** Cor do milk-shake antes de o sabor ser escolhido. */
-export const SHAKE_NEUTRAL = { body: '#eadfce', top: '#f3eadc', shine: '#fffaf1' }
-
-type BaseColors = typeof ACAI_COLORS
+export const SHAKE_NEUTRAL: BaseColors = { body: '#eadfce', top: '#f3eadc', shine: '#fffaf1' }
 
 /** Cor do milk-shake por sabor. */
 export const FLAVOR_COLORS: Record<string, BaseColors> = {
@@ -77,15 +79,15 @@ export type ToppingLook =
 
 export const TOPPING_LOOKS: Record<string, ToppingLook> = {
   'leite-em-po': { kind: 'powder', color: '#fbf6e8', speck: '#ece2c8', from: 0.16, to: 0.58 },
-  'farinha-lactea': { kind: 'powder', color: '#f0deA6', speck: '#dcc47e', from: 0.44, to: 0.86 },
-  granola: { kind: 'bits', shape: 'chip', colors: ['#c99657', '#a9733a', '#dcb47a'], size: 3.6 },
-  biscoito: { kind: 'bits', shape: 'square', colors: ['#e3c491', '#d2ae74'], size: 4.6 },
-  pacoca: { kind: 'bits', shape: 'square', colors: ['#d8b07a', '#c79b62'], size: 3.6 },
-  chocoball: { kind: 'bits', shape: 'round', colors: ['#4a2816', '#5c3421'], size: 3.6 },
-  amendoim: { kind: 'bits', shape: 'flake', colors: ['#dcbd8c', '#cfa970'], size: 3.8 },
-  'gotas-de-chocolate': { kind: 'bits', shape: 'drop', colors: ['#3a1f12', '#4c2b19'], size: 2.6 },
-  sucrilhos: { kind: 'bits', shape: 'flake', colors: ['#eba63c', '#f1bb58', '#dd922a'], size: 4.4 },
-  marshmallow: { kind: 'bits', shape: 'pillow', colors: ['#ffffff', '#fbd3e0'], size: 4.6 },
+  'farinha-lactea': { kind: 'powder', color: '#f0dea6', speck: '#dcc47e', from: 0.44, to: 0.86 },
+  granola: { kind: 'bits', shape: 'chip', colors: ['#e2b06a', '#c98f4c', '#efc98f'], size: 5.8 },
+  biscoito: { kind: 'bits', shape: 'square', colors: ['#e3c491', '#d2ae74'], size: 6.6 },
+  pacoca: { kind: 'bits', shape: 'square', colors: ['#d8b07a', '#c79b62'], size: 5.6 },
+  chocoball: { kind: 'bits', shape: 'round', colors: ['#4a2816', '#5c3421'], size: 5.4 },
+  amendoim: { kind: 'bits', shape: 'flake', colors: ['#dcbd8c', '#cfa970'], size: 5.6 },
+  'gotas-de-chocolate': { kind: 'bits', shape: 'drop', colors: ['#3a1f12', '#4c2b19'], size: 3.8 },
+  sucrilhos: { kind: 'bits', shape: 'flake', colors: ['#eba63c', '#f1bb58', '#dd922a'], size: 6.4 },
+  marshmallow: { kind: 'bits', shape: 'pillow', colors: ['#ffffff', '#fbd3e0'], size: 6.4 },
   canudinho: { kind: 'stick' },
   bis: { kind: 'bar', color: '#5b3520', shine: '#7b4b30', width: 8, length: 22 },
 
@@ -95,7 +97,7 @@ export const TOPPING_LOOKS: Record<string, ToppingLook> = {
 
   'calda-leite-condensado': { kind: 'drizzle', color: '#fff6dc' },
   'calda-morango': { kind: 'drizzle', color: '#e0364a' },
-  'calda-chocolate': { kind: 'drizzle', color: '#4f2915' },
+  'calda-chocolate': { kind: 'drizzle', color: '#6e3d1f' },
   'calda-banana-caramelizada': { kind: 'drizzle', color: '#dfa233' },
   'calda-acai': { kind: 'drizzle', color: '#8a3a9a' },
   'calda-doce-de-leite': { kind: 'drizzle', color: '#bb7733' },

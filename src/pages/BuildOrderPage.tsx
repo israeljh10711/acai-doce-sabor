@@ -3,7 +3,10 @@ import { CategoryCards } from '../features/catalog/CategoryCards.tsx'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 
 export function BuildOrderPage() {
-  usePageTitle('Monte seu Pedido')
+  usePageTitle('Monte seu Pedido', {
+    description:
+      'Monte seu açaí Oca, açaí Tradicional ou milk-shake do seu jeito e veja o preço na hora. Açaí Doce Sabor, Teixeira, PB.',
+  })
 
   return (
     <Container className="py-10 sm:py-16">
