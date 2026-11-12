@@ -1,3 +1,4 @@
+import { Check, Info } from '../../components/ui/icons.tsx'
 import { FLAVOR_COLORS } from '../catalog/illustration/looks.ts'
 import type { Product } from '../catalog/menu.ts'
 import { FLAVOR_AVAILABILITY_NOTICE } from '../catalog/notices.ts'
@@ -15,9 +16,9 @@ export function FlavorStep({ product, cfg, number }: { product: Product; cfg: Co
 
       <p
         id={noticeId}
-        className="mt-3 flex gap-2.5 rounded-xl border border-leaf-500/40 bg-leaf-100 px-4 py-3 text-sm font-medium text-plum-900"
+        className="mt-4 flex gap-2.5 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400"
       >
-        <span aria-hidden="true" className="mt-1.5 size-2 shrink-0 rounded-full bg-leaf-500" />
+        <Info className="mt-0.5 size-4 text-acai-700" />
         {FLAVOR_AVAILABILITY_NOTICE}
       </p>
 
@@ -25,7 +26,7 @@ export function FlavorStep({ product, cfg, number }: { product: Product; cfg: Co
         {product.flavors.map((flavor) => (
           <label
             key={flavor.id}
-            className="flex min-h-12 cursor-pointer items-center gap-2.5 rounded-xl border border-cream-200 bg-white px-3 py-2 transition duration-200 hover:border-berry-600/60 has-checked:border-berry-600 has-checked:bg-berry-100 has-checked:shadow-[inset_0_0_0_1px_var(--color-berry-600)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-berry-600"
+            className="group relative flex min-h-12 cursor-pointer items-center gap-2.5 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800"
           >
             <input
               type="radio"
@@ -37,10 +38,16 @@ export function FlavorStep({ product, cfg, number }: { product: Product; cfg: Co
             />
             <span
               aria-hidden="true"
-              className="size-5 shrink-0 rounded-full border border-plum-950/15"
+              className="size-6 shrink-0 rounded-full ring-2 ring-white shadow-[0_0_0_1px_rgb(42_8_29/0.18)]"
               style={{ backgroundColor: FLAVOR_COLORS[flavor.id]?.body }}
             />
-            <span className="font-medium text-plum-900">{flavor.name}</span>
+            <span className="font-semibold text-acai-950">{flavor.name}</span>
+            <span
+              aria-hidden="true"
+              className="ml-auto hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 group-has-checked:grid"
+            >
+              <Check className="size-3.5" />
+            </span>
           </label>
         ))}
       </div>

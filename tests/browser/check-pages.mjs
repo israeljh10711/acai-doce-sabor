@@ -41,7 +41,7 @@ const routes = [
   { name: 'endereco-inexistente', path: '/nao-existe', h1: 'Página não encontrada' },
 ]
 
-const fonts = ['Fraunces Variable', 'Figtree Variable']
+const fonts = ['Montserrat Variable', 'Inter Variable']
 
 // Roda dentro da página.
 const inspect = `JSON.stringify({

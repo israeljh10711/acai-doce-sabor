@@ -6,18 +6,21 @@ import { readGlb } from './glb.ts'
 
 const MODELS = join(import.meta.dirname, '..', '..', 'public', 'models')
 
-/** Peças em tamanho real, com a origem embaixo. Maior medida em metros. */
+/**
+ * Peças em tamanho real, com a origem embaixo. Maior medida em metros.
+ * Os adicionais miúdos são montinhos de vários pedaços (cerca de 2 cm), que o site repete pelo setor.
+ */
 const PIECES: Record<string, number> = {
-  granola: 0.015,
-  biscoito: 0.02,
-  pacoca: 0.012,
-  chocoball: 0.01,
-  amendoim: 0.012,
-  'gotas-de-chocolate': 0.008,
+  granola: 0.026,
+  biscoito: 0.026,
+  pacoca: 0.026,
+  chocoball: 0.026,
+  amendoim: 0.026,
+  'gotas-de-chocolate': 0.026,
   canudinho: 0.065,
   bis: 0.03,
-  sucrilhos: 0.02,
-  marshmallow: 0.013,
+  sucrilhos: 0.028,
+  marshmallow: 0.026,
   kiwi: 0.028,
   banana: 0.028,
   morango: 0.03,
@@ -34,7 +37,7 @@ describe.each(Object.entries(PIECES))('peça %s', (name, maxSize) => {
     expect(existsSync(file), file).toBe(true)
     const glb = readGlb(file)
     expect(glb.bytes).toBeLessThan(100 * 1024)
-    expect(glb.triangles).toBeLessThan(3000)
+    expect(glb.triangles).toBeLessThan(4000)
     expect(glb.min[1]).toBeCloseTo(0, 4)
     const extent = Math.max(glb.max[0] - glb.min[0], glb.max[1] - glb.min[1], glb.max[2] - glb.min[2])
     expect(extent).toBeGreaterThan(0.002)
@@ -65,6 +68,6 @@ describe('camadas normalizadas (monte de raio 1)', () => {
     expect(glb.max[0]).toBeLessThan(1)
     // no centro do monte a camada fica acima do topo (altura `acai`)
     expect(glb.max[1]).toBeGreaterThan(acai)
-    expect(glb.max[1]).toBeLessThan(acai + 0.05)
+    expect(glb.max[1]).toBeLessThan(acai + 0.08)
   })
 })

@@ -7,7 +7,7 @@ export function AppLayout() {
     <div className="flex min-h-dvh flex-col">
       <a
         href="#conteudo"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-white focus:px-5 focus:py-3 focus:font-semibold focus:text-plum-900 focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-full focus:bg-white focus:px-5 focus:py-3 focus:font-semibold focus:text-acai-800 focus:shadow-lg"
       >
         Pular para o conteúdo
       </a>

@@ -20,6 +20,7 @@ let checks = 0
 const helpers = `
   window.__q = (selector) => document.querySelector(selector);
   window.__button = (label) => [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? b.textContent.trim()) === label);
+  window.__blocked = (label) => { const b = window.__button(label); return !!b && (b.disabled || b.getAttribute('aria-disabled') === 'true') };
   window.__radio = (value) => document.querySelector('input[type=radio][value="' + value + '"]');
   window.__text = () => document.body.innerText;
   window.__live = () => document.querySelector('[aria-live="polite"]').textContent;
@@ -36,10 +37,14 @@ const helpers = `
   window.__toppings = (root) => window.__names('topping:', root);
   window.__pieces = (id, root) => {
     let count = -1;
-    window.__scene(root)?.traverse((o) => { if (o.name === 'topping:' + id) count = o.children.length });
+    window.__scene(root)?.traverse((o) => { if (o.name === 'topping:' + id) count = o.userData.pieces ?? o.children.length });
     return count;
   };
   window.__toppings2d = () => [...document.querySelectorAll('[aria-label="Prévia do pedido"] svg [data-topping]')].map((g) => g.dataset.topping).sort();
+  window.__expectedPieces = async (input, id) => {
+    const { layoutScene } = await import('/src/features/configurator-3d/layout.ts');
+    return layoutScene(input).toppings.find((t) => t.toppingId === id)?.pieces.length ?? -1;
+  };
   true;
 `
 
@@ -90,17 +95,19 @@ await session('principal', 9337, [], async ({ browser, page, click }) => {
     // --- Açaí Tradicional ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)
     await eventually(browser, `${at} a prévia passa a ser 3D`, `__mode()`, '3d')
-    check(`${at} antes do tamanho, "Adicionar Granola" desabilitado`, await browser.evaluate(`__button('Adicionar Granola').disabled`), true)
-    check(`${at} antes do tamanho, Banana desabilitada`, await browser.evaluate(`__button('Banana').disabled`), true)
+    check(`${at} antes do tamanho, "Adicionar Granola" desabilitado`, await browser.evaluate(`__blocked('Adicionar Granola')`), true)
+    check(`${at} antes do tamanho, Banana desabilitada`, await browser.evaluate(`__blocked('Banana')`), true)
     await eventually(browser, `${at} 3D antes do tamanho: só o recipiente, vazio`, `__names('container:').concat(__names('base:'))`, ['container-pote-150'])
     check(`${at} dica de girar só no computador`, await browser.evaluate(`__text().includes('Arraste a imagem para girar.')`), desktop)
-    check(`${at} botão "Ver em 3D" só no celular`, await browser.evaluate(`!!__button('Ver em 3D ⤢') && __button('Ver em 3D ⤢').offsetParent !== null`), !desktop)
+    check(`${at} botão "Ver em 3D" só no celular`, await browser.evaluate(`!!__button('Ver em 3D') && __button('Ver em 3D').offsetParent !== null`), !desktop)
 
     await click(`__radio('copo-500')`)
     for (let i = 0; i < 3; i++) await click(`__button('Adicionar Granola')`)
     check(`${at} 3 de 3 grátis`, await browser.evaluate(`__text().includes('3 de 3 grátis · limite atingido')`), true)
-    check(`${at} com o limite cheio, "Adicionar Paçoca" desabilitado`, await browser.evaluate(`__button('Adicionar Paçoca').disabled`), true)
-    check(`${at} com o limite cheio, "Adicionar Kit Kat" habilitado`, await browser.evaluate(`__button('Adicionar Kit Kat').disabled`), false)
+    check(`${at} com o limite cheio, "Adicionar Paçoca" desabilitado`, await browser.evaluate(`__blocked('Adicionar Paçoca')`), true)
+    check(`${at} com o limite cheio, "Adicionar Kit Kat" habilitado`, await browser.evaluate(`__blocked('Adicionar Kit Kat')`), false)
+    await click(`__button('Adicionar Paçoca')`)
+    check(`${at} tocar no "Adicionar Paçoca" bloqueado não adiciona`, await browser.evaluate(`document.querySelector('[role=group][aria-label="Paçoca: 0"]') !== null`), true)
 
     await click(`__button('Adicionar Kit Kat')`)
     await click(`__button('Adicionar Kit Kat')`)
@@ -109,16 +116,18 @@ await session('principal', 9337, [], async ({ browser, page, click }) => {
     check(`${at} total R$ 20,00`, await browser.evaluate(`__q('#resumo').innerText.includes('R$ 20,00')`), true)
     await eventually(browser, `${at} 3D: copo de 500 ml com a base`, `__names('container:').concat(__names('base:'))`, ['container-copo-500', 'base-acai-copo-500'])
     await eventually(browser, `${at} 3D: só o escolhido`, `__toppings()`, ['banana', 'granola', 'kit-kat'])
-    await eventually(browser, `${at} 3D: 12 pedaços de granola para 3 unidades`, `__pieces('granola')`, 12)
+    const granola3 = await browser.evaluate(`__expectedPieces({ slug: 'acai-tradicional', sizeId: 'copo-500', flavorId: null, toppings: { granola: 3, 'kit-kat': 2, banana: 1 } }, 'granola')`)
+    check(`${at} granola cobre o setor com fartura (pelo menos 8 montinhos)`, granola3 >= 8, true)
+    await eventually(browser, `${at} 3D: a granola tem os ${granola3} montinhos do arranjo`, `__pieces('granola')`, granola3)
     await eventually(browser, `${at} 3D: 2 Kit Kat`, `__pieces('kit-kat')`, 2)
     await sleep(800)
     writeFileSync(join(outDir, `tradicional-montado-${viewport.width}.png`), await browser.screenshot())
 
     if (!desktop) {
       // "Ver em 3D": visualização ampliada que gira com o dedo
-      await click(`__button('Ver em 3D ⤢')`)
+      await click(`__button('Ver em 3D')`)
       check(`${at} "Ver em 3D" abre a visualização`, await browser.evaluate(`__q('dialog').open`), true)
-      check(`${at} foco vai para "Fechar"`, await browser.evaluate(`document.activeElement.textContent.trim()`), '✕ Fechar')
+      check(`${at} foco vai para "Fechar"`, await browser.evaluate(`document.activeElement.textContent.trim()`), 'Fechar')
       await eventually(browser, `${at} visualização ampliada em 3D`, `__mode('dialog')`, '3d')
       await eventually(browser, `${at} visualização ampliada com o mesmo pedido`, `__toppings('dialog')`, ['banana', 'granola', 'kit-kat'])
       await sleep(800)
@@ -127,11 +136,12 @@ await session('principal', 9337, [], async ({ browser, page, click }) => {
       await browser.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
       await sleep(500)
       check(`${at} Esc fecha a visualização`, await browser.evaluate(`__q('dialog').open`), false)
-      check(`${at} foco volta para "Ver em 3D"`, await browser.evaluate(`document.activeElement.textContent.trim()`), 'Ver em 3D ⤢')
+      check(`${at} foco volta para "Ver em 3D"`, await browser.evaluate(`document.activeElement.textContent.trim()`), 'Ver em 3D')
     }
 
     await click(`__radio('pote-200')`)
-    await eventually(browser, `${at} troca para Pote 200 ml: 10 pedaços de granola (2 unidades)`, `__pieces('granola')`, 10)
+    const granola2 = await browser.evaluate(`__expectedPieces({ slug: 'acai-tradicional', sizeId: 'pote-200', flavorId: null, toppings: { granola: 2, 'kit-kat': 2, banana: 1 } }, 'granola')`)
+    await eventually(browser, `${at} troca para Pote 200 ml: os ${granola2} montinhos de granola do arranjo (2 unidades)`, `__pieces('granola')`, granola2)
     await eventually(browser, `${at} 3D: pote de 200 ml`, `__names('container:')`, ['container-pote-200'])
     check(`${at} aviso visível da saída`, await browser.evaluate(`__text().includes('Saíram por passar do novo limite: 1 Granola.')`), true)
     check(`${at} anúncio da saída`, await browser.evaluate(`__live()`), 'Tamanho: Pote 200 ml, R$ 7,00. Saíram por passar do novo limite: 1 Granola.')
@@ -188,7 +198,7 @@ await session('sem-webgl', 9338, ['--disable-webgl', '--disable-3d-apis'], async
   await page('/monte-seu-pedido/acai-tradicional', { width: 390, height: 844 })
   check('sem WebGL: prévia ilustrada', await browser.evaluate(`__mode()`), 'unavailable')
   check('sem WebGL: aviso visível', await browser.evaluate(`__text().includes('A visualização 3D não está disponível neste aparelho. Mostramos a prévia ilustrada.')`), true)
-  check('sem WebGL: sem "Ver em 3D"', await browser.evaluate(`!__button('Ver em 3D ⤢')`), true)
+  check('sem WebGL: sem "Ver em 3D"', await browser.evaluate(`!__button('Ver em 3D')`), true)
   await click(`__radio('copo-500')`)
   await click(`__button('Adicionar Granola')`)
   await click(`__button('Banana')`)

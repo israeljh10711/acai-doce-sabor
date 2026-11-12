@@ -17,24 +17,24 @@ type ShowcasePick = {
 
 export const SHOWCASE_PICKS: Readonly<Record<CategorySlug, ShowcasePick>> = {
   'acai-oca': {
-    sizeId: 'pote-530',
+    sizeId: 'isopor-g',
     flavorId: null,
-    toppings: ['granola', 'morango', 'banana', 'calda-leite-condensado'],
+    toppings: ['amendoim', 'chocoball', 'banana', 'morango', 'calda-chocolate'],
     title:
-      'Ilustração de açaí Oca no pote de 530 ml, com granola, morango, banana e cobertura de leite condensado',
+      'Ilustração de açaí Oca no isopor G, com amendoim, chocoball, banana, morango e cobertura de chocolate',
   },
   'acai-tradicional': {
     sizeId: 'copo-500',
     flavorId: null,
-    toppings: ['leite-em-po', 'granola', 'morango', 'calda-chocolate'],
+    toppings: ['granola', 'banana', 'morango', 'calda-leite-condensado', 'creme-de-ninho'],
     title:
-      'Ilustração de açaí Tradicional no copo de 500 ml, com leite em pó, granola, morango e cobertura de chocolate',
+      'Ilustração de açaí Tradicional no copo de 500 ml, com granola, banana, morango, cobertura de leite condensado e creme de ninho',
   },
   'milk-shake': {
     sizeId: '500-ml',
     flavorId: 'morango',
-    toppings: ['calda-morango'],
-    title: 'Ilustração de milk-shake de morango de 500 ml, com cobertura de morango',
+    toppings: ['calda-chocolate', 'cereja'],
+    title: 'Ilustração de milk-shake de morango de 500 ml, com cobertura de chocolate e cereja',
   },
 }
 

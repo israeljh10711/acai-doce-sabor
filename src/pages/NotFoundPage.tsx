@@ -8,10 +8,10 @@ export function NotFoundPage() {
 
   return (
     <Container className="py-10 sm:py-16">
-      <h1 className="font-display text-4xl font-semibold tracking-tight text-plum-900 sm:text-5xl">
+      <h1 className="font-display text-4xl font-black tracking-tight text-acai-800 uppercase sm:text-5xl">
         Página não encontrada
       </h1>
-      <p className="mt-3 max-w-prose text-lg text-plum-950/75">
+      <p className="mt-3 max-w-prose text-lg text-ink-soft">
         O endereço aberto não existe neste site.
       </p>
 

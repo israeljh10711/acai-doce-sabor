@@ -43,3 +43,4 @@ __pycache__/
 
 # Renders originais da vitrine (refeitos pelo script; o site usa os WebP de src/assets/showcase)
 assets/blender/vitrine/
+assets/blender/miniaturas/

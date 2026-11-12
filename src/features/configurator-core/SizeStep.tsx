@@ -1,3 +1,4 @@
+import { Check } from '../../components/ui/icons.tsx'
 import type { ContainerKind, Product, ProductSize } from '../catalog/menu.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { StepHeading } from './StepHeading.tsx'
@@ -22,11 +23,11 @@ export function SizeStep({ product, cfg, number }: { product: Product; cfg: Conf
     <fieldset aria-labelledby={headingId} className="min-w-0">
       <StepHeading number={number} id={headingId} title="Tamanho" />
 
-      <div className="mt-4 flex flex-col gap-4">
+      <div className="mt-5 flex flex-col gap-5">
         {kinds.map((kind) => (
           <div key={kind}>
             {grouped && (
-              <p className="mb-2 text-sm font-semibold tracking-wider text-plum-950/70 uppercase">
+              <p className="mb-2 text-xs font-bold tracking-[0.14em] text-ink-soft uppercase">
                 {CONTAINER_NAMES[kind]}
               </p>
             )}
@@ -50,7 +51,7 @@ export function SizeStep({ product, cfg, number }: { product: Product; cfg: Conf
       </div>
 
       {cfg.sizeNotice && (
-        <p className="mt-3 rounded-xl bg-berry-100 px-4 py-3 text-sm font-medium text-plum-900">
+        <p className="mt-3 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400">
           {cfg.sizeNotice}
         </p>
       )}
@@ -74,7 +75,7 @@ function SizeOption({
   onChoose: () => void
 }) {
   return (
-    <label className="flex min-h-16 cursor-pointer flex-col justify-center gap-0.5 rounded-xl border border-cream-200 bg-white px-3.5 py-2.5 transition duration-200 hover:border-berry-600/60 has-checked:border-berry-600 has-checked:bg-berry-100 has-checked:shadow-[inset_0_0_0_1px_var(--color-berry-600)] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-berry-600">
+    <label className="group relative flex min-h-[4.5rem] cursor-pointer flex-col justify-center gap-1 rounded-2xl border-2 border-line bg-white px-3.5 py-2.5 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800">
       <input
         type="radio"
         name={name}
@@ -83,18 +84,24 @@ function SizeOption({
         onChange={onChoose}
         className="sr-only"
       />
-      <span className="flex items-baseline justify-between gap-2">
-        <span className="font-semibold text-plum-900">
+      {/* Na largura de três colunas o cartão é estreito: o preço vai sempre para baixo do nome,
+          para ficar no mesmo lugar em todos os cartões. */}
+      <span className="flex flex-wrap items-baseline justify-between gap-x-2 xl:flex-col xl:items-start">
+        <span className="font-display text-lg leading-tight font-extrabold whitespace-nowrap text-acai-800">
           {hiddenPrefix && <span className="sr-only">{hiddenPrefix}</span>}
           {label}
         </span>
-        <span className="text-sm font-semibold text-plum-950/80 tabular-nums">{formatBRL(size.priceCents)}</span>
+        <span className="nums text-sm font-bold whitespace-nowrap text-acai-950">{formatBRL(size.priceCents)}</span>
       </span>
       {size.freeToppings > 0 && (
-        <span className="text-xs text-plum-950/70">
-          {size.freeToppings} adicionais grátis
-        </span>
+        <span className="text-xs font-medium text-ink-soft">{size.freeToppings} adicionais grátis</span>
       )}
+      <span
+        aria-hidden="true"
+        className="absolute -top-2 -right-2 hidden size-6 place-items-center rounded-full bg-acai-800 text-gold-400 shadow-sm group-has-checked:grid"
+      >
+        <Check className="size-4" />
+      </span>
     </label>
   )
 }

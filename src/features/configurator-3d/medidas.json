@@ -2,7 +2,7 @@
   "aproximadas": true,
   "observacao": "Medidas típicas de mercado, em metros. São aproximações até o proprietário informar as medidas reais dos recipientes. Lidas pelo script do Blender (assets/blender/scripts/recipientes.py) e pelo site.",
   "monte": {
-    "acai": 0.55,
+    "acai": 0.38,
     "shake": 0.3,
     "expoente": 2.6
   },

@@ -67,13 +67,16 @@ describe.each(containers)('modelos do recipiente %s', (id, m, product) => {
     const base = readGlb(baseFile)
     expect(container.bytes).toBeLessThan(150 * 1024)
     expect(base.bytes).toBeLessThan(150 * 1024)
-    expect(container.triangles).toBeLessThan(8000)
-    expect(base.triangles).toBeLessThan(8000)
+    expect(container.triangles).toBeLessThan(9000)
+    // o monte tem as marcas de espátula; nos copos e potes, mais as duas faixas de creme
+    expect(base.triangles).toBeLessThan(16000)
   })
 
   it('usa os materiais com os nomes que o site espera', () => {
     const material = { pote: 'pp', copo: 'pet', isopor: 'eps', shake: 'vidro' }[m.tipo]
     expect(readGlb(containerFile).materialNames).toEqual([material])
-    expect(readGlb(baseFile).materialNames).toEqual([product === 'acai' ? 'acai' : 'shake'])
+    const base = product === 'shake' ? ['shake', 'shake-lado'] : ['acai', 'acai-lado']
+    const bands = m.tipo === 'copo' || m.tipo === 'pote' ? ['camada'] : []
+    expect(readGlb(baseFile).materialNames).toEqual([...base, ...bands])
   })
 })

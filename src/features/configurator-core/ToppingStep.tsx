@@ -1,5 +1,8 @@
+import { m } from 'motion/react'
+import { Check } from '../../components/ui/icons.tsx'
 import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppingsOf } from '../catalog/menu.ts'
 import { quantityOf } from '../catalog/selection.ts'
+import { toppingImage } from '../catalog/toppingImages.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { blockerText, toppingLabel } from './messages.ts'
 import { QuantityStepper } from './QuantityStepper.tsx'
@@ -12,6 +15,9 @@ type ToppingStepProps = {
   number: number
   cfg: ConfiguratorApi
 }
+
+const cardBase =
+  'relative flex h-full w-full flex-col items-center gap-1.5 rounded-2xl border-2 bg-white px-2 pt-3 pb-2.5 text-center transition duration-200 hover:border-acai-600/40'
 
 /** Um grupo de ingredientes: adicionais, frutas, coberturas ou adicionais pagos. */
 export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
@@ -42,46 +48,44 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
         hintTone={limitReached ? 'alert' : 'neutral'}
       />
 
-      {rule === 'included' ? (
-        <ul className="mt-4 flex flex-wrap gap-2">
-          {toppings.map((topping) => (
-            <li key={topping.id}>
-              <ToggleChip topping={topping} cfg={cfg} hintId={hintId} />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul className="mt-4 divide-y divide-cream-200 overflow-hidden rounded-2xl border border-cream-200 bg-white">
-          {toppings.map((topping) => {
-            const blocker = cfg.blockerFor(topping.id)
-            return (
-              <li key={topping.id} className="flex items-center justify-between gap-3 py-1.5 pr-1.5 pl-4">
-                <span className="min-w-0">
-                  <span className="block font-medium text-plum-900">{topping.name}</span>
-                  {rule === 'paid' && (
-                    <span className="block text-sm text-plum-950/70 tabular-nums">
-                      + {formatBRL(topping.priceCents)} cada
-                    </span>
-                  )}
-                </span>
-                <QuantityStepper
-                  label={topping.name}
-                  quantity={quantityOf(cfg.selection, topping.id)}
-                  onAdd={() => cfg.add(topping.id)}
-                  onRemove={() => cfg.remove(topping.id)}
-                  addBlockedReason={blocker ? blockerText(blocker, cfg.freeLimit) : null}
-                  describedBy={hintId}
-                />
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      {/* Grade de blocos: miniatura redonda em cima e o nome embaixo, com a largura toda do cartão. */}
+      <ul className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-2">
+        {toppings.map((topping) => (
+          <li key={topping.id}>
+            {rule === 'included' ? (
+              <ToggleCard topping={topping} cfg={cfg} hintId={hintId} />
+            ) : (
+              <StepperCard topping={topping} cfg={cfg} paid={rule === 'paid'} hintId={hintId} />
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }
 
-function ToggleChip({ topping, cfg, hintId }: { topping: Topping; cfg: ConfiguratorApi; hintId: string }) {
+/** Miniatura do ingrediente (render do Blender). Decorativa: o nome está ao lado. */
+function Thumb({ id }: { id: string }) {
+  const src = toppingImage(id)
+  return (
+    <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-acai-50 ring-1 ring-line">
+      {src && (
+        <img src={src} alt="" width={64} height={64} loading="lazy" decoding="async" className="size-[4.1rem] max-w-none" />
+      )}
+    </span>
+  )
+}
+
+function FreeBadge() {
+  return (
+    <span className="inline-block rounded-full bg-gold-100 px-2 py-0.5 text-[0.7rem] font-bold tracking-wide text-acai-950 uppercase ring-1 ring-gold-400">
+      Grátis
+    </span>
+  )
+}
+
+/** Fruta ou cobertura: o cartão inteiro marca e desmarca (padrão "Choice Cards" do 21st.dev). */
+function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: ConfiguratorApi; hintId: string }) {
   const on = quantityOf(cfg.selection, topping.id) > 0
   const blocked = !on && cfg.blockerFor(topping.id) !== null
 
@@ -94,15 +98,64 @@ function ToggleChip({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
       disabled={blocked}
       aria-describedby={blocked ? hintId : undefined}
       onClick={() => (on ? cfg.remove(topping.id) : cfg.add(topping.id))}
-      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-cream-200 bg-white px-4 font-medium text-plum-900 transition duration-150 hover:border-berry-600/60 active:scale-[0.97] disabled:cursor-not-allowed disabled:border-dashed disabled:bg-cream-100 disabled:text-plum-950/70 disabled:hover:border-cream-200 disabled:active:scale-100 aria-pressed:border-berry-600 aria-pressed:bg-berry-600 aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600"
+      className={`${cardBase} cursor-pointer active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-line focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${
+        on ? 'border-gold-400 bg-gold-100' : 'border-line'
+      }`}
     >
-      <span
+      <Thumb id={topping.id} />
+      <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
+      <FreeBadge />
+      {/* Selo de marcado no canto, como nos tamanhos: o nome fica com a largura toda. */}
+      <m.span
         aria-hidden="true"
-        className={`grid size-4 place-items-center rounded-full border text-[10px] leading-none ${on ? 'border-white bg-white text-berry-600' : 'border-plum-700/35'}`}
+        initial={false}
+        animate={{ scale: on ? 1 : 0.4, opacity: on ? 1 : 0 }}
+        transition={{ type: 'spring', stiffness: 600, damping: 28 }}
+        className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-acai-800 text-gold-400 shadow-sm"
       >
-        {on ? '✓' : ''}
-      </span>
-      {topping.name}
+        <Check className="size-4" />
+      </m.span>
     </button>
+  )
+}
+
+/** Adicional grátis (dentro do limite) ou pago: cartão com contador. */
+function StepperCard({
+  topping,
+  cfg,
+  paid,
+  hintId,
+}: {
+  topping: Topping
+  cfg: ConfiguratorApi
+  paid: boolean
+  hintId: string
+}) {
+  const quantity = quantityOf(cfg.selection, topping.id)
+  const blocker = cfg.blockerFor(topping.id)
+
+  return (
+    <div
+      className={`${cardBase} ${quantity > 0 ? 'border-gold-400 bg-gold-100' : 'border-line'}`}
+    >
+      <Thumb id={topping.id} />
+      <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
+      {paid ? (
+        <span className="nums inline-block rounded-full bg-gold-400 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-acai-950">
+          + {formatBRL(topping.priceCents)} cada
+        </span>
+      ) : (
+        <FreeBadge />
+      )}
+      <QuantityStepper
+        label={topping.name}
+        quantity={quantity}
+        onAdd={() => cfg.add(topping.id)}
+        onRemove={() => cfg.remove(topping.id)}
+        addBlockedReason={blocker ? blockerText(blocker, cfg.freeLimit) : null}
+        describedBy={hintId}
+        className="mt-auto"
+      />
+    </div>
   )
 }

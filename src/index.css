@@ -1,54 +1,91 @@
 @import 'tailwindcss';
 
 /*
- * Identidade visual do Açaí Doce Sabor.
+ * Identidade visual do Açaí Doce Sabor, redesenhada em 2026-11-12 a pedido do proprietário
+ * (referência: açaiteria comercial, vibrante e apetitosa):
  *
- * As três cores da marca são as do guia enviado pelo proprietário em 2026-11-11:
- * Roxo Principal #6B0F4C, Magenta Açaí #9D2073 e Verde Folha #1EB949.
- * Os outros tons de roxo, magenta e verde são versões mais escuras dessas três.
- * Os tons de creme são o fundo neutro escolhido para acompanhar a marca.
+ * - Roxo Açaí #4A0E36 e #5E1245: cabeçalho, faixas de destaque e acentos.
+ * - Amarelo Ouro #FACC15 e #EAB308, sempre com texto #2A081D: botões principais, seleções
+ *   e selos de preço e de grátis.
+ * - Fundos #FFFFFF e #F8F6F9, com cartões nítidos de borda sutil.
+ * - Títulos em Montserrat (800 e 900, caixa alta); textos, botões e preços em Inter.
+ *
+ * Substitui a paleta do guia em PDF aplicada na Fase 2. A logo original continua a mesma.
+ * Contraste conferido (AA): texto #2A081D no amarelo 11,9:1; branco no #4A0E36 14,9:1;
+ * amarelo no #4A0E36 9,7:1; texto secundário #5C4655 no branco 8,5:1.
  */
 @theme {
-  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
-  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Montserrat Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
-  /* Roxo Principal: o 700 é a cor do guia. */
-  --color-plum-950: #2c0a21;
-  --color-plum-900: #42092f;
-  --color-plum-800: #570c3e;
-  --color-plum-700: #6b0f4c;
+  /* Roxo Açaí: o 800 e o 700 são as cores pedidas; o 950 é o texto. */
+  --color-acai-950: #2a081d;
+  --color-acai-900: #3b0d2b;
+  --color-acai-800: #4a0e36;
+  --color-acai-700: #5e1245;
+  --color-acai-600: #7b1d5c;
+  --color-acai-200: #e8d6e3;
+  --color-acai-100: #f3e9f1;
+  /* Mesmo tom do fundo do estúdio 3D (src/features/configurator-3d/stage.ts). */
+  --color-acai-50: #f8f6f9;
 
-  /* Magenta Açaí: o 600 é a cor do guia. Cor das ações em fundo claro. */
-  --color-berry-600: #9d2073;
-  --color-berry-700: #841b61;
-  --color-berry-100: #f6e3ef;
+  /* Amarelo Ouro: o 400 e o 500 são as cores pedidas. */
+  --color-gold-500: #eab308;
+  --color-gold-400: #facc15;
+  --color-gold-300: #fde047;
+  --color-gold-100: #fef9c3;
 
-  /* Verde Folha: o 500 é a cor do guia, para detalhes. O 700 é para texto em fundo claro. */
-  --color-leaf-500: #1eb949;
-  --color-leaf-700: #127a33;
-  --color-leaf-100: #e3f6e9;
+  --color-ink: #2a081d;
+  --color-ink-soft: #5c4655;
+  --color-line: #e9e1ea;
 
-  --color-cream-50: #fdf8f0;
-  --color-cream-100: #f7eddd;
-  --color-cream-200: #ecdcc3;
+  --shadow-card: 0 1px 2px rgb(42 8 29 / 0.06), 0 14px 34px -20px rgb(74 14 54 / 0.38);
+  --shadow-lift: 0 2px 4px rgb(42 8 29 / 0.08), 0 28px 50px -24px rgb(74 14 54 / 0.5);
 
   --animate-rise: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-shake: shake 0.32s ease-in-out;
 
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(12px);
+      transform: translateY(14px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
+
+  /* Recusa: o botão balança quando o limite impede adicionar. */
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20% {
+      transform: translateX(-4px);
+    }
+    40% {
+      transform: translateX(4px);
+    }
+    60% {
+      transform: translateX(-2px);
+    }
+    80% {
+      transform: translateX(2px);
+    }
+  }
 }
 
 body {
-  background-color: var(--color-cream-50);
-  color: var(--color-plum-950);
+  background-color: #ffffff;
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Preços e números alinhados em coluna. */
+@utility nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Sublinhado que se desenha ao passar o ponteiro ou ao receber foco. */
@@ -56,12 +93,34 @@ body {
   background-image: linear-gradient(currentColor, currentColor);
   background-position: 0 100%;
   background-repeat: no-repeat;
-  background-size: 0% 1.5px;
+  background-size: 0% 2px;
   transition: background-size 0.25s ease;
 
   &:hover,
   &:focus-visible {
-    background-size: 100% 1.5px;
+    background-size: 100% 2px;
+  }
+}
+
+/* Botão amarelo "de apertar": afunda ao toque, como um botão de verdade. */
+@utility btn-gold {
+  background-color: var(--color-gold-400);
+  color: var(--color-acai-950);
+  box-shadow: 0 4px 0 0 #b38605;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--color-gold-300);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 0 0 #b38605;
+  }
+
+  &:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 0 #b38605;
   }
 }
 
@@ -71,7 +130,7 @@ body {
  * prévia poder ficar fixa durante toda a rolagem (numa grade ela ficaria presa à
  * própria linha).
  * 1024 px: prévia à esquerda; passos à direita.
- * 1280 px: tamanho | prévia | ingredientes e resumo, como nas referências do proprietário.
+ * 1280 px: tamanho | prévia | ingredientes e resumo.
  */
 .configurator-grid {
   display: flex;
@@ -85,8 +144,9 @@ body {
   z-index: 20;
   margin-inline: -1rem;
   padding: 0.5rem 1rem;
-  background-color: var(--color-cream-50);
-  border-bottom: 1px solid var(--color-cream-200);
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--color-line);
+  box-shadow: 0 10px 24px -22px rgb(74 14 54 / 0.6);
 }
 
 @media (width >= 40rem) {
@@ -114,6 +174,7 @@ body {
     padding: 0;
     background-color: transparent;
     border-bottom: 0;
+    box-shadow: none;
   }
 
   .configurator-grid > .cfg-base {
@@ -142,5 +203,23 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* Toque: sem a espera do toque duplo (zoom) e sem o realce azul do navegador; cada botão já
+   mostra o próprio toque (afunda, muda de cor ou de borda). */
+a,
+button,
+label,
+summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Celular: a prévia fica fixa no topo do personalizador. Ao navegar pelo teclado ou pular para
+   o resumo, a página para abaixo dela, sem esconder o item em foco. */
+@media (width < 64rem) {
+  html:has(.configurator-grid) {
+    scroll-padding-top: 15rem;
   }
 }

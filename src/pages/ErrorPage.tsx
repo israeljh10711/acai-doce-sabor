@@ -19,17 +19,17 @@ export function ErrorPage() {
   return (
     <main>
       <Container className="py-12 sm:py-16">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-plum-900 sm:text-5xl">
+        <h1 className="font-display text-4xl font-black tracking-tight text-acai-800 uppercase sm:text-5xl">
           Não foi possível abrir esta página
         </h1>
-        <p className="mt-3 max-w-prose text-lg text-plum-950/75">
+        <p className="mt-3 max-w-prose text-lg text-ink-soft">
           Aconteceu um erro inesperado. Volte ao início para tentar de novo.
         </p>
 
         {/* Link comum, de propósito: recarrega o site inteiro e limpa o estado com erro. */}
         <a
           href={paths.home}
-          className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-berry-600 px-6 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-berry-700 active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600"
+          className="btn-gold mt-8 inline-flex min-h-12 items-center justify-center rounded-full px-6 font-bold focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800"
         >
           Voltar ao início
         </a>

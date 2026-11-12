@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Close, Rotate } from '../../components/ui/icons.tsx'
 import type { Product } from '../catalog/menu.ts'
 import { ILLUSTRATIVE_NOTICE } from '../catalog/notices.ts'
 import type { Selection } from '../catalog/selection.ts'
@@ -42,21 +43,22 @@ export function Viewer3DDialog({ product, selection, title, open, onClose }: Vie
       ref={dialog}
       aria-labelledby={headingId}
       onClose={onClose}
-      className="m-0 h-dvh max-h-none w-full max-w-none bg-cream-50 p-0 text-plum-950 backdrop:bg-plum-950/60"
+      className="m-0 h-dvh max-h-none w-full max-w-none bg-acai-50 p-0 text-acai-950 backdrop:bg-acai-950/60"
     >
       {open && (
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between gap-3 border-b border-cream-200 px-4 py-2">
-            <h2 id={headingId} className="font-display text-xl font-semibold text-plum-900">
+          <div className="flex items-center justify-between gap-3 bg-acai-800 px-4 py-2 text-white">
+            <h2 id={headingId} className="font-display text-lg font-black tracking-tight uppercase">
               {product.name} em 3D
             </h2>
             <button
               type="button"
               autoFocus
               onClick={onClose}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-plum-700/35 px-4 text-sm font-semibold text-plum-900 hover:border-plum-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600"
+              className="btn-gold inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
-              <span aria-hidden="true">✕</span> Fechar
+              <Close className="size-4" />
+              Fechar
             </button>
           </div>
 
@@ -73,13 +75,14 @@ export function Viewer3DDialog({ product, selection, title, open, onClose }: Vie
             className="min-h-0 flex-1"
           />
 
-          <div className="border-t border-cream-200 px-4 py-3 text-center">
-            <p className="text-sm font-semibold text-plum-900">
+          <div className="border-t border-line bg-white px-4 py-3 text-center">
+            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-acai-800">
+              {preview.mode !== 'unavailable' && <Rotate className="size-4" />}
               {preview.mode === 'unavailable'
                 ? 'A visualização 3D não está disponível neste aparelho. Mostramos a prévia ilustrada.'
                 : 'Arraste para girar.'}
             </p>
-            <p className="mt-1 text-xs text-plum-950/75">{ILLUSTRATIVE_NOTICE}</p>
+            <p className="mt-1 text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
           </div>
         </div>
       )}

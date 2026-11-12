@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { Container } from '../../components/layout/Container.tsx'
+import { ArrowLeft } from '../../components/ui/icons.tsx'
 import { usePageTitle } from '../../hooks/usePageTitle.ts'
 import { paths } from '../../paths.ts'
 import { findCategoryBySlug } from '../catalog/categories.ts'
@@ -30,19 +31,19 @@ export function Configurator({ product }: { product: Product }) {
 
   return (
     <>
-      <Container className="pt-6 sm:pt-10">
-        <Link
-          to={paths.buildOrder}
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-berry-700 hover:text-berry-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600"
-        >
-          <span aria-hidden="true">←</span>
-          <span className="link-draw">Monte seu Pedido</span>
-        </Link>
-        <h1 className="mt-1 font-display text-4xl font-semibold tracking-tight text-plum-900 sm:text-5xl">
-          {product.name}
-        </h1>
-        {summary && <p className="mt-2 max-w-prose text-lg text-plum-950/75">{summary}</p>}
-      </Container>
+      <div className="bg-acai-800 text-white">
+        <Container className="pt-4 pb-7 sm:pt-7 sm:pb-9">
+          <Link
+            to={paths.buildOrder}
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-gold-400 hover:text-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <ArrowLeft className="size-4" />
+            <span className="link-draw">Monte seu Pedido</span>
+          </Link>
+          <h1 className="mt-1 font-display text-4xl font-black tracking-tight uppercase sm:text-5xl">{product.name}</h1>
+          {summary && <p className="mt-2 max-w-prose text-lg text-white/80">{summary}</p>}
+        </Container>
+      </div>
 
       <Container className="configurator-grid pt-5 pb-16 sm:pt-8">
         <div className="cfg-preview">

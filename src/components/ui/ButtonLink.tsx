@@ -2,20 +2,21 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 
 /**
- * Os dois botões do site, em duas versões: para fundo claro e para o fundo roxo da marca.
+ * Os botões do site, em duas versões: para fundo claro e para o fundo roxo da marca.
+ * O principal é amarelo, "de apertar" (afunda ao toque); o secundário é de contorno.
  */
 type Variant = 'primary' | 'secondary' | 'onBrandPrimary' | 'onBrandSecondary'
 
 const base =
-  'inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 text-base font-semibold transition duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2'
+  'inline-flex min-h-12 cursor-pointer select-none items-center justify-center gap-2 rounded-full px-6 text-base font-bold tracking-tight transition duration-200 focus-visible:outline-3 focus-visible:outline-offset-3'
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-berry-600 text-white hover:bg-berry-700 focus-visible:outline-berry-600',
+  primary: 'btn-gold focus-visible:outline-acai-800',
   secondary:
-    'border border-plum-700/35 text-plum-900 hover:border-plum-700 focus-visible:outline-berry-600',
-  onBrandPrimary: 'bg-cream-50 text-plum-900 hover:bg-white focus-visible:outline-white',
+    'border-2 border-acai-800 text-acai-800 hover:bg-acai-800 hover:text-white active:scale-[0.98] focus-visible:outline-acai-800',
+  onBrandPrimary: 'btn-gold focus-visible:outline-white',
   onBrandSecondary:
-    'border border-white/45 text-white hover:border-white hover:bg-white/10 focus-visible:outline-white',
+    'border-2 border-white/70 text-white hover:border-white hover:bg-white hover:text-acai-800 active:scale-[0.98] focus-visible:outline-white',
 }
 
 type ButtonLinkProps = {

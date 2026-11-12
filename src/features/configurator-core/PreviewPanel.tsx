@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Expand, Rotate } from '../../components/ui/icons.tsx'
 import { useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { formatBRL } from '../../utils/money.ts'
 import type { Product } from '../catalog/menu.ts'
@@ -13,8 +14,8 @@ import type { ConfiguratorApi } from './useConfigurator.ts'
 const UNAVAILABLE_TEXT =
   'A visualização 3D não está disponível neste aparelho. Mostramos a prévia ilustrada.'
 
-const linkClass =
-  'inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-berry-700 underline underline-offset-4 hover:text-berry-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-berry-600'
+const pill =
+  'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
 
 /**
  * Prévia do pedido: a imagem 3D (ou a ilustração, enquanto o 3D carrega), o tamanho,
@@ -45,7 +46,7 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
   return (
     <section
       aria-label="Prévia do pedido"
-      className="rounded-2xl border border-cream-200 bg-cream-100 p-3 lg:p-6"
+      className="rounded-3xl bg-white p-2.5 ring-1 ring-line lg:p-5 lg:shadow-card"
     >
       <div className="flex items-center gap-3 lg:flex-col lg:items-stretch lg:gap-4">
         <ProductPreview
@@ -59,46 +60,56 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
           onError={preview.onError}
           interactive={isDesktop}
           paused={viewerOpen}
-          className="size-24 shrink-0 overflow-hidden rounded-xl bg-white/60 min-[360px]:size-28 sm:size-32 lg:mx-auto lg:aspect-square lg:size-auto lg:w-full lg:max-w-sm"
+          className="size-24 shrink-0 overflow-hidden rounded-2xl bg-acai-50 min-[360px]:size-28 sm:size-32 lg:mx-auto lg:aspect-square lg:size-auto lg:w-full lg:max-w-sm"
         />
 
         <div className="min-w-0 flex-1 lg:text-center">
-          <p className="truncate text-sm font-medium text-plum-950/75">{caption}</p>
-          <p className="font-display text-3xl font-semibold tracking-tight text-plum-900 sm:text-4xl">
+          <p className="truncate text-sm font-semibold text-ink-soft">{caption}</p>
+          <p className="nums text-3xl font-extrabold tracking-tight whitespace-nowrap text-acai-800 sm:text-4xl">
             <span className="sr-only">Total: </span>
             <AnimatedValue value={cfg.price ? formatBRL(cfg.price.totalCents) : '—'} />
           </p>
           {hasFreeLimit && cfg.size && (
-            <p className="text-sm text-plum-950/75">
+            <p className="mt-1 inline-block rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-bold text-acai-950 ring-1 ring-gold-400">
               {cfg.freeUsed} de {cfg.freeLimit} grátis
             </p>
           )}
 
-          <div className="flex flex-wrap gap-x-4 lg:hidden">
-            {!unavailable && (
-              <button ref={opener} type="button" onClick={() => setViewerOpen(true)} className={linkClass}>
-                Ver em 3D <span aria-hidden="true">⤢</span>
-              </button>
-            )}
-            {/* Em telas muito estreitas o link sai, para a prévia fixa ocupar menos espaço;
-                o resumo continua logo abaixo, na rolagem. */}
-            <a href="#resumo" className={`${linkClass} hidden min-[360px]:inline-flex`}>
-              Ver resumo
-            </a>
-          </div>
-
           {isDesktop && preview.mode === '3d' && (
-            <p className="text-sm font-semibold text-plum-900">Arraste a imagem para girar.</p>
+            <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-acai-700">
+              <Rotate className="size-4" />
+              Arraste a imagem para girar.
+            </p>
           )}
         </div>
       </div>
 
+      {/* Celular: os dois botões numa linha só, na largura toda, para a prévia fixa ficar baixa. */}
+      <div className="mt-2 flex gap-2 lg:hidden">
+        {!unavailable && (
+          <button
+            ref={opener}
+            type="button"
+            onClick={() => setViewerOpen(true)}
+            className={`${pill} flex-1 justify-center bg-acai-800 text-white hover:bg-acai-700 active:scale-[0.97]`}
+          >
+            Ver em 3D
+            <Expand className="size-4" />
+          </button>
+        )}
+        {/* Em telas muito estreitas o link sai, para a prévia fixa ocupar menos espaço;
+            o resumo continua logo abaixo, na rolagem. */}
+        <a href="#resumo" className={`${pill} btn-gold hidden flex-1 justify-center min-[360px]:inline-flex`}>
+          Ver resumo
+        </a>
+      </div>
+
       {unavailable && (
-        <p className="mt-2 text-xs font-semibold text-plum-900 lg:mt-3 lg:text-center lg:text-sm">
+        <p className="mt-2 text-xs font-semibold text-acai-800 lg:mt-3 lg:text-center lg:text-sm">
           {UNAVAILABLE_TEXT}
         </p>
       )}
-      <p className="mt-2 text-xs leading-snug text-plum-950/75 lg:mt-4 lg:text-center lg:text-sm">
+      <p className="mt-2 text-xs leading-snug text-ink-soft lg:mt-4 lg:text-center lg:text-sm">
         {ILLUSTRATIVE_NOTICE}
       </p>
 

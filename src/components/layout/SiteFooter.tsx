@@ -6,18 +6,18 @@ import { Logo } from '../brand/Logo.tsx'
 import { Container } from './Container.tsx'
 
 const linkClass =
-  'inline-flex min-h-11 items-center text-white/85 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white'
+  'inline-flex min-h-11 items-center font-medium text-white/85 hover:text-gold-400 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white'
 
 export function SiteFooter() {
   const { address, instagramHandle, instagramUrl, name, whatsapp } = storeInfo
 
   return (
-    <footer className="bg-plum-950 text-white/80">
+    <footer className="bg-acai-950 text-white/80">
       <Container className="flex flex-col gap-6 py-10 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <Logo version="badge" sizes="56px" className="size-14" decorative />
           <div>
-            <p className="font-display text-lg font-semibold tracking-tight text-white">{name}</p>
+            <p className="font-display text-lg font-extrabold tracking-tight text-white uppercase" translate="no">{name}</p>
             <p className="text-sm">
               {address.city}, {address.state}
             </p>
