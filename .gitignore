@@ -24,7 +24,6 @@ supabase/.temp/
 # Blender: cópias de segurança automáticas e arquivos de teste da integração
 *.blend1
 *.blend2
-assets/blender/_teste/
 
 # Editor directories and files
 .vscode/*
@@ -41,6 +40,5 @@ Thumbs.db
 # Python: cache dos scripts do Blender
 __pycache__/
 
-# Renders originais da vitrine (refeitos pelo script; o site usa os WebP de src/assets/showcase)
-assets/blender/vitrine/
-assets/blender/miniaturas/
+# Fotos originais baixadas pelo scripts/fotos/preparar.mjs (refeitas a partir de fontes.json)
+scripts/fotos/.originais/

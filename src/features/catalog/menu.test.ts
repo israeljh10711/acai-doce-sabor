@@ -70,6 +70,11 @@ describe('cardápio do Milk-shake', () => {
   it('aceita só coberturas e adicionais pagos', () => {
     expect(PRODUCTS['milk-shake'].groups).toEqual(['syrup', 'paid'])
   })
+
+  it('mostra o aviso de disponibilidade de sabores; o batido não tem aviso', () => {
+    expect(PRODUCTS['milk-shake'].flavorNotice).toBe('Favor verificar com a nossa atendente a disponibilidade de sabores.')
+    expect(PRODUCTS['acai-batido'].flavorNotice).toBeUndefined()
+  })
 })
 
 describe('ingredientes', () => {
@@ -112,7 +117,7 @@ describe('ingredientes', () => {
       ['Cereja', 300],
       ['Kit Kat', 400],
     ])
-    for (const topping of TOPPINGS.filter((item) => item.group !== 'paid')) {
+    for (const topping of TOPPINGS.filter((item) => TOPPING_GROUPS[item.group].rule !== 'paid')) {
       expect(topping.priceCents).toBe(0)
     }
   })
@@ -172,6 +177,8 @@ describe('produtos e categorias', () => {
     expect(PRODUCTS['acai-tradicional'].sizes[0].name).toBe('Pote 150 ml')
     expect(summaryOf('acai-tradicional')).toContain('150 ml')
     expect(summaryOf('milk-shake')).toContain(`${PRODUCTS['milk-shake'].flavors.length} sabores`)
+    expect(summaryOf('acai-batido')).toContain(`${PRODUCTS['acai-batido'].flavors.length} sabores`)
+    expect(summaryOf('acai-batido')).toContain('300 ml')
   })
 
   it('todo preço é um número inteiro de centavos, maior que zero nos tamanhos', () => {

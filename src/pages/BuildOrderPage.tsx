@@ -1,31 +1,35 @@
 import { Container } from '../components/layout/Container.tsx'
-import { CategoryCards } from '../features/catalog/CategoryCards.tsx'
+import { CategoryNav } from '../features/catalog/CategoryNav.tsx'
+import { MenuShowcase } from '../features/catalog/MenuShowcase.tsx'
+import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
+import { useHashScroll } from '../hooks/useHashScroll.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 
+/** Cardápio completo, com as quatro categorias. O cardápio abre mesmo com a loja fechada. */
 export function BuildOrderPage() {
-  usePageTitle('Monte seu Pedido', {
+  usePageTitle('Cardápio', {
     description:
-      'Monte seu açaí Oca, açaí Tradicional ou milk-shake do seu jeito e veja o preço na hora. Açaí Doce Sabor, Teixeira, PB.',
+      'Cardápio do Açaí Doce Sabor: Açaí Oca, Açaí Tradicional, Açaí Batido e Milk-shake, montados do seu jeito, com preço na hora. Teixeira, PB.',
   })
+  useHashScroll()
 
   return (
     <>
-      <div className="bg-acai-800 text-white">
-        <Container className="pt-8 pb-24 sm:pt-12 sm:pb-28">
-          <p className="text-sm font-bold tracking-[0.14em] text-gold-400 uppercase">Passo 1 de 3</p>
-          <h1 className="mt-2 font-display text-4xl font-black tracking-tight uppercase sm:text-6xl">
-            Monte seu Pedido
-          </h1>
-          <p className="mt-3 max-w-prose text-lg text-white/80">
-            Escolha por onde começar. No açaí, as frutas e as caldas entram à parte dos adicionais.
+      <div className="bg-acai-800 bg-[radial-gradient(ellipse_at_80%_20%,#6a1650_0%,#4a0e36_50%,#3b072a_100%)] text-white">
+        <Container className="flex flex-col items-start gap-4 pt-10 pb-12 sm:pt-12 sm:pb-14">
+          <StoreStatusBadge />
+          <h1 className="font-display text-5xl font-black tracking-tight uppercase sm:text-6xl">Cardápio</h1>
+          <p className="max-w-xl text-lg text-white/85">
+            Açaí Oca, Açaí Tradicional, Açaí Batido e Milk-shake. Escolha uma categoria e monte o seu.
           </p>
         </Container>
       </div>
-
-      {/* Os cartões sobem sobre a faixa roxa, como blocos. */}
-      <Container className="-mt-16 pb-14 sm:-mt-20 sm:pb-20">
-        <CategoryCards headingLevel="h2" priority />
-      </Container>
+      <CategoryNav />
+      <div className="bg-acai-50 py-10 sm:py-14">
+        <Container>
+          <MenuShowcase headingLevel="h2" />
+        </Container>
+      </div>
     </>
   )
 }

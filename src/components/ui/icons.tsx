@@ -102,3 +102,44 @@ export const Info = (props: IconProps) => (
     <path d="M12 11v5M12 8h.01" />
   </Icon>
 )
+
+export const Bag = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z" />
+    <path d="M9 8V6.5a3 3 0 0 1 6 0V8" />
+  </Icon>
+)
+
+/** Coroa: selo "Especialidade da casa". */
+export const Crown = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 8l4 4 4-6 4 6 4-4-1.6 10H5.6L4 8Z" />
+  </Icon>
+)
+
+/** Chama: selo "O mais pedido". */
+export const Flame = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 21c3.6 0 6-2.5 6-5.8 0-3.4-2.6-5.6-3.6-8.7-.3-.9-1.4-1-1.8-.2-.9 1.8-1.6 2.6-2.6 3.2-.1-1-.5-1.9-1.1-2.7-.4-.5-1.2-.3-1.4.3C6.6 9.2 6 11.2 6 15.2 6 18.5 8.4 21 12 21Z" />
+  </Icon>
+)
+
+export const Clock = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7.5V12l3 2" />
+  </Icon>
+)
+
+export const Trash = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4.5 7h15M9.5 7V5h5v2M6.5 7l.9 12.2a1.5 1.5 0 0 0 1.5 1.3h6.2a1.5 1.5 0 0 0 1.5-1.3L17.5 7" />
+  </Icon>
+)
+
+export const Pencil = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+    <path d="M13.5 6.5l4 4" />
+  </Icon>
+)

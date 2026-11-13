@@ -31,7 +31,7 @@ export function blockerText(blocker: AddBlocker, limit: number): string {
 }
 
 function freeCount(product: Product, selection: Selection): string {
-  return `${freeUsed(selection)} de ${freeLimit(product, selection)} grátis usados.`
+  return `${freeUsed(selection)} de ${freeLimit(product, selection)} adicionais grátis usados.`
 }
 
 function paidCount(topping: Topping, quantity: number): string {
@@ -102,7 +102,7 @@ function joinList(items: string[]): string {
 /** Descrição da prévia para leitores de tela. */
 export function previewTitle(product: Product, selection: Selection): string {
   const size = product.sizes.find((candidate) => candidate.id === selection.sizeId)
-  if (!size) return 'Prévia ilustrativa: recipiente vazio. Escolha o tamanho para começar.'
+  if (!size) return 'Foto ilustrativa: recipiente vazio. Escolha o tamanho para começar.'
 
   const flavor = product.flavors.find((candidate) => candidate.id === selection.flavorId)
   const parts = [product.name, size.name]
@@ -115,5 +115,5 @@ export function previewTitle(product: Product, selection: Selection): string {
   })
   const extras = items.length > 0 ? `com ${joinList(items)}` : 'sem complementos'
 
-  return `Prévia ilustrativa: ${parts.join(', ')}, ${extras}.`
+  return `Foto ilustrativa: ${parts.join(', ')}, ${extras}.`
 }

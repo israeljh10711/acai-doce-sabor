@@ -1,15 +1,19 @@
-import logo96 from '../../assets/brand/logo-96.webp'
-import logo192 from '../../assets/brand/logo-192.webp'
-import logo384 from '../../assets/brand/logo-384.webp'
-import logoClean384 from '../../assets/brand/logo-clean-384.webp'
-import logoClean768 from '../../assets/brand/logo-clean-768.webp'
-import symbolClean96 from '../../assets/brand/symbol-clean-96.webp'
-import symbolClean192 from '../../assets/brand/symbol-clean-192.webp'
 import { storeInfo } from '../../services/storeInfo.ts'
+
+/** Arquivos da logo em `public/images/branding`. */
+const brand = (file: string) => `${import.meta.env.BASE_URL}images/branding/${file}`
+
+const logo96 = brand('logo-96.webp')
+const logo192 = brand('logo-192.webp')
+const logo384 = brand('logo-384.webp')
+const logoClean384 = brand('logo-clean-384.webp')
+const logoClean768 = brand('logo-clean-768.webp')
+const symbolClean96 = brand('symbol-clean-96.webp')
+const symbolClean192 = brand('symbol-clean-192.webp')
 
 /**
  * Versões da logo oficial, todas tiradas do arquivo enviado pelo proprietário
- * (o original fica em `assets/brand/logo-original.jpg`).
+ * (o original fica em `assets/brand/logo-original.jpg`; as versões, em `public/images/branding`).
  *
  * - `badge`: a logo inteira dentro do disco roxo. Serve em qualquer fundo.
  * - `onBrand`: a logo inteira sem o disco, só a tigela, as folhas e o nome.

@@ -1,56 +1,41 @@
 /**
- * Montagens de exemplo, ilustradas nos cartões das categorias.
- * São montadas pelas mesmas regras do personalizador: um item que as regras
- * recusassem não apareceria, e o teste acusaria.
+ * Montagens de exemplo da vitrine (página inicial e cardápio). São pedidos possíveis de verdade:
+ * os testes conferem que cada um respeita as regras do cardápio (tamanho, limite grátis, sabor).
+ * A foto de cada cartão é o compositor montando esse pedido.
  */
+import type { ComposerInput } from '../photo-composer/layout.ts'
 import type { CategorySlug } from './categories.ts'
-import type { IllustrationInput } from './illustration/compose.ts'
 import { PRODUCTS } from './menu.ts'
-import { EMPTY_SELECTION, addTopping, chooseFlavor, chooseSize } from './selection.ts'
 
-type ShowcasePick = {
-  sizeId: string
-  flavorId: string | null
-  toppings: string[]
-  title: string
-}
-
-export const SHOWCASE_PICKS: Readonly<Record<CategorySlug, ShowcasePick>> = {
+export const SHOWCASE: Readonly<Record<CategorySlug, ComposerInput>> = {
+  // Isopor visto de cima, em setores, como a foto de referência do proprietário.
   'acai-oca': {
-    sizeId: 'isopor-g',
+    slug: 'acai-oca',
+    sizeId: 'isopor-gg',
     flavorId: null,
-    toppings: ['amendoim', 'chocoball', 'banana', 'morango', 'calda-chocolate'],
-    title:
-      'Ilustração de açaí Oca no isopor G, com amendoim, chocoball, banana, morango e cobertura de chocolate',
+    toppings: { morango: 1, amendoim: 1, banana: 1, chocoball: 1, granola: 1, 'calda-leite-condensado': 1, 'creme-de-ninho': 1 },
   },
   'acai-tradicional': {
+    slug: 'acai-tradicional',
     sizeId: 'copo-500',
     flavorId: null,
-    toppings: ['granola', 'banana', 'morango', 'calda-leite-condensado', 'creme-de-ninho'],
-    title:
-      'Ilustração de açaí Tradicional no copo de 500 ml, com granola, banana, morango, cobertura de leite condensado e creme de ninho',
+    toppings: { granola: 2, banana: 1, morango: 1, 'calda-leite-condensado': 1 },
+  },
+  'acai-batido': {
+    slug: 'acai-batido',
+    sizeId: '500-ml',
+    flavorId: 'leite-condensado-pacoca',
+    toppings: { 'batido-creme-de-avela': 1 },
   },
   'milk-shake': {
+    slug: 'milk-shake',
     sizeId: '500-ml',
     flavorId: 'morango',
-    toppings: ['calda-chocolate', 'cereja'],
-    title: 'Ilustração de milk-shake de morango de 500 ml, com cobertura de chocolate e cereja',
+    toppings: { 'calda-chocolate': 1, cereja: 1 },
   },
 }
 
-export function showcaseOf(slug: CategorySlug): IllustrationInput & { title: string } {
-  const product = PRODUCTS[slug]
-  const pick = SHOWCASE_PICKS[slug]
-
-  let selection = chooseSize(product, EMPTY_SELECTION, pick.sizeId).selection
-  if (pick.flavorId) selection = chooseFlavor(product, selection, pick.flavorId)
-  for (const id of pick.toppings) selection = addTopping(product, selection, id)
-
-  return {
-    slug,
-    sizeId: selection.sizeId,
-    flavorId: selection.flavorId,
-    toppings: selection.toppings,
-    title: pick.title,
-  }
+/** Menor preço da categoria: o "a partir de" dos cartões. */
+export function startingPriceCents(slug: CategorySlug): number {
+  return Math.min(...PRODUCTS[slug].sizes.map((size) => size.priceCents))
 }

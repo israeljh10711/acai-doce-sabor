@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { CATEGORIES, findCategoryBySlug } from './categories.ts'
 
-describe('categorias de Monte seu Pedido', () => {
-  it('são as três categorias definidas pelo proprietário, na ordem pedida', () => {
+describe('categorias do cardápio', () => {
+  it('são as quatro categorias do briefing, na ordem pedida', () => {
     expect(CATEGORIES.map((category) => category.name)).toEqual([
       'Açaí Oca',
       'Açaí Tradicional',
+      'Açaí Batido',
       'Milk-shake',
     ])
+  })
+
+  it('só o Açaí Oca tem selos de destaque', () => {
+    expect(findCategoryBySlug('acai-oca')?.badges).toEqual(['Especialidade da casa', 'O mais pedido'])
+    for (const category of CATEGORIES.filter((item) => item.slug !== 'acai-oca')) {
+      expect(category.badges).toEqual([])
+    }
   })
 
   it('têm slugs únicos, sem acentos nem espaços', () => {
@@ -19,9 +27,10 @@ describe('categorias de Monte seu Pedido', () => {
     }
   })
 
-  it('têm um resumo e um texto de botão que diz a ação', () => {
+  it('têm um resumo, uma frase de vitrine e um texto de botão que diz a ação', () => {
     for (const category of CATEGORIES) {
       expect(category.summary.length).toBeGreaterThan(10)
+      expect(category.tagline.length).toBeGreaterThan(20)
       expect(category.actionLabel).toMatch(/^Montar /)
     }
   })
@@ -30,6 +39,7 @@ describe('categorias de Monte seu Pedido', () => {
     expect(findCategoryBySlug('acai-oca')?.summary).toContain('200 ml')
     expect(findCategoryBySlug('acai-tradicional')?.summary).toContain('150 ml')
     expect(findCategoryBySlug('milk-shake')?.summary).toContain('13 sabores')
+    expect(findCategoryBySlug('acai-batido')?.summary).toContain('3 sabores')
   })
 
   it('encontra uma categoria pelo slug', () => {

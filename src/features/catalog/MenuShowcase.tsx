@@ -1,0 +1,136 @@
+import { m } from 'motion/react'
+import { Link } from 'react-router'
+import { ArrowRight, Crown, Flame } from '../../components/ui/icons.tsx'
+import { paths } from '../../paths.ts'
+import { formatBRL } from '../../utils/money.ts'
+import { ProductPhotoComposer } from '../photo-composer/ProductPhotoComposer.tsx'
+import { CATEGORIES, type Category } from './categories.ts'
+import { PRODUCTS } from './menu.ts'
+import { ILLUSTRATIVE_NOTICE } from './notices.ts'
+import { SHOWCASE, startingPriceCents } from './showcase.ts'
+
+const BADGE_ICONS = { 'Especialidade da casa': Crown, 'O mais pedido': Flame } as const
+
+const reveal = {
+  initial: { y: 18 },
+  whileInView: { y: 0 },
+  viewport: { once: true, margin: '-60px' },
+  transition: { duration: 0.5, ease: [0.2, 0.7, 0.2, 1] },
+} as const
+
+/**
+ * Cardápio em vitrine: o Açaí Oca em destaque e as outras três categorias em cartões.
+ * Cada cartão tem âncora própria (#acai-oca, #acai-tradicional...) para a navegação por categoria.
+ */
+export function MenuShowcase({ headingLevel = 'h3' }: { headingLevel?: 'h2' | 'h3' }) {
+  const [featured, ...others] = CATEGORIES
+  return (
+    <div className="flex flex-col gap-6 lg:gap-8">
+      <FeaturedCard category={featured} Heading={headingLevel} />
+      <ul className="grid gap-6 md:grid-cols-3">
+        {others.map((category) => (
+          <m.li key={category.slug} id={category.slug} className="scroll-mt-28" {...reveal}>
+            <ProductCard category={category} Heading={headingLevel} />
+          </m.li>
+        ))}
+      </ul>
+      <p className="text-center text-sm text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
+    </div>
+  )
+}
+
+function Badges({ category }: { category: Category }) {
+  if (category.badges.length === 0) return null
+  return (
+    <ul className="flex flex-wrap gap-2" aria-label="Destaques">
+      {category.badges.map((badge) => {
+        const Icon = BADGE_ICONS[badge]
+        return (
+          <li
+            key={badge}
+            className="inline-flex items-center gap-1.5 rounded-full bg-gold-400 px-3 py-1 text-xs font-extrabold tracking-wide text-acai-950 uppercase"
+          >
+            <Icon className="size-3.5" />
+            {badge}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2' | 'h3' }) {
+  const product = PRODUCTS[category.slug]
+  const kinds = [...new Set(product.sizes.map((size) => size.container))].length
+  return (
+    <m.article
+      id={category.slug}
+      aria-labelledby={`${category.slug}-titulo`}
+      className="relative grid scroll-mt-28 overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift lg:grid-cols-[1.05fr_1fr]"
+      {...reveal}
+    >
+      <div className="relative bg-[radial-gradient(circle_at_50%_45%,#7b1d5c_0%,#4a0e36_58%,#3b072a_100%)] p-6 sm:p-10">
+        <ProductPhotoComposer {...SHOWCASE[category.slug]} tilt className="mx-auto w-full max-w-md" />
+      </div>
+      <div className="flex flex-col justify-center gap-5 p-6 sm:p-10">
+        <Badges category={category} />
+        <Heading id={`${category.slug}-titulo`} className="font-display text-4xl font-black tracking-tight uppercase sm:text-5xl">
+          {category.name}
+        </Heading>
+        <p className="max-w-md text-lg leading-relaxed text-white/85">{category.tagline}</p>
+        <dl className="grid max-w-md grid-cols-3 gap-3 text-center">
+          <Fact label="A partir de" value={formatBRL(startingPriceCents(category.slug))} />
+          <Fact label="Tamanhos" value={String(product.sizes.length)} />
+          <Fact label="Recipientes" value={String(kinds)} />
+        </dl>
+        <Link
+          to={paths.configurator(category.slug)}
+          className="btn-gold inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-full px-7 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white sm:w-fit"
+        >
+          {category.actionLabel}
+          <ArrowRight className="size-5" />
+        </Link>
+      </div>
+    </m.article>
+  )
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/8 px-2 py-3 ring-1 ring-white/15">
+      <dt className="text-[0.7rem] font-bold tracking-wide text-white/75 uppercase">{label}</dt>
+      <dd className="nums mt-0.5 font-display text-xl font-black whitespace-nowrap text-gold-400">{value}</dd>
+    </div>
+  )
+}
+
+function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' | 'h3' }) {
+  return (
+    <article
+      aria-labelledby={`${category.slug}-titulo`}
+      className="group relative flex h-full flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-card ring-1 ring-line transition duration-300 hover:-translate-y-1 hover:shadow-lift"
+    >
+      <div className="relative bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#f3e9f1_70%,#e8d6e3_100%)] p-6">
+        <ProductPhotoComposer {...SHOWCASE[category.slug]} className="mx-auto w-full max-w-64" />
+        <p className="nums absolute top-4 right-4 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
+          <span className="font-semibold">a partir de </span>
+          {formatBRL(startingPriceCents(category.slug))}
+        </p>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-6">
+        <Heading id={`${category.slug}-titulo`} className="font-display text-2xl font-black tracking-tight text-acai-800 uppercase">
+          {category.name}
+        </Heading>
+        <p className="text-ink-soft">{category.tagline}</p>
+        <p className="text-sm font-semibold text-acai-700">{category.summary}</p>
+        <Link
+          to={paths.configurator(category.slug)}
+          className="mt-auto inline-flex min-h-12 items-center gap-2 pt-3 font-extrabold text-acai-800 after:absolute after:inset-0 after:content-[''] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800"
+        >
+          <span className="link-draw">{category.actionLabel}</span>
+          <ArrowRight className="size-5 transition-transform duration-200 group-hover:translate-x-1" />
+        </Link>
+      </div>
+    </article>
+  )
+}

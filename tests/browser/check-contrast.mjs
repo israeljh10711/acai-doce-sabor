@@ -79,7 +79,7 @@ const measure = `(() => {
     const box = element.getBoundingClientRect()
     if (style.visibility === 'hidden' || style.display === 'none') continue
     // A WCAG dispensa de contraste os controles inativos (desabilitados).
-    if (element.closest('button:disabled, input:disabled, fieldset:disabled')) {
+    if (element.closest('button:disabled, input:disabled, fieldset:disabled, [aria-disabled="true"]')) {
       skippedDisabled++
       continue
     }

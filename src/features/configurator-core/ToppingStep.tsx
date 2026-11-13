@@ -2,7 +2,7 @@ import { m } from 'motion/react'
 import { Check } from '../../components/ui/icons.tsx'
 import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppingsOf } from '../catalog/menu.ts'
 import { quantityOf } from '../catalog/selection.ts'
-import { toppingImage } from '../catalog/toppingImages.ts'
+import { ingredientImage } from '../photo-composer/visuals.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { blockerText, toppingLabel } from './messages.ts'
 import { QuantityStepper } from './QuantityStepper.tsx'
@@ -32,8 +32,8 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
   if (!cfg.size) hint = 'Escolha o tamanho primeiro'
   else if (rule === 'limited')
     hint = limitReached
-      ? `${cfg.freeUsed} de ${cfg.freeLimit} grátis · limite atingido`
-      : `${cfg.freeUsed} de ${cfg.freeLimit} grátis`
+      ? `${cfg.freeUsed} de ${cfg.freeLimit} adicionais grátis · limite atingido`
+      : `${cfg.freeUsed} de ${cfg.freeLimit} adicionais grátis`
   else if (rule === 'included') hint = optional ? 'Opcional, sem custo' : 'À vontade, sem custo'
   else hint = optional ? 'Opcional, cobrado por unidade' : 'Cobrado por unidade'
 
@@ -64,14 +64,11 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
   )
 }
 
-/** Miniatura do ingrediente (render do Blender). Decorativa: o nome está ao lado. */
-function Thumb({ id }: { id: string }) {
-  const src = toppingImage(id)
+/** Miniatura do ingrediente: foto recortada do próprio ingrediente. Decorativa: o nome está ao lado. */
+function Thumb({ topping }: { topping: Topping }) {
   return (
     <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-acai-50 ring-1 ring-line">
-      {src && (
-        <img src={src} alt="" width={64} height={64} loading="lazy" decoding="async" className="size-[4.1rem] max-w-none" />
-      )}
+      <img src={ingredientImage(topping)} alt="" width={64} height={64} loading="lazy" decoding="async" className="size-full object-cover" />
     </span>
   )
 }
@@ -102,7 +99,7 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
         on ? 'border-gold-400 bg-gold-100' : 'border-line'
       }`}
     >
-      <Thumb id={topping.id} />
+      <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       <FreeBadge />
       {/* Selo de marcado no canto, como nos tamanhos: o nome fica com a largura toda. */}
@@ -138,7 +135,7 @@ function StepperCard({
     <div
       className={`${cardBase} ${quantity > 0 ? 'border-gold-400 bg-gold-100' : 'border-line'}`}
     >
-      <Thumb id={topping.id} />
+      <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {paid ? (
         <span className="nums inline-block rounded-full bg-gold-400 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-acai-950">

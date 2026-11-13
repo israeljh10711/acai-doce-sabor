@@ -1,6 +1,7 @@
 import { useReducer } from 'react'
 import type { Product } from '../catalog/menu.ts'
 import {
+  type Selection,
   addBlocker,
   freeLimit,
   freeUsed,
@@ -10,12 +11,16 @@ import {
 } from '../catalog/selection.ts'
 import { type ConfiguratorAction, type ConfiguratorState, INITIAL_STATE, configuratorReducer } from './configurator.ts'
 
-/** Estado e ações do personalizador de um produto. A montagem não é guardada ao sair. */
-export function useConfigurator(product: Product) {
+/**
+ * Estado e ações do personalizador de um produto. Começa vazio ou, ao editar um item do
+ * carrinho, com a montagem dele.
+ */
+export function useConfigurator(product: Product, initialSelection?: Selection) {
   const [state, dispatch] = useReducer(
     (current: ConfiguratorState, action: ConfiguratorAction) =>
       configuratorReducer(product, current, action),
-    INITIAL_STATE,
+    initialSelection,
+    (selection): ConfiguratorState => (selection ? { ...INITIAL_STATE, selection } : INITIAL_STATE),
   )
   const { selection } = state
 

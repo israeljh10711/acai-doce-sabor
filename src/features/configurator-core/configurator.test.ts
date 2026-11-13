@@ -23,7 +23,7 @@ describe('configuratorReducer', () => {
     ])
 
     expect(state.selection.toppings).toEqual({ granola: 1 })
-    expect(state.announcement).toBe('Você adicionou Granola. 1 de 3 grátis usados.')
+    expect(state.announcement).toBe('Você adicionou Granola. 1 de 3 adicionais grátis usados.')
   })
 
   it('não muda nada quando o item não pode entrar', () => {
@@ -90,7 +90,7 @@ describe('configuratorReducer', () => {
 describe('previewTitle', () => {
   it('descreve o recipiente vazio antes do tamanho', () => {
     expect(previewTitle(tradicional, INITIAL_STATE.selection)).toBe(
-      'Prévia ilustrativa: recipiente vazio. Escolha o tamanho para começar.',
+      'Foto ilustrativa: recipiente vazio. Escolha o tamanho para começar.',
     )
   })
 
@@ -104,7 +104,7 @@ describe('previewTitle', () => {
     ])
 
     expect(previewTitle(tradicional, state.selection)).toBe(
-      'Prévia ilustrativa: Açaí Tradicional, Copo 500 ml, com 2 Granola, Banana e cobertura de Morango.',
+      'Foto ilustrativa: Açaí Tradicional, Copo 500 ml, com 2 Granola, Banana e cobertura de Morango.',
     )
   })
 
@@ -115,7 +115,7 @@ describe('previewTitle', () => {
     ])
 
     expect(previewTitle(milkShake, state.selection)).toBe(
-      'Prévia ilustrativa: Milk-shake, 400 ml, sabor Ninho, sem complementos.',
+      'Foto ilustrativa: Milk-shake, 400 ml, sabor Ninho, sem complementos.',
     )
   })
 })

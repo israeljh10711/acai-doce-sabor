@@ -167,7 +167,7 @@ export type PriceLine = {
 
 export type Price = {
   sizeCents: number
-  /** Um item por adicional pago escolhido, na ordem do cardápio. */
+  /** Um item por adicional cobrado escolhido, na ordem do cardápio. */
   paidLines: PriceLine[]
   paidCents: number
   totalCents: number
@@ -178,13 +178,17 @@ export function priceOf(product: Product, selection: Selection): Price | null {
   const size = selectedSize(product, selection)
   if (!size) return null
 
-  const paidLines = selectedByGroup(product, selection, 'paid').map(({ topping, quantity }) => ({
-    toppingId: topping.id,
-    name: topping.name,
-    quantity,
-    unitCents: topping.priceCents,
-    totalCents: topping.priceCents * quantity,
-  }))
+  // Todo grupo cobrado entra: os adicionais pagos do açaí e os adicionais do batido.
+  const paidGroups = product.groups.filter((group) => TOPPING_GROUPS[group].rule === 'paid')
+  const paidLines = paidGroups.flatMap((group) =>
+    selectedByGroup(product, selection, group).map(({ topping, quantity }) => ({
+      toppingId: topping.id,
+      name: topping.name,
+      quantity,
+      unitCents: topping.priceCents,
+      totalCents: topping.priceCents * quantity,
+    })),
+  )
   const paidCents = paidLines.reduce((sum, line) => sum + line.totalCents, 0)
 
   return { sizeCents: size.priceCents, paidLines, paidCents, totalCents: size.priceCents + paidCents }

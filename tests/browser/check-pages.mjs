@@ -30,13 +30,16 @@ const routes = [
   {
     name: 'inicio',
     path: '/',
-    h1: 'Açaí montado do seu jeito.',
+    h1: 'O açaí mais saboroso de Teixeira',
     title: `${STORE} | Açaí e milk-shake em Teixeira, PB`,
   },
-  { name: 'monte-seu-pedido', path: '/monte-seu-pedido', h1: 'Monte seu Pedido' },
+  { name: 'cardapio', path: '/monte-seu-pedido', h1: 'Cardápio' },
   { name: 'acai-oca', path: '/monte-seu-pedido/acai-oca', h1: 'Açaí Oca' },
   { name: 'acai-tradicional', path: '/monte-seu-pedido/acai-tradicional', h1: 'Açaí Tradicional' },
+  { name: 'acai-batido', path: '/monte-seu-pedido/acai-batido', h1: 'Açaí Batido' },
   { name: 'milk-shake', path: '/monte-seu-pedido/milk-shake', h1: 'Milk-shake' },
+  // O carrinho é pessoal: fica fora da busca.
+  { name: 'carrinho', path: '/carrinho', h1: 'Seu carrinho', title: `Carrinho | ${STORE}`, noindex: true },
   { name: 'categoria-inexistente', path: '/monte-seu-pedido/pizza', h1: 'Página não encontrada' },
   { name: 'endereco-inexistente', path: '/nao-existe', h1: 'Página não encontrada' },
 ]
@@ -100,7 +103,7 @@ try {
         failures.push(`título "${info.title}" (esperado "${expectedTitle}")`)
       if (info.titleElements !== 1) failures.push(`${info.titleElements} elementos <title>`)
       if (info.description.length < 50) failures.push(`descrição curta ou ausente: "${info.description}"`)
-      const expectNoindex = route.h1 === 'Página não encontrada'
+      const expectNoindex = route.noindex ?? route.h1 === 'Página não encontrada'
       if (info.noindex !== expectNoindex)
         failures.push(expectNoindex ? 'falta noindex' : 'noindex em página que deve aparecer na busca')
       if (info.lang !== 'pt-BR') failures.push(`lang "${info.lang}"`)

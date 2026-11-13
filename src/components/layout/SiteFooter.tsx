@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { HOURS_TEXT } from '../../features/store-hours/hours.ts'
 import { paths } from '../../paths.ts'
 import { storeInfo } from '../../services/storeInfo.ts'
 import { buildWhatsAppUrl } from '../../utils/whatsapp.ts'
@@ -19,30 +20,26 @@ export function SiteFooter() {
           <div>
             <p className="font-display text-lg font-extrabold tracking-tight text-white uppercase" translate="no">{name}</p>
             <p className="text-sm">
-              {address.city}, {address.state}
+              {address.street}, {address.city}, PB
             </p>
+            <p className="text-sm">{HOURS_TEXT}</p>
           </div>
         </div>
 
         <nav aria-label="Rodapé">
           <ul className="flex flex-wrap gap-x-6 text-sm">
             <li>
-              <Link to={paths.home} className={linkClass}>
-                <span className="link-draw">Início</span>
-              </Link>
-            </li>
-            <li>
               <Link to={paths.buildOrder} className={linkClass}>
-                <span className="link-draw">Monte seu Pedido</span>
+                <span className="link-draw">Cardápio</span>
               </Link>
             </li>
             <li>
-              <a
-                href={buildWhatsAppUrl(whatsapp)}
-                target="_blank"
-                rel="noreferrer"
-                className={linkClass}
-              >
+              <Link to={paths.cart} className={linkClass}>
+                <span className="link-draw">Carrinho</span>
+              </Link>
+            </li>
+            <li>
+              <a href={buildWhatsAppUrl(whatsapp)} target="_blank" rel="noreferrer" className={linkClass}>
                 <span className="link-draw">WhatsApp</span>
                 <span className="sr-only"> (abre em nova aba)</span>
               </a>
@@ -52,6 +49,11 @@ export function SiteFooter() {
                 <span className="link-draw">@{instagramHandle}</span>
                 <span className="sr-only"> (abre em nova aba)</span>
               </a>
+            </li>
+            <li>
+              <Link to={paths.credits} className={linkClass}>
+                <span className="link-draw">Créditos das fotos</span>
+              </Link>
             </li>
           </ul>
         </nav>

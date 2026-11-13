@@ -1,32 +1,42 @@
 import { Check, Info } from '../../components/ui/icons.tsx'
-import { FLAVOR_COLORS } from '../catalog/illustration/looks.ts'
-import type { Product } from '../catalog/menu.ts'
-import { FLAVOR_AVAILABILITY_NOTICE } from '../catalog/notices.ts'
+import { type Product, getTopping } from '../catalog/menu.ts'
 import { StepHeading } from '../configurator-core/StepHeading.tsx'
 import type { ConfiguratorApi } from '../configurator-core/useConfigurator.ts'
+import { BATIDO_FLAVOR_TOPPINGS, SHAKE_COLORS, image, ingredientImage } from '../photo-composer/visuals.ts'
 
-/** Escolha do sabor do milk-shake, com o aviso de disponibilidade pedido pelo proprietário. */
+/**
+ * Escolha do sabor (milk-shake e açaí batido). O aviso de disponibilidade aparece quando o
+ * proprietário pediu (no milk-shake). Cada sabor tem a sua amostra: a cor do milk-shake ou as
+ * fotos do que o batido leva por cima.
+ */
 export function FlavorStep({ product, cfg, number }: { product: Product; cfg: ConfiguratorApi; number: number }) {
   const headingId = `${product.slug}-sabor`
   const noticeId = `${headingId}-aviso`
+  const longNames = product.flavors.some((flavor) => flavor.name.length > 22)
 
   return (
-    <fieldset aria-labelledby={headingId} aria-describedby={noticeId} className="min-w-0">
+    <fieldset
+      aria-labelledby={headingId}
+      aria-describedby={product.flavorNotice ? noticeId : undefined}
+      className="min-w-0"
+    >
       <StepHeading number={number} id={headingId} title="Sabor" />
 
-      <p
-        id={noticeId}
-        className="mt-4 flex gap-2.5 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400"
-      >
-        <Info className="mt-0.5 size-4 text-acai-700" />
-        {FLAVOR_AVAILABILITY_NOTICE}
-      </p>
+      {product.flavorNotice && (
+        <p
+          id={noticeId}
+          className="mt-4 flex gap-2.5 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400"
+        >
+          <Info className="mt-0.5 size-4 text-acai-700" />
+          {product.flavorNotice}
+        </p>
+      )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-2">
+      <div className={`mt-4 grid gap-2.5 ${longNames ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-2'}`}>
         {product.flavors.map((flavor) => (
           <label
             key={flavor.id}
-            className="group relative flex min-h-12 cursor-pointer items-center gap-2.5 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800"
+            className="group relative flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800"
           >
             <input
               type="radio"
@@ -36,11 +46,7 @@ export function FlavorStep({ product, cfg, number }: { product: Product; cfg: Co
               onChange={() => cfg.chooseFlavor(flavor.id)}
               className="sr-only"
             />
-            <span
-              aria-hidden="true"
-              className="size-6 shrink-0 rounded-full ring-2 ring-white shadow-[0_0_0_1px_rgb(42_8_29/0.18)]"
-              style={{ backgroundColor: FLAVOR_COLORS[flavor.id]?.body }}
-            />
+            <Swatch slug={product.slug} flavorId={flavor.id} />
             <span className="font-semibold text-acai-950">{flavor.name}</span>
             <span
               aria-hidden="true"
@@ -52,5 +58,37 @@ export function FlavorStep({ product, cfg, number }: { product: Product; cfg: Co
         ))}
       </div>
     </fieldset>
+  )
+}
+
+function Swatch({ slug, flavorId }: { slug: Product['slug']; flavorId: string }) {
+  const extras = slug === 'acai-batido' ? (BATIDO_FLAVOR_TOPPINGS[flavorId] ?? []) : []
+  if (extras.length > 0) {
+    return (
+      <span aria-hidden="true" className="flex shrink-0 -space-x-3">
+        <img src={image('ingredients/calda-acai.webp')} alt="" width={40} height={40} className="size-10 rounded-full object-cover ring-2 ring-white" />
+        {extras.map((id) => {
+          const topping = getTopping(id)
+          return (
+            <img
+              key={id}
+              src={ingredientImage(topping ?? { id })}
+              alt=""
+              width={40}
+              height={40}
+              loading="lazy"
+              className="size-10 rounded-full object-cover ring-2 ring-white"
+            />
+          )
+        })}
+      </span>
+    )
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className="size-7 shrink-0 rounded-full ring-2 ring-white shadow-[0_0_0_1px_rgb(42_8_29/0.18)]"
+      style={{ backgroundColor: SHAKE_COLORS[flavorId] }}
+    />
   )
 }

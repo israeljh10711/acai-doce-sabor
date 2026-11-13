@@ -11,6 +11,7 @@
  * Os preços estão em centavos.
  */
 import type { CategorySlug } from './categories.ts'
+import { FLAVOR_AVAILABILITY_NOTICE } from './notices.ts'
 
 export type ContainerKind = 'pote' | 'copo' | 'isopor'
 
@@ -24,7 +25,7 @@ export type ProductSize = {
   freeToppings: number
 }
 
-export type ToppingGroupId = 'dry' | 'fruit' | 'syrup' | 'paid'
+export type ToppingGroupId = 'dry' | 'fruit' | 'syrup' | 'paid' | 'batido'
 
 /**
  * Como um grupo de ingredientes entra no pedido:
@@ -47,6 +48,11 @@ export type Topping = {
   group: ToppingGroupId
   /** Preço por unidade. Zero nos grupos sem custo. */
   priceCents: number
+  /**
+   * Foto que representa o ingrediente, quando o identificador é outro (os adicionais do batido
+   * usam as fotos de mesmo nome: `batido-ovomaltine` usa `ovomaltine`).
+   */
+  look?: string
 }
 
 export type Flavor = {
@@ -62,6 +68,8 @@ export type Product = {
   groups: readonly ToppingGroupId[]
   /** Sabores para escolher. Vazio quando o produto não tem sabores. */
   flavors: readonly Flavor[]
+  /** Aviso que acompanha a escolha do sabor, quando o proprietário pediu um. */
+  flavorNotice?: string
 }
 
 /**
@@ -75,6 +83,8 @@ export const TOPPING_GROUPS: Readonly<Record<ToppingGroupId, ToppingGroup>> = {
   fruit: { id: 'fruit', name: 'Frutas', rule: 'included' },
   syrup: { id: 'syrup', name: 'Coberturas', rule: 'included' },
   paid: { id: 'paid', name: 'Adicionais pagos', rule: 'paid' },
+  // Exclusivos do Açaí Batido, todos a R$ 3,00 (briefing de 2026-11-12).
+  batido: { id: 'batido', name: 'Adicionais', rule: 'paid' },
 }
 
 const free = (group: ToppingGroupId, id: string, name: string): Topping => ({
@@ -84,11 +94,12 @@ const free = (group: ToppingGroupId, id: string, name: string): Topping => ({
   priceCents: 0,
 })
 
-const paid = (id: string, name: string, priceCents: number): Topping => ({
+const paid = (id: string, name: string, priceCents: number, group: ToppingGroupId = 'paid', look?: string): Topping => ({
   id,
   name,
-  group: 'paid',
+  group,
   priceCents,
+  ...(look ? { look } : {}),
 })
 
 /** Todos os ingredientes, na ordem do cardápio. */
@@ -122,6 +133,13 @@ export const TOPPINGS: readonly Topping[] = [
   paid('creme-de-ninho', 'Creme de ninho', 300),
   paid('cereja', 'Cereja', 300),
   paid('kit-kat', 'Kit Kat', 400),
+
+  // Açaí Batido: adicionais exclusivos, R$ 3,00 cada.
+  paid('batido-creme-de-avela', 'Creme de avelã', 300, 'batido', 'creme-de-avela'),
+  paid('batido-creme-de-morango', 'Creme de morango', 300, 'batido', 'creme-de-morango'),
+  paid('batido-creme-de-cookies', 'Creme de cookies', 300, 'batido', 'creme-de-cookies'),
+  paid('batido-creme-de-ninho', 'Creme de ninho', 300, 'batido', 'creme-de-ninho'),
+  paid('batido-ovomaltine', 'Ovomaltine', 300, 'batido', 'ovomaltine'),
 ]
 
 const size = (
@@ -171,9 +189,24 @@ export const PRODUCTS: Readonly<Record<CategorySlug, Product>> = {
     ],
   },
 
+  'acai-batido': {
+    slug: 'acai-batido',
+    name: 'Açaí Batido',
+    // Sabores, tamanhos e preços do briefing de 2026-11-12. Os adicionais somam R$ 3,00 cada
+    // ao preço do tamanho, que não muda.
+    groups: ['batido'],
+    sizes: [size('300-ml', '300 ml', 'copo', 1000, 0), size('500-ml', '500 ml', 'copo', 1200, 0)],
+    flavors: [
+      { id: 'leite-condensado', name: 'Açaí Batido com Leite Condensado' },
+      { id: 'leite-condensado-amendoim', name: 'Açaí com Leite Condensado e Amendoim' },
+      { id: 'leite-condensado-pacoca', name: 'Açaí com Leite Condensado e Paçoca' },
+    ],
+  },
+
   'milk-shake': {
     slug: 'milk-shake',
     name: 'Milk-shake',
+    flavorNotice: FLAVOR_AVAILABILITY_NOTICE,
     // O cardápio do milk-shake é tamanho e sabor. O proprietário pediu que o cliente
     // também possa incluir coberturas e adicionais pagos. Não leva adicionais nem frutas.
     groups: ['syrup', 'paid'],

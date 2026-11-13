@@ -24,7 +24,7 @@ describe('blockerText', () => {
 describe('addedText', () => {
   it('nos adicionais, conta quantos grátis já foram usados', () => {
     expect(addedText(tradicional, build('copo-500', ['granola', 'granola']), 'granola')).toBe(
-      'Você adicionou Granola. 2 de 3 grátis usados.',
+      'Você adicionou Granola. 2 de 3 adicionais grátis usados.',
     )
   })
 
@@ -48,7 +48,7 @@ describe('addedText', () => {
 describe('removedText', () => {
   it('confirma a retirada e, nos adicionais, atualiza a conta dos grátis', () => {
     expect(removedText(tradicional, build('copo-500', ['granola']), 'granola')).toBe(
-      'Você tirou Granola. 1 de 3 grátis usados.',
+      'Você tirou Granola. 1 de 3 adicionais grátis usados.',
     )
     expect(removedText(tradicional, build('copo-500', []), 'banana')).toBe('Você tirou Banana.')
     expect(removedText(tradicional, build('copo-500', []), 'calda-morango')).toBe(

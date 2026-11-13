@@ -1,14 +1,25 @@
-import { Info } from '../../components/ui/icons.tsx'
-import { type Product, TOPPING_GROUPS } from '../catalog/menu.ts'
-import { selectedByGroup } from '../catalog/selection.ts'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router'
+import { ArrowRight, Bag } from '../../components/ui/icons.tsx'
+import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
+import { cartActions } from '../cart/cartStore.ts'
+import { type Product, TOPPING_GROUPS } from '../catalog/menu.ts'
+import { type Selection, selectedByGroup } from '../catalog/selection.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import type { ConfiguratorApi } from './useConfigurator.ts'
 
 const MISSING_TEXT = { size: 'o tamanho', flavor: 'o sabor' } as const
 
-/** Resumo do pedido montado, com o preço de cada parte e o total. */
-export function OrderSummary({ product, cfg }: { product: Product; cfg: ConfiguratorApi }) {
+type OrderSummaryProps = {
+  product: Product
+  cfg: ConfiguratorApi
+  /** Item do carrinho em edição: o botão salva as mudanças nele em vez de criar outro. */
+  editingItemId?: string
+}
+
+/** Resumo do pedido montado, com o preço de cada parte, o total e o botão do carrinho. */
+export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps) {
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
   const freeGroups = product.groups.filter((group) => TOPPING_GROUPS[group].rule !== 'paid')
 
@@ -61,21 +72,72 @@ export function OrderSummary({ product, cfg }: { product: Product; cfg: Configur
             </div>
           </div>
         ) : (
-          <p className="text-ink-soft">Escolha o tamanho para ver o preço.</p>
+          <p id="resumo-falta" className="text-ink-soft">
+            Escolha o tamanho para ver o preço.
+          </p>
         )}
 
         {cfg.missing.length > 0 && cfg.size && (
-          <p className="mt-4 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-gold-400">
+          <p
+            id="resumo-falta"
+            className="mt-4 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-gold-400"
+          >
             Falta escolher {cfg.missing.map((choice) => MISSING_TEXT[choice]).join(' e ')}.
           </p>
         )}
 
-        <p className="mt-5 flex gap-2.5 rounded-2xl bg-acai-50 px-4 py-3 text-sm text-ink-soft ring-1 ring-line">
-          <Info className="mt-0.5 size-4 text-acai-700" />
-          O carrinho e o envio do pedido chegam na próxima etapa do site.
-        </p>
+        <CartButton product={product} cfg={cfg} editingItemId={editingItemId} />
       </div>
     </section>
+  )
+}
+
+function CartButton({ product, cfg, editingItemId }: OrderSummaryProps) {
+  const navigate = useNavigate()
+  // Montagem que acabou de ir para o carrinho. Qualquer mudança cria outra seleção e o aviso some.
+  const [addedSelection, setAddedSelection] = useState<Selection | null>(null)
+  const ready = cfg.size !== undefined && cfg.missing.length === 0
+  const justAdded = addedSelection === cfg.selection
+
+  const submit = () => {
+    if (!ready) return
+    if (editingItemId) {
+      cartActions.update(editingItemId, cfg.selection)
+      navigate(paths.cart)
+      return
+    }
+    if (cartActions.add(product.slug, cfg.selection)) setAddedSelection(cfg.selection)
+  }
+
+  return (
+    <div className="mt-5 flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={submit}
+        aria-disabled={!ready}
+        aria-describedby={ready ? undefined : 'resumo-falta'}
+        className="btn-gold inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:shadow-none aria-disabled:hover:translate-y-0"
+      >
+        <Bag className="size-5" />
+        {editingItemId ? 'Salvar alterações' : 'Adicionar ao carrinho'}
+        {cfg.price && ready && <span className="nums font-bold whitespace-nowrap">· {formatBRL(cfg.price.totalCents)}</span>}
+      </button>
+
+      <p role="status" className="min-h-6 text-center text-sm font-semibold text-acai-800">
+        {justAdded && (
+          <>
+            {product.name} adicionado ao carrinho.{' '}
+            <Link
+              to={paths.cart}
+              className="inline-flex items-center gap-1 font-extrabold underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+            >
+              Ver carrinho
+              <ArrowRight className="size-4" />
+            </Link>
+          </>
+        )}
+      </p>
+    </div>
   )
 }
 

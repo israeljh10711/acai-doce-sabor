@@ -1,5 +1,6 @@
 /**
  * Dados públicos da loja, informados pelo proprietário.
+ * Instagram corrigido para @acaiidocesabor (com dois "i") no briefing de 2026-11-12.
  *
  * Por enquanto ficam fixos aqui. Quando o banco de dados entrar (Fase 6),
  * passam a ser lidos das tabelas `stores` e `store_settings`.
@@ -7,8 +8,8 @@
 export const storeInfo = {
   name: 'Açaí Doce Sabor',
   whatsapp: '(83) 99699-9980',
-  instagramHandle: 'acaidocesabor',
-  instagramUrl: 'https://www.instagram.com/acaidocesabor/',
+  instagramHandle: 'acaiidocesabor',
+  instagramUrl: 'https://www.instagram.com/acaiidocesabor/',
   address: {
     street: 'Rua Francisco Tota, 12',
     city: 'Teixeira',
