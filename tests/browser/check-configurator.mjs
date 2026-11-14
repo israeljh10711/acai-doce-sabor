@@ -27,6 +27,13 @@ const helpers = `
   window.__text = () => document.body.innerText;
   window.__live = () => document.querySelector('[aria-live="polite"]').textContent;
   window.__photo = (root = '[aria-label="Prévia do pedido"]') => document.querySelector(root + ' [data-product-photo]')?.dataset.productPhoto;
+  // A foto do produto carregou, aparece inteira (contain) e vem da pasta das fotos enviadas pela loja.
+  window.__photoShown = async (root = '[aria-label="Prévia do pedido"]') => {
+    const img = document.querySelector(root + ' [data-product-photo]');
+    if (!img) return null;
+    if (!img.complete) await new Promise((resolve) => { img.addEventListener('load', resolve, { once: true }); img.addEventListener('error', resolve, { once: true }) });
+    return { loaded: img.naturalWidth > 0, fit: getComputedStyle(img).objectFit, folder: new URL(img.currentSrc).pathname.split('/').slice(-2, -1)[0] };
+  };
   window.__summary = () => __q('#resumo').innerText;
   window.__groupNames = (title) => {
     const section = [...document.querySelectorAll('section')].find((s) => s.querySelector('h2')?.textContent.includes(title));
@@ -78,11 +85,13 @@ try {
     // --- Açaí Tradicional: ordem livre ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)
     check(`${at} foto fixa e real do produto`, await browser.evaluate(`__photo()`), 'acai-tradicional')
+    check(`${at} foto enviada pela loja, carregada e inteira`, await browser.evaluate(`__photoShown()`), { loaded: true, fit: 'contain', folder: 'produtos' })
+    check(`${at} sem Biscoito no cardápio`, await browser.evaluate(`!/biscoito/i.test(__text())`), true)
     check(`${at} sem camadas montadas nem 3D`, await browser.evaluate(`!document.querySelector('[data-composer], canvas')`), true)
     check(
       `${at} adicionais com leite condensado e disquete`,
       await browser.evaluate(`__groupNames('Adicionais')`),
-      ['Leite em pó', 'Granola', 'Biscoito', 'Paçoca', 'Chocoball', 'Amendoim', 'Gotas de chocolate', 'Canudinho', 'BIS', 'Farinha láctea', 'Sucrilhos', 'Marshmallow', 'Leite condensado', 'Disquete (confete)'],
+      ['Leite em pó', 'Granola', 'Paçoca', 'Chocoball', 'Amendoim', 'Gotas de chocolate', 'Canudinho', 'BIS', 'Farinha láctea', 'Sucrilhos', 'Marshmallow', 'Leite condensado', 'Disquete (confete)'],
     )
     check(
       `${at} caldas e cremes, na ordem pedida`,
@@ -122,14 +131,15 @@ try {
     check(`${at} a foto não muda com os ingredientes`, await browser.evaluate(`__photo()`), 'acai-tradicional')
 
     await click(`__radio('isopor-m')`)
-    check(`${at} no isopor, a foto da tigela`, await browser.evaluate(`__photo()`), 'acai-isopor')
+    check(`${at} no isopor, a mesma foto do Tradicional`, await browser.evaluate(`__photo()`), 'acai-tradicional')
     await sleep(500)
     writeFileSync(join(outDir, `tradicional-isopor-${viewport.width}.png`), await browser.screenshot())
 
     if (!desktop) {
       await click(`__button('Ver foto')`)
       check(`${at} "Ver foto" abre a foto grande`, await browser.evaluate(`__q('dialog').open`), true)
-      check(`${at} foto grande do mesmo produto`, await browser.evaluate(`__photo('dialog')`), 'acai-isopor')
+      check(`${at} foto grande do mesmo produto`, await browser.evaluate(`__photo('dialog')`), 'acai-tradicional')
+      check(`${at} foto grande carregada e inteira`, await browser.evaluate(`__photoShown('dialog')`), { loaded: true, fit: 'contain', folder: 'produtos' })
       await key('Escape', 'Escape')
       check(`${at} Esc fecha a foto grande`, await browser.evaluate(`__q('dialog').open`), false)
       check(`${at} foco volta para "Ver foto"`, await browser.evaluate(`document.activeElement.textContent.trim()`), 'Ver foto')
@@ -182,7 +192,7 @@ try {
 
     // --- Milk-shake ---
     await page('/monte-seu-pedido/milk-shake', viewport)
-    check(`${at} foto do milk-shake`, await browser.evaluate(`__photo()`), 'milk-shake')
+    check(`${at} foto do milk-shake`, await browser.evaluate(`__photo()`), 'milkshake')
     check(`${at} aviso de sabores`, await browser.evaluate(`__text().includes('Favor verificar com a nossa atendente a disponibilidade de sabores.')`), true)
     check(`${at} 13 sabores`, await browser.evaluate(`document.querySelectorAll('input[name="milk-shake-sabor"]').length`), 13)
     check(`${at} sem adicionais grátis nem frutas`, await browser.evaluate(`!__button('Adicionar Granola') && !__button('Banana')`), true)
@@ -201,7 +211,7 @@ try {
     // --- Carrinho ---
     await page('/carrinho', viewport)
     check(`${at} carrinho com os 3 itens`, await browser.evaluate(`document.querySelectorAll('[aria-label="Itens do carrinho"] > li').length`), 3)
-    check(`${at} carrinho com as fotos dos produtos`, await browser.evaluate(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] [data-product-photo]')].map((img) => img.dataset.productPhoto)`), ['acai-tradicional', 'acai-batido', 'milk-shake'])
+    check(`${at} carrinho com as fotos dos produtos`, await browser.evaluate(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] [data-product-photo]')].map((img) => img.dataset.productPhoto)`), ['acai-tradicional', 'acai-batido', 'milkshake'])
     // Tradicional Pote 200 (R$ 11,00) + Batido 500 ml (R$ 51,00) + Milk-shake (R$ 15,00) = R$ 77,00.
     check(`${at} total do carrinho R$ 77,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 77,00')`), true)
     await click(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] > li')][0].querySelector('[aria-label="Aumentar quantidade"]')`)
@@ -235,7 +245,7 @@ try {
   await click(`__button('Adicionar Paçoca')`)
   await click(`__button('Kiwi')`)
   check('movimento reduzido: total R$ 15,00', await browser.evaluate(`__summary().includes('R$ 15,00')`), true)
-  check('movimento reduzido: foto da tigela', await browser.evaluate(`__photo()`), 'acai-isopor')
+  check('movimento reduzido: a mesma foto no isopor', await browser.evaluate(`__photo()`), 'acai-tradicional')
 } catch (error) {
   failures.push(`ERRO: ${error.message}`)
 } finally {

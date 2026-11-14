@@ -111,7 +111,6 @@ const paid = (id: string, name: string, priceCents: number, group: ToppingGroupI
 export const TOPPINGS: readonly Topping[] = [
   free('dry', 'leite-em-po', 'Leite em pó'),
   free('dry', 'granola', 'Granola'),
-  free('dry', 'biscoito', 'Biscoito'),
   free('dry', 'pacoca', 'Paçoca'),
   free('dry', 'chocoball', 'Chocoball'),
   free('dry', 'amendoim', 'Amendoim'),

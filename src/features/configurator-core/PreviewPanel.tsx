@@ -12,8 +12,8 @@ const pill =
   'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
 
 /**
- * Prévia do pedido: uma foto fixa e real do produto (a da tigela quando o recipiente é isopor),
- * o tamanho, os grátis e o total. A foto não muda com os ingredientes escolhidos.
+ * Prévia do pedido: a foto fixa e real do produto (enviada pela loja), o tamanho, os grátis e o
+ * total. A foto não muda com os ingredientes nem com o recipiente escolhidos.
  * - Celular: fica fixa no topo, compacta; "Ver foto" abre a foto grande.
  * - Computador: acompanha a rolagem.
  */
@@ -29,7 +29,6 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
   const caption = cfg.size
     ? [cfg.size.name, flavor?.name].filter(Boolean).join(' · ')
     : 'Monte na ordem que quiser'
-  const container = cfg.size?.container
 
   return (
     <section
@@ -37,10 +36,9 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
       className="rounded-3xl bg-white p-2.5 ring-1 ring-line lg:p-5 lg:shadow-card"
     >
       <div className="flex items-center gap-3 lg:flex-col lg:items-stretch lg:gap-4">
-        <div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-acai-50 min-[360px]:size-28 sm:size-32 lg:mx-auto lg:size-auto lg:w-full lg:max-w-sm">
+        <div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line min-[360px]:size-28 sm:size-32 lg:mx-auto lg:size-auto lg:w-full lg:max-w-sm">
           <ProductPhoto
             slug={product.slug}
-            container={container}
             sizes="(min-width: 64rem) 384px, 128px"
             className="size-full"
             priority
@@ -107,7 +105,7 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
               Fechar
             </button>
           </div>
-          {viewerOpen && <ProductPhoto slug={product.slug} container={container} sizes="92vw" className="w-full" priority />}
+          {viewerOpen && <ProductPhoto slug={product.slug} sizes="92vw" className="w-full" priority />}
           <p className="px-4 pt-3 text-sm font-semibold text-acai-950">{caption}</p>
           <p className="px-4 pt-1 pb-4 text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
         </dialog>

@@ -185,6 +185,26 @@ describe('guardar no aparelho', () => {
     expect(cart.items[1].quantity).toBe(MAX_ITEM_QUANTITY)
     expect(cart.items[1].selection.toppings).toEqual({ cereja: 10 })
   })
+
+  it('carrinho guardado com Biscoito (saiu do cardápio) volta sem ele', () => {
+    const raw = JSON.stringify({
+      v: 1,
+      items: [
+        {
+          id: 'antigo',
+          slug: 'acai-oca',
+          sizeId: 'pote-200',
+          flavorId: null,
+          toppings: [
+            ['biscoito', 1],
+            ['granola', 1],
+          ],
+          quantity: 1,
+        },
+      ],
+    })
+    expect(parseCart(raw).items[0].selection.toppings).toEqual({ granola: 1 })
+  })
 })
 
 describe('identificador', () => {

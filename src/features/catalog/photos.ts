@@ -5,11 +5,12 @@
  * - Ingredientes: `public/images/ingredientes/`. As embalagens (Ninho, Farinha Láctea, Italac e
  *   as coberturas Du Porto) aparecem inteiras (`contain`); as fotos de textura preenchem o
  *   quadro (`cover`). Origem de cada uma em `assets/fotos-loja/LEIA-ME.md` e em `/creditos`.
- * - Produtos: `public/images/products/`, uma foto por produto, que não muda com os ingredientes.
- *   Só o isopor tem foto própria, para não mostrar copo quando o recipiente é a tigela.
+ * - Produtos: `public/images/produtos/`, a foto que a loja enviou para cada produto, uma só,
+ *   que não muda com os ingredientes nem com o recipiente. Aparece inteira (`contain`) em fundo
+ *   branco. Originais em `assets/fotos-loja/produtos/`.
  */
 import type { CategorySlug } from './categories.ts'
-import type { ContainerKind, Topping } from './menu.ts'
+import type { Topping } from './menu.ts'
 
 const base = `${import.meta.env.BASE_URL}images/`
 
@@ -38,7 +39,6 @@ const INGREDIENT_FILES: Readonly<Record<string, [file: string, fit: PhotoFit]>> 
   'calda-morango': ['cobertura-morango.png', 'contain'],
   // Fotos de banco com licença comercial, até a loja enviar as suas.
   granola: ['granola.webp', 'cover'],
-  biscoito: ['biscoito.webp', 'cover'],
   'gotas-de-chocolate': ['gotas-de-chocolate.webp', 'cover'],
   canudinho: ['canudinho.webp', 'cover'],
   bis: ['bis.webp', 'cover'],
@@ -66,30 +66,49 @@ export function ingredientPhoto(topping: Pick<Topping, 'id' | 'look'>): Ingredie
 }
 
 export type ProductPhotoData = {
-  /** Nome do arquivo, sem o tamanho: `products/<name>-400.webp` e `-800.webp`. */
+  /** Nome do arquivo: `produtos/<name>.png` e as cópias leves `<name>-480.webp` e `-960.webp`. */
   name: string
   /** O que a foto mostra, para leitores de tela. */
   alt: string
+  /** Tamanho do PNG, em pixels: reserva o espaço certo antes de a foto carregar. */
+  width: number
+  height: number
 }
 
+/** Foto de cada produto, enviada pela loja em 2026-11-14. */
 const PRODUCT_PHOTOS: Readonly<Record<CategorySlug, ProductPhotoData>> = {
-  'acai-oca': { name: 'acai-oca', alt: 'Açaí no copo transparente com granola, morango e banana' },
-  'acai-tradicional': { name: 'acai-tradicional', alt: 'Açaí no copo com rodelas de banana por cima' },
-  'acai-batido': { name: 'acai-batido', alt: 'Açaí cremoso na xícara, com um morango por cima' },
-  'milk-shake': { name: 'milk-shake', alt: 'Milk-shake na taça, com chantilly e calda de caramelo' },
+  'acai-oca': {
+    name: 'acai-oca',
+    alt: 'Pote de Açaí Oca em camadas, com sucrilhos, morango, granola e amendoim por cima',
+    width: 1056,
+    height: 1200,
+  },
+  'acai-tradicional': {
+    name: 'acai-tradicional',
+    alt: 'Açaí na tigela de isopor com morango, gotas de chocolate, confete, banana, amendoim e chocoball',
+    width: 1200,
+    height: 982,
+  },
+  'acai-batido': {
+    name: 'acai-batido',
+    alt: 'Duas garrafas de açaí batido com creme, com o rótulo da Açaí Doce Sabor',
+    width: 638,
+    height: 1200,
+  },
+  'milk-shake': {
+    name: 'milkshake',
+    alt: 'Milk-shake de chocolate no copo com tampa, com calda de chocolate por dentro',
+    width: 906,
+    height: 1200,
+  },
 }
 
-const ISOPOR_PHOTO: ProductPhotoData = {
-  name: 'acai-isopor',
-  alt: 'Açaí na tigela com kiwi, morango, banana e canudinho',
-}
-
-/** Foto fixa do produto. No isopor, a foto da tigela. */
-export function productPhoto(slug: CategorySlug, container?: ContainerKind): ProductPhotoData {
-  return container === 'isopor' ? ISOPOR_PHOTO : PRODUCT_PHOTOS[slug]
-}
+/** Foto fixa do produto: a mesma em todo o site, seja qual for o recipiente ou os ingredientes. */
+export const productPhoto = (slug: CategorySlug): ProductPhotoData => PRODUCT_PHOTOS[slug]
 
 /** Todas as fotos de produto (para os testes). */
-export const ALL_PRODUCT_PHOTOS: readonly ProductPhotoData[] = [...Object.values(PRODUCT_PHOTOS), ISOPOR_PHOTO]
+export const ALL_PRODUCT_PHOTOS: readonly ProductPhotoData[] = Object.values(PRODUCT_PHOTOS)
 
-export const productPhotoSrc = (name: string, size: 400 | 800) => `${base}products/${name}-${size}.webp`
+/** O PNG enviado (sem largura) ou a cópia WebP de 480 ou 960 px de largura. */
+export const productPhotoSrc = (name: string, width?: 480 | 960) =>
+  width ? `${base}produtos/${name}-${width}.webp` : `${base}produtos/${name}.png`

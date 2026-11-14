@@ -7,14 +7,6 @@
     "pagina": "https://commons.wikimedia.org/wiki/File:Granola03242006.JPG",
     "download": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/Granola03242006.JPG/1280px-Granola03242006.JPG"
   },
-  "biscoito": {
-    "origem": "Wikimedia Commons",
-    "arquivo": "Biscuits perspective.jpg",
-    "autor": "Peter & Maggie Bailey",
-    "licenca": "CC BY 2.0",
-    "pagina": "https://commons.wikimedia.org/wiki/File:Biscuits_perspective.jpg",
-    "download": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/16/Biscuits_perspective.jpg/1280px-Biscuits_perspective.jpg"
-  },
   "gotas-de-chocolate": {
     "origem": "Wikimedia Commons",
     "arquivo": "Semi-sweet chocolate chips.jpg",
@@ -102,45 +94,5 @@
     "licenca": "CC BY-SA 4.0",
     "pagina": "https://commons.wikimedia.org/wiki/File:Ovomaltine_Pulver.jpg",
     "download": "https://upload.wikimedia.org/wikipedia/commons/8/85/Ovomaltine_Pulver.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original"
-  },
-  "produto-acai-oca": {
-    "origem": "Wikimedia Commons",
-    "arquivo": "Bowl de Acai con frutas.jpg",
-    "autor": "Photo.MarioVG",
-    "licenca": "CC BY-SA 4.0",
-    "pagina": "https://commons.wikimedia.org/wiki/File:Bowl_de_Acai_con_frutas.jpg",
-    "download": "https://upload.wikimedia.org/wikipedia/commons/2/27/Bowl_de_Acai_con_frutas.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original"
-  },
-  "produto-acai-tradicional": {
-    "origem": "Wikimedia Commons",
-    "arquivo": "Acai bowl - Açaí na tigela.jpg",
-    "autor": "chahayes",
-    "licenca": "CC BY 2.0",
-    "pagina": "https://commons.wikimedia.org/wiki/File:Acai_bowl_-_A%C3%A7a%C3%AD_na_tigela.jpg",
-    "download": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Acai_bowl_-_A%C3%A7a%C3%AD_na_tigela.jpg/1280px-Acai_bowl_-_A%C3%A7a%C3%AD_na_tigela.jpg"
-  },
-  "produto-acai-isopor": {
-    "origem": "Wikimedia Commons",
-    "arquivo": "Açaí na tigela 1.jpg",
-    "autor": "Melsj",
-    "licenca": "CC BY-SA 4.0",
-    "pagina": "https://commons.wikimedia.org/wiki/File:A%C3%A7a%C3%AD_na_tigela_1.jpg",
-    "download": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/A%C3%A7a%C3%AD_na_tigela_1.jpg/1280px-A%C3%A7a%C3%AD_na_tigela_1.jpg"
-  },
-  "produto-acai-batido": {
-    "origem": "Wikimedia Commons",
-    "arquivo": "Açaí.jpg",
-    "autor": "Gervásio Baptista/Agência Brasil",
-    "licenca": "CC BY 3.0 br",
-    "pagina": "https://commons.wikimedia.org/wiki/File:A%C3%A7a%C3%AD.jpg",
-    "download": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/A%C3%A7a%C3%AD.jpg/1280px-A%C3%A7a%C3%AD.jpg"
-  },
-  "produto-milk-shake": {
-    "origem": "Wikimedia Commons",
-    "arquivo": "Salted Caramel Milkshake.jpg",
-    "autor": "Xadai",
-    "licenca": "CC0",
-    "pagina": "https://commons.wikimedia.org/wiki/File:Salted_Caramel_Milkshake.jpg",
-    "download": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Salted_Caramel_Milkshake.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original"
   }
 }

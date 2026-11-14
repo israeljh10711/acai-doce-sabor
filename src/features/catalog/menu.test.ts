@@ -79,11 +79,14 @@ describe('ingredientes', () => {
   const names = (slug: keyof typeof PRODUCTS, group: keyof typeof TOPPING_GROUPS) =>
     toppingsOf(PRODUCTS[slug], group).map((topping) => topping.name)
 
-  it('lista os 14 adicionais: os 12 do cardápio, o leite condensado e o disquete', () => {
+  it('o Biscoito saiu do cardápio: a loja não trabalha com ele', () => {
+    expect(TOPPINGS.filter((topping) => /biscoito/i.test(`${topping.id} ${topping.name}`))).toEqual([])
+  })
+
+  it('lista os 13 adicionais: os do cardápio sem o Biscoito, o leite condensado e o disquete', () => {
     expect(names('acai-oca', 'dry')).toEqual([
       'Leite em pó',
       'Granola',
-      'Biscoito',
       'Paçoca',
       'Chocoball',
       'Amendoim',
@@ -163,7 +166,7 @@ describe('regras dos grupos', () => {
   })
 
   it('entrega a um produto só os ingredientes dos grupos que ele aceita', () => {
-    expect(toppingsOf(PRODUCTS['acai-oca'], 'dry')).toHaveLength(14)
+    expect(toppingsOf(PRODUCTS['acai-oca'], 'dry')).toHaveLength(13)
     expect(toppingsOf(PRODUCTS['acai-oca'], 'syrup')).toHaveLength(8)
     expect(toppingsOf(PRODUCTS['milk-shake'], 'syrup')).toHaveLength(9)
     expect(toppingsOf(PRODUCTS['milk-shake'], 'paid').map((topping) => topping.name)).toEqual(['Cereja', 'Kit Kat'])

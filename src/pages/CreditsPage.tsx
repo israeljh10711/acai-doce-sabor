@@ -15,17 +15,9 @@ const LICENSE_URLS: Record<string, string> = {
   'Licença Pexels': 'https://www.pexels.com/pt-br/license/',
 }
 
-/** Uso de cada foto no site, pelo nome dela em `fontes.json`. */
-const USES: Record<string, string> = {
-  'produto-acai-oca': 'foto do Açaí Oca',
-  'produto-acai-tradicional': 'foto do Açaí Tradicional',
-  'produto-acai-isopor': 'foto do açaí no isopor',
-  'produto-acai-batido': 'foto do Açaí Batido',
-  'produto-milk-shake': 'foto do Milk-shake',
-}
-
-/** Fotos de ingredientes e embalagens enviadas em 2026-11-14 (assets/fotos-loja). */
+/** Fotos enviadas pela loja em 2026-11-14 (assets/fotos-loja). */
 const STORE_PHOTOS = [
+  'Fotos dos produtos: Açaí Oca, Açaí Tradicional, Açaí Batido e Milk-shake',
   'Leite condensado (Italac)',
   'Leite em pó (Ninho)',
   'Farinha láctea (Nestlé)',
@@ -40,10 +32,10 @@ const STORE_PHOTOS = [
   'Coberturas Du Porto: frutas vermelhas, doce de leite, açaí, banana caramelada, chocolate e morango',
 ]
 
-const label = (key: string) => USES[key] ?? key.replaceAll('-', ' ')
+const label = (key: string) => key.replaceAll('-', ' ')
 
 /**
- * Créditos das fotos usadas no compositor e nas miniaturas: autor, licença e página de origem.
+ * Créditos das fotos: as enviadas pela loja e as de banco (autor, licença e página de origem).
  * As licenças CC BY e CC BY-SA pedem esse crédito; nas CC BY-SA, as imagens derivadas
  * (recortes, texturas e ajustes de cor) seguem a mesma licença.
  */
@@ -58,9 +50,9 @@ export function CreditsPage() {
       <h1 className="font-display text-4xl font-black tracking-tight text-acai-800 uppercase">Créditos das fotos</h1>
       <div className="mt-4 max-w-3xl space-y-3 text-ink-soft">
         <p>
-          As fotos dos produtos e de parte dos ingredientes são de bancos com licença de uso comercial (Wikimedia
-          Commons). Não são fotos da loja. Foram recortadas em quadrado; as imagens feitas a partir de fotos CC BY-SA
-          seguem a mesma licença.
+          As fotos dos produtos e da maior parte dos ingredientes foram enviadas pela loja. As demais fotos de
+          ingredientes são de bancos com licença de uso comercial (Wikimedia Commons) e não são da loja. Foram
+          recortadas em quadrado; as imagens feitas a partir de fotos CC BY-SA seguem a mesma licença.
         </p>
       </div>
 

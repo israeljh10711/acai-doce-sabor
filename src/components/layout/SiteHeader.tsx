@@ -21,8 +21,9 @@ export function SiteHeader() {
           className={`-ml-1.5 inline-flex min-h-12 items-center gap-2 rounded-full pr-2 ${focusRing}`}
         >
           <Logo version="symbolOnBrand" sizes="48px" className="size-12" decorative />
-          {/* Em telas muito estreitas o nome sai da vista, mas continua lido por leitores de tela. */}
-          <span className="font-display text-sm font-extrabold tracking-tight whitespace-nowrap uppercase max-[379px]:sr-only sm:text-[1.05rem]" translate="no">
+          {/* No celular o nome sai da vista (não cabe ao lado de Cardápio e Carrinho), mas continua
+              lido por leitores de tela; o símbolo da logo fica. */}
+          <span className="font-display text-[1.05rem] font-extrabold tracking-tight whitespace-nowrap uppercase max-sm:sr-only" translate="no">
             {storeInfo.name}
           </span>
         </Link>

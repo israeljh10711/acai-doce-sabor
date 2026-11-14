@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { PRODUCTS, TOPPINGS, toppingsOf } from './menu.ts'
-import { ALL_PRODUCT_PHOTOS, ingredientFile, ingredientPhoto, productPhoto } from './photos.ts'
+import { ALL_PRODUCT_PHOTOS, ingredientFile, ingredientPhoto, productPhoto, productPhotoSrc } from './photos.ts'
 
 // Que os arquivos existem em public/images é conferido em tests/assets.test.ts.
 
@@ -70,15 +70,28 @@ describe('fotos dos ingredientes', () => {
 })
 
 describe('foto fixa de cada produto', () => {
-  it('cada produto tem a sua, com descrição para leitores de tela', () => {
-    for (const photo of ALL_PRODUCT_PHOTOS) expect(photo.alt.length, photo.name).toBeGreaterThan(15)
+  it('cada produto usa a foto enviada pela loja', () => {
+    const names = Object.fromEntries(
+      Object.keys(PRODUCTS).map((slug) => [slug, productPhoto(slug as keyof typeof PRODUCTS).name]),
+    )
+    expect(names).toEqual({
+      'acai-oca': 'acai-oca',
+      'acai-tradicional': 'acai-tradicional',
+      'acai-batido': 'acai-batido',
+      'milk-shake': 'milkshake',
+    })
   })
 
-  it('não muda com os ingredientes; só o isopor tem foto própria', () => {
-    expect(productPhoto('acai-tradicional').name).toBe('acai-tradicional')
-    expect(productPhoto('acai-tradicional', 'copo').name).toBe('acai-tradicional')
-    expect(productPhoto('acai-tradicional', 'isopor').name).toBe('acai-isopor')
-    expect(productPhoto('acai-oca', 'isopor').name).toBe('acai-isopor')
-    expect(new Set(Object.keys(PRODUCTS).map((slug) => productPhoto(slug as keyof typeof PRODUCTS).name)).size).toBe(4)
+  it('tem descrição para leitores de tela e o tamanho da foto', () => {
+    for (const photo of ALL_PRODUCT_PHOTOS) {
+      expect(photo.alt.length, photo.name).toBeGreaterThan(15)
+      expect(photo.width * photo.height, photo.name).toBeGreaterThan(0)
+    }
+  })
+
+  it('aponta para o PNG enviado e para as cópias leves', () => {
+    expect(productPhotoSrc('milkshake')).toMatch(/\/images\/produtos\/milkshake\.png$/)
+    expect(productPhotoSrc('acai-oca', 480)).toMatch(/\/images\/produtos\/acai-oca-480\.webp$/)
+    expect(productPhotoSrc('acai-oca', 960)).toMatch(/\/images\/produtos\/acai-oca-960\.webp$/)
   })
 })

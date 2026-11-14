@@ -1,7 +1,8 @@
 // Confere cada página do site em larguras reais de tela e fotografa todas.
 //
 // Para cada página e largura, verifica: título principal, título da aba, idioma,
-// ausência de rolagem horizontal, links e botões com pelo menos 44 px de altura,
+// ausência de rolagem horizontal, cabeçalho sem nome e menu um por cima do outro,
+// links e botões com pelo menos 44 px de altura,
 // imagens e fontes carregadas e console sem erros nem avisos.
 //
 // Uso (com o site rodando, por exemplo em `npm run dev`):
@@ -55,6 +56,18 @@ const inspect = `JSON.stringify({
   h1: document.querySelector('h1')?.textContent ?? null,
   lang: document.documentElement.lang,
   scrollWidth: document.documentElement.scrollWidth,
+  // Quanto o nome da loja (link do início) invade o menu do cabeçalho, em pixels.
+  headerOverlap: (() => {
+    const header = document.querySelector('header')
+    const brand = header?.querySelector('a')
+    const nav = header?.querySelector('nav')
+    if (!brand || !nav) return null
+    const shown = [...brand.querySelectorAll('span, img')]
+      .map((el) => el.getBoundingClientRect())
+      .filter((box) => box.width > 1 && box.height > 1)
+    const right = Math.max(...shown.map((box) => box.right))
+    return Math.max(0, Math.round(right - nav.getBoundingClientRect().left))
+  })(),
   clientWidth: document.documentElement.clientWidth,
   smallTargets: [...document.querySelectorAll('a, button')]
     .map((el) => ({ el, box: el.getBoundingClientRect() }))
@@ -109,6 +122,7 @@ try {
       if (info.lang !== 'pt-BR') failures.push(`lang "${info.lang}"`)
       if (info.scrollWidth > info.clientWidth)
         failures.push(`rolagem horizontal: conteúdo ${info.scrollWidth}px em tela de ${info.clientWidth}px`)
+      if (info.headerOverlap !== 0) failures.push(`nome da loja por cima do menu do cabeçalho: ${info.headerOverlap}px`)
       if (info.smallTargets.length)
         failures.push(`alvos de toque menores que 44px: ${info.smallTargets.join(', ')}`)
       if (info.brokenImages.length)

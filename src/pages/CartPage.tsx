@@ -15,7 +15,6 @@ import {
 } from '../features/cart/cart.ts'
 import { cartActions, useCart } from '../features/cart/cartStore.ts'
 import { ILLUSTRATIVE_NOTICE } from '../features/catalog/notices.ts'
-import { PRODUCTS } from '../features/catalog/menu.ts'
 import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
@@ -93,14 +92,8 @@ function CartLine({ item, onRemove }: { item: CartItem; onRemove: () => void }) 
   return (
     <m.li layout className="rounded-3xl bg-white p-4 shadow-card ring-1 ring-line sm:p-5">
       <article aria-label={title} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-2xl bg-acai-50">
-          <ProductPhoto
-            slug={item.slug}
-            container={PRODUCTS[item.slug].sizes.find((size) => size.id === item.selection.sizeId)?.container}
-            sizes="112px"
-            className="size-full"
-            decorative
-          />
+        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+          <ProductPhoto slug={item.slug} sizes="112px" className="size-full" decorative />
         </div>
 
         <div className="min-w-0">

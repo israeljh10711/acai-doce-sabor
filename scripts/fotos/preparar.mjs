@@ -10,7 +10,8 @@
  *   Lens que veio no canto de três delas e troca o fundo xadrez (falsa transparência) por branco.
  * - `miniaturas`: os ingredientes que ainda não têm foto enviada pela loja, a partir de fotos
  *   de banco com licença comercial (`fontes.json`), em `public/images/ingredientes/<id>.webp`.
- * - `produtos`: a foto fixa de cada produto (`public/images/products/`), recortada em quadrado.
+ * - `produtos`: a foto fixa de cada produto, enviada pela loja (`assets/fotos-loja/produtos/`).
+ *   Sai em `public/images/produtos/` só com a margem branca acertada: nada do produto é cortado.
  *
  * Os originais de banco são baixados uma vez para `scripts/fotos/.originais/` (fora do Git).
  * As imagens derivadas de fotos CC BY-SA seguem a mesma licença (ver `public/images/CREDITOS.md`).
@@ -27,7 +28,7 @@ const STORE_PHOTOS = join(ROOT, 'assets/fotos-loja')
 const OUT = join(ROOT, 'public/images')
 const UA = 'acai-site-dev/0.1 (image licensing research)'
 
-for (const dir of ['ingredientes', 'products']) mkdirSync(join(OUT, dir), { recursive: true })
+for (const dir of ['ingredientes', 'produtos']) mkdirSync(join(OUT, dir), { recursive: true })
 mkdirSync(CACHE, { recursive: true })
 
 /* ---------- Utilidades ---------- */
@@ -159,7 +160,8 @@ async function storePhotos() {
       const pad = Math.round(Math.max(meta.width, meta.height) * 0.03)
       image = await sharp(image).extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#ffffff' }).toBuffer()
     }
-    await sharp(image).png({ compressionLevel: 9, effort: 10 }).toFile(join(OUT, 'ingredientes', file))
+    // Cores completas: `effort` no PNG liga a paleta de 256 cores do sharp e estraga a foto.
+    await sharp(image).png({ compressionLevel: 9, palette: false }).toFile(join(OUT, 'ingredientes', file))
   }
   console.log('fotos da loja ok:', files.length)
 }
@@ -169,7 +171,6 @@ async function storePhotos() {
 /** Recorte quadrado de cada foto de banco (lado em fração do menor lado da foto). */
 const THUMBS = {
   granola: { cx: 0.49, cy: 0.53, s: 0.5 },
-  biscoito: { cx: 0.5, cy: 0.58, s: 0.62 },
   'gotas-de-chocolate': { cx: 0.66, cy: 0.46, s: 0.62 },
   canudinho: { cx: 0.42, cy: 0.42, s: 0.72 },
   sucrilhos: { cx: 0.5, cy: 0.5, s: 0.7 },
@@ -208,26 +209,33 @@ async function thumbnails() {
 
 /* ---------- Fotos dos produtos ---------- */
 
-/** Foto fixa de cada produto: recorte quadrado no produto, sem o que está em volta. */
-const PRODUCTS = {
-  'acai-oca': { cx: 0.705, cy: 0.5, s: 0.82 },
-  'acai-tradicional': { cx: 0.5, cy: 0.5, s: 0.94 },
-  'acai-isopor': { cx: 0.53, cy: 0.52, s: 0.96 },
-  'acai-batido': { cx: 0.58, cy: 0.47, s: 0.82 },
-  'milk-shake': { cx: 0.47, cy: 0.44, s: 1 },
-}
+/**
+ * Foto fixa de cada produto, enviada pela loja em 2026-11-14. Tira a margem branca e devolve uma
+ * borda branca igual nos quatro lados: o produto aparece inteiro e centralizado, sem recorte.
+ * Sai em PNG (o arquivo de referência, até 1200 px) e em WebP de 480 e 960 px de largura, mais
+ * leves, que o navegador escolhe pelo tamanho da tela.
+ */
+const PRODUCT_PHOTOS = ['acai-oca', 'acai-tradicional', 'acai-batido', 'milkshake']
 
 async function products() {
-  for (const [name, crop] of Object.entries(PRODUCTS)) {
-    const image = await square(await original(`produto-${name}`), crop)
-    for (const size of [400, 800]) {
-      await sharp(image)
-        .resize(size, size)
-        .webp({ quality: 80, effort: 6 })
-        .toFile(join(OUT, 'products', `${name}-${size}.webp`))
+  for (const name of PRODUCT_PHOTOS) {
+    const trimmed = await sharp(join(STORE_PHOTOS, 'produtos', `${name}.jpg`))
+      .trim({ background: '#ffffff', threshold: 12 })
+      .toBuffer()
+    const meta = await sharp(trimmed).metadata()
+    const pad = Math.round(Math.max(meta.width, meta.height) * 0.04)
+    const framed = await sharp(trimmed)
+      .extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#ffffff' })
+      .toBuffer()
+    const png = join(OUT, 'produtos', `${name}.png`)
+    await sharp(framed).resize(1200, 1200, { fit: 'inside' }).png({ compressionLevel: 9, palette: false }).toFile(png)
+    for (const width of [480, 960]) {
+      await sharp(framed).resize({ width }).webp({ quality: 82, effort: 6 }).toFile(join(OUT, 'produtos', `${name}-${width}.webp`))
     }
+    const size = await sharp(png).metadata()
+    console.log(`${name}.png: ${size.width}x${size.height}`)
   }
-  console.log('produtos ok:', Object.keys(PRODUCTS).length)
+  console.log('produtos ok:', PRODUCT_PHOTOS.length)
 }
 
 /* ---------- Execução ---------- */

@@ -41,7 +41,7 @@ export function HomePage() {
               </h2>
             </div>
             <p className="max-w-sm text-ink-soft">
-              Escolha a categoria, monte o seu e veja a foto do pedido mudar a cada ingrediente, com o preço na hora.
+              Escolha a categoria, monte o seu com os ingredientes que quiser e acompanhe o preço na hora.
             </p>
           </div>
           <MenuShowcase />
@@ -75,8 +75,8 @@ function Hero() {
           </m.h1>
 
           <m.p className="mt-5 max-w-lg text-lg leading-relaxed text-white/85" {...rise(0.16)}>
-            Açaí no pote, no copo ou no isopor, açaí batido e milk-shake. Você monta, vê a foto do seu pedido e acompanha o
-            preço na hora.
+            Açaí no pote, no copo ou no isopor, açaí batido e milk-shake. Você monta do seu jeito e acompanha o preço na
+            hora.
           </m.p>
 
           <m.div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row" {...rise(0.24)}>
@@ -105,7 +105,7 @@ function Hero() {
 
 /** Fotos reais dos produtos, em três quadros com profundidade: inclinam de leve com o ponteiro. */
 function HeroPhoto() {
-  const frame = 'overflow-hidden rounded-[1.75rem] shadow-[0_24px_50px_-18px_rgb(10_1_7/0.75)] ring-4 ring-white/15'
+  const frame = 'overflow-hidden rounded-[1.75rem] bg-white shadow-[0_24px_50px_-18px_rgb(10_1_7/0.75)] ring-4 ring-white/15'
   return (
     <m.figure
       className="relative mx-auto w-full max-w-[34rem]"
@@ -118,15 +118,15 @@ function HeroPhoto() {
           <ProductPhoto slug="acai-oca" sizes="(min-width: 64rem) 370px, 68vw" priority decorative />
         </Depth>
         <Depth depth={0.9} className={`absolute bottom-[3%] left-[0%] w-[40%] -rotate-3 ${frame}`}>
-          <ProductPhoto slug="acai-tradicional" container="isopor" sizes="(min-width: 64rem) 220px, 40vw" priority decorative />
+          <ProductPhoto slug="acai-tradicional" sizes="(min-width: 64rem) 220px, 40vw" priority decorative />
         </Depth>
         <Depth depth={1.1} className={`absolute right-[0%] bottom-[9%] w-[36%] rotate-3 ${frame}`}>
           <ProductPhoto slug="milk-shake" sizes="(min-width: 64rem) 200px, 36vw" priority decorative />
         </Depth>
       </TiltStage>
       <figcaption className="sr-only">
-        Fotos ilustrativas: açaí no copo com granola, morango e banana; açaí na tigela com kiwi, morango e banana; e
-        milk-shake com chantilly e calda de caramelo.
+        Fotos dos produtos: pote de Açaí Oca com sucrilhos, morango e amendoim; açaí na tigela de isopor com morango,
+        confete, banana e chocoball; e milk-shake de chocolate no copo com tampa.
       </figcaption>
     </m.figure>
   )
