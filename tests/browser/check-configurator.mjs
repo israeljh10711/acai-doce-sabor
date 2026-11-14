@@ -144,6 +144,11 @@ try {
       [0, 0, 0, 0, 255],
     )
     check(
+      `${at} início: tampa bolha translúcida (nem opaca nem apagada)`,
+      await browser.evaluate(`__alpha(${heroShake}, [[0.5, 0.1], [0.5, 0.15]]).then((values) => values.every((a) => a > 20 && a < 120))`),
+      true,
+    )
+    check(
       `${at} início: sem quadro branco em volta do milk-shake`,
       await browser.evaluate(`[getComputedStyle(${heroShake}).backgroundColor, getComputedStyle(${heroShake}.parentElement).backgroundColor]`),
       ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'],

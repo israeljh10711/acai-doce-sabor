@@ -132,7 +132,7 @@ function HeroPhoto() {
       </TiltStage>
       <figcaption className="sr-only">
         Fotos dos produtos: pote de Açaí Oca com sucrilhos, morango e amendoim; açaí na tigela de isopor com morango,
-        confete, banana e chocoball; e milk-shake de chocolate no copo com tampa.
+        confete, banana e chocoball; e milk-shake de chocolate no copo com tampa bolha.
       </figcaption>
     </m.figure>
   )

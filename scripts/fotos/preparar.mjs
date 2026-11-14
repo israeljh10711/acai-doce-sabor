@@ -218,8 +218,16 @@ async function thumbnails() {
  * com a distância do branco e a cor é separada do branco, para não sobrar contorno claro sobre
  * fundo escuro. `fill`: até onde é fundo (255 - menor canal); `edge`: onde já é produto;
  * `band`: largura da faixa, em pixels.
+ *
+ * `clearLid`: a tampa é de plástico transparente (através dela se vê o fundo branco). Da ponta de
+ * cima até logo abaixo de onde o conteúdo do copo aparece, tudo o que está dentro do contorno da
+ * tampa fica translúcido: quanto mais perto do branco, mais transparente, com um mínimo
+ * (`lidFloor`) que mantém o brilho do plástico. Sobre fundo branco, volta a ser a foto original.
  */
-async function removeWhiteBackground(file, { fill = 14, edge = 60, band = 6 } = {}) {
+async function removeWhiteBackground(
+  file,
+  { fill = 14, edge = 60, band = 6, clearLid = false, lidFloor = 0.18, lidLo = 8, lidHi = 90 } = {},
+) {
   const { data, info } = await sharp(file).removeAlpha().raw().toBuffer({ resolveWithObject: true })
   const { width: W, height: H } = info
   const N = W * H
@@ -262,9 +270,45 @@ async function removeWhiteBackground(file, { fill = 14, edge = 60, band = 6 } = 
     near.set(next)
   }
 
+  // Tampa transparente: do topo até um pouco abaixo de onde o conteúdo aparece no meio do copo.
+  let lidBottom = 0
+  if (clearLid) {
+    let [x0, x1] = [W, -1]
+    for (let p = 0; p < N; p++) {
+      if (background[p]) continue
+      x0 = Math.min(x0, p % W)
+      x1 = Math.max(x1, p % W)
+    }
+    const center = Math.round((x0 + x1) / 2)
+    let contentTop = 0
+    while (contentTop < H && dist[contentTop * W + center] <= 150) contentTop++
+    lidBottom = contentTop + Math.round(0.03 * H)
+  }
+  // Contorno da tampa em cada linha: do primeiro ao último pixel que não é fundo.
+  const lidSpan = (y) => {
+    let [left, right] = [-1, -1]
+    for (let x = 0; x < W; x++) {
+      if (dist[y * W + x] <= fill) continue
+      if (left < 0) left = x
+      right = x
+    }
+    return [left, right]
+  }
+
   const out = Buffer.alloc(N * 4)
+  let span = [-1, -1]
   for (let p = 0; p < N; p++) {
-    const alpha = background[p] ? 0 : near[p] <= band ? smoothstep(fill, edge, dist[p]) : 1
+    const x = p % W
+    const y = (p - x) / W
+    let alpha
+    if (y < lidBottom) {
+      if (x === 0) span = lidSpan(y)
+      const [left, right] = span
+      const inside = left < 0 || x < left || x > right ? -1 : Math.min(x - left, right - x)
+      alpha = inside < 0 ? 0 : Math.max(lidFloor * Math.min(1, inside / 3), smoothstep(lidLo, lidHi, dist[p]))
+    } else {
+      alpha = background[p] ? 0 : near[p] <= band ? smoothstep(fill, edge, dist[p]) : 1
+    }
     for (let c = 0; c < 3; c++) {
       const value = data[p * 3 + c]
       out[p * 4 + c] = alpha > 0.02 ? Math.max(0, Math.min(255, Math.round((value - (1 - alpha) * 255) / alpha))) : 0
@@ -302,18 +346,28 @@ const PRODUCT_PHOTOS = {
   'acai-oca': {},
   'acai-tradicional': {},
   'acai-batido': {},
-  // Pedido de 2026-11-14: milk-shake com fundo transparente.
-  milkshake: { transparent: true },
+  // Pedido de 2026-11-14: milk-shake com fundo transparente; a tampa bolha é de plástico
+  // transparente (foto enviada na noite de 2026-11-14).
+  milkshake: { transparent: true, clearLid: true },
+}
+
+/** Original de cada produto em `assets/fotos-loja/produtos/` (as fotos chegaram em JPG e WebP). */
+function productSource(name) {
+  for (const ext of ['jpg', 'webp', 'png']) {
+    const file = join(STORE_PHOTOS, 'produtos', `${name}.${ext}`)
+    if (existsSync(file)) return file
+  }
+  throw new Error(`Sem foto original para ${name} em assets/fotos-loja/produtos/`)
 }
 
 async function products(only = []) {
   for (const name of only) if (!(name in PRODUCT_PHOTOS)) throw new Error(`Produto desconhecido: ${name}`)
   const names = only.length ? only : Object.keys(PRODUCT_PHOTOS)
   for (const name of names) {
-    const source = join(STORE_PHOTOS, 'produtos', `${name}.jpg`)
-    const { transparent } = PRODUCT_PHOTOS[name]
+    const source = productSource(name)
+    const { transparent, clearLid } = PRODUCT_PHOTOS[name]
     const trimmed = transparent
-      ? await trimTransparent(await removeWhiteBackground(source))
+      ? await trimTransparent(await removeWhiteBackground(source, { clearLid }))
       : await sharp(source).trim({ background: '#ffffff', threshold: 12 }).toBuffer()
     const meta = await sharp(trimmed).metadata()
     const pad = Math.round(Math.max(meta.width, meta.height) * 0.04)
@@ -327,7 +381,11 @@ async function products(only = []) {
       })
       .toBuffer()
     const png = join(OUT, 'produtos', `${name}.png`)
-    await sharp(framed).resize(1200, 1200, { fit: 'inside' }).png({ compressionLevel: 9, palette: false }).toFile(png)
+    // Até 1200 px, sem ampliar uma foto menor (o PNG fica no tamanho real da foto enviada).
+    await sharp(framed)
+      .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+      .png({ compressionLevel: 9, palette: false })
+      .toFile(png)
     for (const width of [480, 960]) {
       await sharp(framed)
         .resize({ width })

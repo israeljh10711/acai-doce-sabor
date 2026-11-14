@@ -16,7 +16,13 @@ milk-shake, mas a ordem dos anexos veio trocada (o copo com o rótulo "Oca do A�
 | `produtos/acai-oca.jpg` | Açaí Oca | Pote em camadas com o rótulo "Oca do Açaí", sucrilhos, morango, granola e amendoim |
 | `produtos/acai-tradicional.jpg` | Açaí Tradicional | Tigela de isopor com morango, gotas de chocolate, confete, banana, amendoim e chocoball |
 | `produtos/acai-batido.jpg` | Açaí Batido | Duas garrafas com o rótulo Açaí Doce Sabor |
-| `produtos/milkshake.jpg` | Milk-shake | Milk-shake de chocolate no copo com tampa |
+| `produtos/milkshake.webp` | Milk-shake | Milk-shake de chocolate no copo com tampa bolha transparente |
+
+O milk-shake mudou na noite de 2026-11-14: o responsável mandou esta foto de propaganda comercial
+(copo com tampa bolha) no lugar da anterior, que fica guardada em
+`produtos/anteriores/milkshake-tampa-reta.jpg`. O site mostra o milk-shake com o fundo removido
+e a tampa translúcida (`preparar.mjs produtos milkshake`). Não há marca d'água visível. Por ser
+foto de propaganda, vale confirmar que a loja pode usá-la.
 
 Observações para o proprietário conferir: o rótulo das garrafas mostra o Instagram como
 `@acaidocesabor` (um "i"; o site usa `@acaiidocesabor`), e a garrafa da direita mostra o WhatsApp

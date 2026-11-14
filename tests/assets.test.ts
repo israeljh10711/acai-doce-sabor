@@ -51,9 +51,10 @@ describe('arquivos de imagem', () => {
   })
 
   it('as 4 fotos de produto enviadas pela loja estão em uso, e só elas', () => {
-    const sent = readdirSync(join(ROOT, 'assets', 'fotos-loja', 'produtos')).filter((file) => file.endsWith('.jpg'))
+    // Originais em JPG ou WebP; as fotos substituídas ficam em `produtos/anteriores/`.
+    const sent = readdirSync(join(ROOT, 'assets', 'fotos-loja', 'produtos')).filter((file) => /\.(jpg|webp|png)$/.test(file))
     const names = ALL_PRODUCT_PHOTOS.map((photo) => photo.name).sort()
-    expect(sent.map((file) => file.replace(/\.jpg$/, '')).sort()).toEqual(names)
+    expect(sent.map((file) => file.replace(/\.(jpg|webp|png)$/, '')).sort()).toEqual(names)
     const published = names.flatMap((name) => [`${name}.png`, `${name}-480.webp`, `${name}-960.webp`]).sort()
     expect(readdirSync(join(IMAGES, 'produtos')).sort()).toEqual(published)
   })

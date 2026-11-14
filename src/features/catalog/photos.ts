@@ -101,10 +101,10 @@ const PRODUCT_PHOTOS: Readonly<Record<CategorySlug, ProductPhotoData>> = {
   },
   'milk-shake': {
     name: 'milkshake',
-    alt: 'Milk-shake de chocolate no copo com tampa, com calda de chocolate por dentro',
-    width: 906,
-    height: 1200,
-    // Pedido de 2026-11-14: fundo transparente.
+    alt: 'Milk-shake de chocolate no copo com tampa bolha transparente, com calda de chocolate por dentro',
+    width: 627,
+    height: 999,
+    // Pedido de 2026-11-14: fundo transparente; a tampa bolha fica translúcida.
     transparent: true,
   },
 }
