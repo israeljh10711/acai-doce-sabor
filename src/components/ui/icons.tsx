@@ -143,3 +143,35 @@ export const Pencil = (props: IconProps) => (
     <path d="M13.5 6.5l4 4" />
   </Icon>
 )
+
+/** Código QR genérico, para o Pix (sem usar a marca oficial). */
+export const QrCode = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1" />
+    <rect x="14" y="3.5" width="6.5" height="6.5" rx="1" />
+    <rect x="3.5" y="14" width="6.5" height="6.5" rx="1" />
+    <path d="M14 14h3v3M20.5 14v.01M14 20.5h.01M17.5 20.5h3v-3" />
+  </Icon>
+)
+
+export const CreditCard = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
+    <path d="M2.5 10h19M6.5 15h4" />
+  </Icon>
+)
+
+export const Banknote = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="2.5" y="6" width="19" height="12" rx="2" />
+    <circle cx="12" cy="12" r="2.5" />
+    <path d="M6 9.5v.01M18 14.5v.01" />
+  </Icon>
+)
+
+export const Copy = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="8.5" y="8.5" width="12" height="12" rx="2" />
+    <path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" />
+  </Icon>
+)

@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
-import { ArrowLeft, Bag, Chat, Info, Minus, Pencil, Plus, Trash } from '../components/ui/icons.tsx'
+import { ArrowLeft, Bag, Minus, Pencil, Plus, Trash } from '../components/ui/icons.tsx'
 import {
+  type Cart,
   type CartItem,
   MAX_ITEM_QUANTITY,
   cartCount,
@@ -15,12 +16,11 @@ import {
 } from '../features/cart/cart.ts'
 import { cartActions, useCart } from '../features/cart/cartStore.ts'
 import { ILLUSTRATIVE_NOTICE } from '../features/catalog/notices.ts'
+import { CheckoutPanel } from '../features/checkout/CheckoutPanel.tsx'
 import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
-import { storeInfo } from '../services/storeInfo.ts'
 import { formatBRL } from '../utils/money.ts'
-import { buildWhatsAppUrl } from '../utils/whatsapp.ts'
 
 /** Carrinho: cada item com a foto do que foi montado, as escolhas, a quantidade e os valores. */
 export function CartPage() {
@@ -62,7 +62,7 @@ export function CartPage() {
                 <CartLine key={item.id} item={item} onRemove={() => remove(item)} />
               ))}
             </ul>
-            <Checkout totalCents={cartTotalCents(cart)} />
+            <Checkout cart={cart} onCleared={() => setAnnouncement('Carrinho esvaziado.')} />
           </div>
         )}
         <p aria-live="polite" className="sr-only">
@@ -184,38 +184,25 @@ function QuantityControl({ item, title }: { item: CartItem; title: string }) {
 }
 
 /**
- * Total e finalização. O envio pelo site depende do sistema de pedidos (banco de dados), que
- * ainda não foi conectado: a regra do projeto é gravar o pedido antes de abrir o WhatsApp.
- * Por isso não há botão de enviar fingindo funcionar.
+ * Total e finalização: forma de pagamento e envio do pedido pelo WhatsApp da loja
+ * (pedido de 2026-11-14). Ver `features/checkout/CheckoutPanel.tsx`.
  */
-function Checkout({ totalCents }: { totalCents: number }) {
+function Checkout({ cart, onCleared }: { cart: Cart; onCleared: () => void }) {
   return (
-    <aside aria-labelledby="total-titulo" className="overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-line lg:sticky lg:top-6">
+    <aside aria-labelledby="total-titulo" className="overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-line">
       <h2 id="total-titulo" className="bg-acai-800 px-5 py-4 font-display text-xl font-black tracking-tight text-white uppercase">
-        Resumo
+        Resumo do pedido
       </h2>
-      <div className="flex flex-col gap-4 p-5">
-        <div className="flex items-baseline justify-between gap-4">
-          <span className="font-display text-lg font-extrabold text-acai-800 uppercase">Total</span>
-          <span className="nums text-3xl font-extrabold whitespace-nowrap text-acai-800">{formatBRL(totalCents)}</span>
-        </div>
-        <p className="text-xs text-ink-soft">Taxa de entrega e forma de pagamento não entram neste total.</p>
-
-        <div className="rounded-2xl bg-gold-100 p-4 text-sm text-acai-950 ring-1 ring-gold-400">
-          <p className="flex gap-2 font-bold">
-            <Info className="mt-0.5 size-4 shrink-0 text-acai-700" />
-            Envio do pedido pelo site em breve
-          </p>
-          <p className="mt-1.5 leading-relaxed">
-            A finalização entra quando o sistema de pedidos da loja for conectado. Seu carrinho fica salvo neste aparelho.
-            Enquanto isso, fale com a loja pelo WhatsApp.
-          </p>
+      <div className="flex flex-col gap-5 p-5">
+        <div>
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="font-display text-lg font-extrabold text-acai-800 uppercase">Total</span>
+            <span className="nums text-3xl font-extrabold whitespace-nowrap text-acai-800">{formatBRL(cartTotalCents(cart))}</span>
+          </div>
+          <p className="mt-1 text-xs text-ink-soft">A taxa de entrega não entra neste total.</p>
         </div>
 
-        <ButtonLink href={buildWhatsAppUrl(storeInfo.whatsapp)} className="w-full">
-          <Chat className="size-5" />
-          Falar com a loja
-        </ButtonLink>
+        <CheckoutPanel cart={cart} onCleared={onCleared} />
         <p className="text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
       </div>
     </aside>

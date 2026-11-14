@@ -1,33 +1,49 @@
 /**
- * Texto do pedido que vai para o WhatsApp da loja.
- *
- * Pronto para a finalização, mas ainda sem uso na tela: pela regra do projeto, o pedido é
- * gravado no banco antes de o cliente ser levado ao WhatsApp, e o banco (Fase 6) ainda não
- * existe. Ver `orderService.ts`.
+ * Texto do pedido que vai para o WhatsApp da loja, no modelo pedido em 2026-11-14:
+ * itens com tudo o que foi escolhido, total, forma de pagamento e troco.
+ * Usa o negrito do WhatsApp (`*texto*`).
  */
 import { formatBRL } from '../../utils/money.ts'
-import { type Cart, cartTotalCents, describeItem, lineTotalCents, unitPriceCents } from '../cart/cart.ts'
+import { type Cart, cartTotalCents, choiceText, lineTotalCents, summarizeSelection } from '../cart/cart.ts'
+import type { ToppingGroupId } from '../catalog/menu.ts'
+import { type Payment, paymentLabel } from '../checkout/payment.ts'
+
+const SEPARATOR = '-----------------------------------'
+
+/** Nome do grupo na mensagem, quando é diferente do personalizador. */
+const MESSAGE_GROUP_LABELS: Partial<Record<ToppingGroupId, string>> = { syrup: 'Caldas/Cremes' }
 
 export type OrderMessageInfo = {
-  /** Código devolvido pelo servidor ao gravar o pedido. */
-  code: string
+  /** Código do pedido, quando o banco de pedidos existir e devolver um. */
+  code?: string
 }
 
-/** Mensagem do pedido: código, itens com tudo o que foi escolhido, valores e total. */
-export function buildOrderMessage(cart: Cart, { code }: OrderMessageInfo): string {
-  const lines: string[] = [`*Pedido ${code}*`, '']
+export function buildOrderMessage(cart: Cart, payment: Payment, { code }: OrderMessageInfo = {}): string {
+  const totalCents = cartTotalCents(cart)
+  const lines: string[] = ['*NOVO PEDIDO — AÇAÍ DOCE SABOR* 🍨']
+  if (code) lines.push(`Pedido ${code}`)
+  lines.push('', '*ITENS DO PEDIDO:*')
 
-  cart.items.forEach((item, index) => {
-    const description = describeItem(item)
-    const title = [description.productName, description.sizeName, description.flavorName].filter(Boolean).join(' · ')
-    lines.push(`*${index + 1}. ${item.quantity}x ${title}*`)
-    for (const { group, items } of description.included) lines.push(`${group}: ${items.join(', ')}`)
-    for (const line of description.paid) {
-      lines.push(`${line.quantity}x ${line.name}: + ${formatBRL(line.totalCents)}`)
+  for (const item of cart.items) {
+    const summary = summarizeSelection(item.slug, item.selection)
+    const each = item.quantity > 1 ? ` (${formatBRL(summary.unitCents)} cada)` : ''
+    lines.push(`*${item.quantity}x ${summary.productName} (${summary.sizeLabel})* — ${formatBRL(lineTotalCents(item))}${each}`)
+    if (summary.flavorName) lines.push(`• Sabor: ${summary.flavorName}`)
+    for (const section of summary.sections) {
+      const label = MESSAGE_GROUP_LABELS[section.group] ?? section.label
+      lines.push(`• ${label}: ${section.items.map(choiceText).join(', ')}`)
     }
-    lines.push(`Valor: ${item.quantity} x ${formatBRL(unitPriceCents(item))} = ${formatBRL(lineTotalCents(item))}`, '')
-  })
+    lines.push('')
+  }
 
-  lines.push(`*Total: ${formatBRL(cartTotalCents(cart))}*`)
+  lines.push(SEPARATOR, `*TOTAL DO PEDIDO: ${formatBRL(totalCents)}*`, `*FORMA DE PAGAMENTO:* ${paymentLabel(payment.method)}`)
+  if (payment.method === 'dinheiro') {
+    lines.push(
+      payment.changeForCents === null
+        ? '*TROCO:* Não preciso de troco (valor exato)'
+        : `*TROCO PARA:* ${formatBRL(payment.changeForCents)} *(Levar troco de ${formatBRL(payment.changeForCents - totalCents)})*`,
+    )
+  }
+  if (payment.method === 'pix') lines.push('Envio o comprovante do Pix nesta conversa.')
   return lines.join('\n')
 }

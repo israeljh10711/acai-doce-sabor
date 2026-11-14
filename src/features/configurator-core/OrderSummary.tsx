@@ -1,12 +1,13 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { ArrowRight, Bag } from '../../components/ui/icons.tsx'
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { Bag } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { cartActions } from '../cart/cartStore.ts'
 import { type Product, TOPPING_GROUPS } from '../catalog/menu.ts'
-import { type Selection, freeByGroup } from '../catalog/selection.ts'
+import { freeByGroup } from '../catalog/selection.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
+import { ConfirmItemDialog } from './ConfirmItemDialog.tsx'
 import type { ConfiguratorApi } from './useConfigurator.ts'
 
 const MISSING_TEXT = { size: 'o tamanho', flavor: 'o sabor' } as const
@@ -92,30 +93,42 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
   )
 }
 
+/** Nome do item adicionado, para o Cardápio avisar ao voltar ("continuar comprando"). */
+export type AddedItemState = { added: string }
+
 function CartButton({ product, cfg, editingItemId }: OrderSummaryProps) {
   const navigate = useNavigate()
-  // Montagem que acabou de ir para o carrinho. Qualquer mudança cria outra seleção e o aviso some.
-  const [addedSelection, setAddedSelection] = useState<Selection | null>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const [confirming, setConfirming] = useState(false)
   const ready = cfg.size !== undefined && cfg.missing.length === 0
-  const justAdded = addedSelection === cfg.selection
 
   const submit = () => {
     if (!ready) return
     if (editingItemId) {
+      // Item que já está no carrinho: salvar as mudanças, sem confirmação de item novo.
       cartActions.update(editingItemId, cfg.selection)
       navigate(paths.cart)
       return
     }
-    if (cartActions.add(product.slug, cfg.selection)) setAddedSelection(cfg.selection)
+    setConfirming(true)
+  }
+
+  /** Põe no carrinho e segue para `to`. O personalizador recomeça vazio ao sair da página. */
+  const addAndGo = (to: string, state?: AddedItemState) => {
+    setConfirming(false)
+    if (!cartActions.add(product.slug, cfg.selection)) return
+    navigate(to, { state })
   }
 
   return (
-    <div className="mt-5 flex flex-col gap-3">
+    <div className="mt-5">
       <button
+        ref={button}
         type="button"
         onClick={submit}
         aria-disabled={!ready}
         aria-describedby={ready ? undefined : 'resumo-falta'}
+        aria-haspopup={editingItemId ? undefined : 'dialog'}
         className="btn-gold inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:shadow-none aria-disabled:hover:translate-y-0"
       >
         <Bag className="size-5" />
@@ -123,20 +136,17 @@ function CartButton({ product, cfg, editingItemId }: OrderSummaryProps) {
         {cfg.price && ready && <span className="nums font-bold whitespace-nowrap">· {formatBRL(cfg.price.totalCents)}</span>}
       </button>
 
-      <p role="status" className="min-h-6 text-center text-sm font-semibold text-acai-800">
-        {justAdded && (
-          <>
-            {product.name} adicionado ao carrinho.{' '}
-            <Link
-              to={paths.cart}
-              className="inline-flex items-center gap-1 font-extrabold underline-offset-4 hover:underline focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
-            >
-              Ver carrinho
-              <ArrowRight className="size-4" />
-            </Link>
-          </>
-        )}
-      </p>
+      {!editingItemId && (
+        <ConfirmItemDialog
+          open={confirming}
+          product={product}
+          selection={cfg.selection}
+          opener={button}
+          onAddAndGoToCart={() => addAndGo(paths.cart)}
+          onAddAndContinue={() => addAndGo(paths.buildOrder, { added: product.name })}
+          onBack={() => setConfirming(false)}
+        />
+      )}
     </div>
   )
 }

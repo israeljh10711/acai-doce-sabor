@@ -18,36 +18,42 @@ export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
   mkdirSync(profileDir, { recursive: true })
 
-  const browser = spawn(
-    EDGE,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-extensions',
-      `--user-data-dir=${profileDir}`,
-      `--remote-debugging-port=${port}`,
-      ...extraArgs,
-      'about:blank',
-    ],
-    { stdio: 'ignore' },
-  )
+  const launch = () =>
+    spawn(
+      EDGE,
+      [
+        '--headless=new',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-extensions',
+        `--user-data-dir=${profileDir}`,
+        `--remote-debugging-port=${port}`,
+        ...extraArgs,
+        'about:blank',
+      ],
+      { stdio: 'ignore' },
+    )
 
+  // Logo depois de outra conferência, o Edge anterior pode ainda estar soltando a pasta de
+  // perfil; o novo então não abre a porta de depuração. Nesse caso, espera e tenta de novo.
+  let browser = null
   let targets = null
-  for (let attempt = 0; attempt < 75 && !targets; attempt++) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}/json/list`)
-      if (response.ok) targets = await response.json()
-    } catch {
-      // navegador ainda subindo
+  for (let launchAttempt = 0; launchAttempt < 2 && !targets; launchAttempt++) {
+    if (launchAttempt > 0) await sleep(3000)
+    browser = launch()
+    for (let attempt = 0; attempt < 75 && !targets; attempt++) {
+      try {
+        const response = await fetch(`http://127.0.0.1:${port}/json/list`)
+        if (response.ok) targets = await response.json()
+      } catch {
+        // navegador ainda subindo
+      }
+      if (!targets) await sleep(200)
     }
-    if (!targets) await sleep(200)
+    if (!targets) browser.kill()
   }
-  if (!targets) {
-    browser.kill()
-    throw new Error(`O Edge não respondeu. Caminho usado: ${EDGE}`)
-  }
+  if (!targets) throw new Error(`O Edge não respondeu. Caminho usado: ${EDGE}`)
 
   const page = targets.find((target) => target.type === 'page')
   const socket = new WebSocket(page.webSocketDebuggerUrl)

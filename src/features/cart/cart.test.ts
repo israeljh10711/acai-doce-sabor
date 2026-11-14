@@ -7,6 +7,7 @@ import {
   addItem,
   cartCount,
   cartTotalCents,
+  choiceText,
   describeItem,
   lineTotalCents,
   newItemId,
@@ -14,6 +15,7 @@ import {
   removeItem,
   serializeCart,
   setQuantity,
+  summarizeSelection,
   unitPriceCents,
   updateItem,
 } from './cart.ts'
@@ -150,6 +152,36 @@ describe('descrição do item', () => {
   it('mostra o sabor do batido', () => {
     const { item } = addItem(EMPTY_CART, 'acai-batido', built('acai-batido', '300-ml', [], 'leite-condensado-pacoca'))
     expect(describeItem(item!).flavorName).toBe('Açaí com Leite Condensado e Paçoca')
+  })
+})
+
+describe('resumo para a confirmação e a mensagem', () => {
+  it('lista cada grupo com escolha, com os cremes pagos junto das caldas', () => {
+    const summary = summarizeSelection(
+      'acai-tradicional',
+      built('acai-tradicional', 'isopor-m', ['granola', 'granola', 'kiwi', 'creme-de-ninho', 'calda-chocolate', 'cereja']),
+    )
+    expect(summary.productName).toBe('Açaí Tradicional')
+    expect(summary.sizeLabel).toBe('Isopor M')
+    expect(summary.flavorName).toBeNull()
+    expect(summary.sections.map((section) => [section.label, section.items.map(choiceText)])).toEqual([
+      ['Adicionais', ['2x Granola']],
+      ['Frutas', ['Kiwi']],
+      ['Caldas e cremes', ['Creme de ninho (+ R$ 3,00)', 'Chocolate']],
+      ['Adicionais pagos', ['Cereja (+ R$ 3,00)']],
+    ])
+    expect(summary.unitCents).toBe(priceOf(PRODUCTS['acai-tradicional'], built('acai-tradicional', 'isopor-m', ['granola', 'granola', 'kiwi', 'creme-de-ninho', 'calda-chocolate', 'cereja']))!.totalCents)
+  })
+
+  it('põe o recipiente no tamanho e traz o sabor', () => {
+    const summary = summarizeSelection('acai-batido', built('acai-batido', '500-ml', ['batido-creme-de-avela', 'batido-creme-de-avela'], 'leite-condensado'))
+    expect(summary.sizeLabel).toBe('Copo 500 ml')
+    expect(summary.flavorName).toBe('Açaí Batido com Leite Condensado')
+    expect(summary.sections.map((section) => section.items.map(choiceText))).toEqual([['2x Creme de avelã (+ R$ 6,00)']])
+  })
+
+  it('montagem sem ingredientes não tem grupos', () => {
+    expect(summarizeSelection('acai-oca', built('acai-oca', 'pote-200')).sections).toEqual([])
   })
 })
 

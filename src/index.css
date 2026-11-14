@@ -239,3 +239,8 @@ summary {
     scroll-padding-top: 15rem;
   }
 }
+
+/* Janela aberta (confirmação do item, foto grande): a página de trás não rola. */
+html:has(dialog[open]) {
+  overflow: hidden;
+}

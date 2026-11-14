@@ -20,8 +20,10 @@ import {
   missingChoices,
   freeByGroup,
   priceOf,
+  selectedByGroup,
   selectedSize,
 } from '../catalog/selection.ts'
+import { formatBRL } from '../../utils/money.ts'
 
 /** Limite técnico de unidades de um mesmo item. Não é regra do cardápio. */
 export const MAX_ITEM_QUANTITY = 20
@@ -177,6 +179,61 @@ export function describeItem(item: CartItem): ItemDescription {
       .filter((entry) => entry.items.length > 0),
     paid: priceOf(product, item.selection)?.paidLines ?? [],
   }
+}
+
+export type Choice = { name: string; quantity: number; totalCents: number }
+
+export type ChoiceSection = {
+  group: ToppingGroupId
+  /** Nome do grupo, como no personalizador. */
+  label: string
+  items: Choice[]
+}
+
+export type SelectionSummary = {
+  productName: string
+  /** Tamanho com o recipiente na frente: "Copo 500 ml", "Isopor M", "Pote 200 ml". */
+  sizeLabel: string
+  flavorName: string | null
+  /** Só os grupos com alguma escolha, na ordem do personalizador. */
+  sections: ChoiceSection[]
+  /** Preço de uma unidade do item montado. */
+  unitCents: number
+}
+
+/**
+ * Tudo o que foi escolhido para um produto, grupo a grupo, para a janela de confirmação e a
+ * mensagem do pedido. Diferente de `describeItem`, cada grupo traz juntos os itens que custam e
+ * os que não custam: os cremes de ninho e avelã aparecem em "Caldas e cremes", com o preço.
+ */
+export function summarizeSelection(slug: CategorySlug, selection: Selection): SelectionSummary {
+  const product = PRODUCTS[slug]
+  const size = selectedSize(product, selection)
+  const container = size ? CONTAINER_NAMES[size.container] : ''
+  const sizeName = size?.name ?? ''
+  return {
+    productName: product.name,
+    sizeLabel: !sizeName || sizeName.startsWith(container) ? sizeName : `${container} ${sizeName}`,
+    flavorName: product.flavors.find((candidate) => candidate.id === selection.flavorId)?.name ?? null,
+    sections: product.groups
+      .map((group) => ({
+        group,
+        label: TOPPING_GROUPS[group].name,
+        items: selectedByGroup(product, selection, group).map(({ topping, quantity }) => ({
+          name: topping.name,
+          quantity,
+          totalCents: topping.priceCents * quantity,
+        })),
+      }))
+      .filter((section) => section.items.length > 0),
+    unitCents: priceOf(product, selection)?.totalCents ?? 0,
+  }
+}
+
+/** Uma escolha como o cliente lê: "2x Granola", "Creme de avelã (+ R$ 3,00)". */
+export function choiceText({ name, quantity, totalCents }: Choice): string {
+  const base = quantity > 1 ? `${quantity}x ${name}` : name
+  return totalCents > 0 ? `${base} (+ ${formatBRL(totalCents)})` : base
 }
 
 /* Armazenamento: formato versionado, com a ordem dos ingredientes preservada. */

@@ -9,12 +9,63 @@ import { openBrowser } from './lib.mjs'
 
 const baseUrl = process.argv[2] ?? 'http://127.0.0.1:5173'
 
+// Funções usadas pelos estados preparados abaixo (rodam dentro da página).
+const prepare = `
+  window.__wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  window.__clickText = (selector, text) => [...document.querySelectorAll(selector)].find((el) => el.textContent.includes(text)).click();
+  window.__type = (selector, text) => {
+    const el = document.querySelector(selector);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, text);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  window.__build = async () => {
+    document.querySelector('input[value="pote-200"]').click();
+    await __wait(150);
+    document.querySelector('[aria-label="Adicionar Granola"]').click();
+    await __wait(150);
+    __clickText('button', 'Adicionar ao carrinho');
+    await __wait(500);
+  };
+  window.__toCart = async () => {
+    await __build();
+    __clickText('dialog button', 'ir para o carrinho');
+    await __wait(600);
+  };
+  window.__pay = async (method) => {
+    document.querySelector('input[value="' + method + '"]').click();
+    await __wait(400);
+  };
+  true;
+`
+
+// Páginas, e estados que só aparecem depois de clicar (`setup` roda antes de medir).
 const routes = [
   '/',
   '/monte-seu-pedido',
   '/monte-seu-pedido/acai-oca',
   '/monte-seu-pedido/milk-shake',
   '/nao-existe',
+  { path: '/monte-seu-pedido/acai-tradicional', label: 'janela de confirmação do item', setup: `__build()` },
+  {
+    path: '/monte-seu-pedido/acai-tradicional',
+    label: 'carrinho: dinheiro com valor menor que o total',
+    setup: `(async () => { await __toCart(); await __pay('dinheiro'); __type('#troco-para', '5'); await __wait(300) })()`,
+  },
+  {
+    path: '/carrinho',
+    label: 'carrinho: troco calculado e WhatsApp aberto',
+    setup: `(async () => { window.open = () => ({}); await __pay('dinheiro'); __type('#troco-para', '100'); await __wait(300); __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
+  },
+  {
+    path: '/carrinho',
+    label: 'carrinho: Pix e aviso de forma de pagamento',
+    setup: `(async () => { __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(300); await __pay('pix') })()`,
+  },
+  {
+    path: '/carrinho',
+    label: 'carrinho: sem forma de pagamento escolhida',
+    setup: `(async () => { __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
+  },
 ]
 const viewports = [
   { width: 390, height: 844 },
@@ -116,8 +167,17 @@ let lowest = { ratio: Infinity }
 
 try {
   for (const viewport of viewports) {
-    for (const route of routes) {
-      await browser.goto(baseUrl + route, viewport)
+    // Carrinho vazio no começo de cada largura: os estados acima põem um item.
+    await browser.goto(baseUrl + '/', viewport)
+    await browser.evaluate(`localStorage.clear(); true`)
+    for (const entry of routes) {
+      const { path, label, setup } = typeof entry === 'string' ? { path: entry } : entry
+      const route = label ? `${path} (${label})` : path
+      await browser.goto(baseUrl + path, viewport)
+      if (setup) {
+        await browser.evaluate(prepare)
+        await browser.evaluate(setup)
+      }
       const { results: items, skippedDisabled } = JSON.parse(await browser.evaluate(measure))
       skipped += skippedDisabled
       const bad = items.filter((item) => item.ratio < item.needed)

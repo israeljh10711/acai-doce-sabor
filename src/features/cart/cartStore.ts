@@ -73,6 +73,10 @@ export const cartActions = {
   setQuantity(id: string, quantity: number) {
     commit(setQuantity(state, id, quantity))
   },
+  /** Esvazia o carrinho (o cliente avisa que já enviou o pedido pelo WhatsApp). */
+  clear() {
+    commit(EMPTY_CART)
+  },
 }
 
 function subscribe(listener: () => void) {
