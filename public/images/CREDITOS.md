@@ -23,6 +23,3 @@ O site mostra estes créditos em `/creditos`.
 | morango | Marc-Lautenbacher | CC BY-SA 4.0 | [Sliced fresh strawberries for making strawberry punch.jpg](https://commons.wikimedia.org/wiki/File:Sliced_fresh_strawberries_for_making_strawberry_punch.jpg) |
 | cereja | WindyWinters | CC BY 2.0 | [Maraschino cherries.jpg](https://commons.wikimedia.org/wiki/File:Maraschino_cherries.jpg) |
 | kit-kat | Evan-Amos | Public domain | [Kit-Kat-Type-Variations.jpg](https://commons.wikimedia.org/wiki/File:Kit-Kat-Type-Variations.jpg) |
-| creme-de-morango | Willis Lam | CC BY-SA 2.0 | [Top of Andronico's Strawberry Mousse (23406904776).jpg](https://commons.wikimedia.org/wiki/File:Top_of_Andronico%27s_Strawberry_Mousse_(23406904776).jpg) |
-| creme-de-cookies | BrokenSphere | CC BY-SA 3.0 | [Cookies and cream.JPG](https://commons.wikimedia.org/wiki/File:Cookies_and_cream.JPG) |
-| ovomaltine | Tiia Monto | CC BY-SA 4.0 | [Ovomaltine Pulver.jpg](https://commons.wikimedia.org/wiki/File:Ovomaltine_Pulver.jpg) |

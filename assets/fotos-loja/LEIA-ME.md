@@ -52,3 +52,16 @@ de uma busca de imagens: o ideal é trocá-las por fotos feitas na própria loja
 | `cobertura-banana-caramelada.png` | Cobertura de banana caramelada | inteira (embalagem) |
 | `cobertura-chocolate.png` | Cobertura de chocolate | inteira (embalagem) |
 | `cobertura-morango.png` | Cobertura de morango | inteira (embalagem) |
+| `creme-cookies.png` | Creme de cookies (adicional do Açaí Batido) | recorte |
+| `ovomaltine.png` | Ovomaltine (adicional do Açaí Batido) | recorte |
+| `creme-morango.png` | Creme de morango (adicional do Açaí Batido) | recorte |
+
+As três últimas chegaram depois, em 2026-11-14, no lugar das fotos de banco. Copiadas sem
+mudança (`preparar.mjs loja creme-cookies.png ovomaltine.png creme-morango.png`). Para o
+proprietário conferir:
+
+- `ovomaltine.png` parece ter uma marca d'água fraca de banco de imagens, com letras repetidas
+  que só aparecem com o contraste realçado. Se for foto de banco pago, precisa de licença.
+- `creme-morango.png` parece uma imagem digital (gerada por computador), não uma foto do creme.
+- `creme-cookies.png` é pequena (185 x 202 px); no cartão de 96 px fica um pouco suave em telas
+  de alta densidade.

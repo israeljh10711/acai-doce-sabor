@@ -50,6 +50,15 @@ describe('fotos dos ingredientes', () => {
     })
   })
 
+  it('creme de cookies, Ovomaltine e creme de morango do batido usam as fotos enviadas, preenchendo o quadro', () => {
+    const photo = (name: string) => ingredientPhoto(toppingsOf(PRODUCTS['acai-batido'], 'batido').find((topping) => topping.name === name)!)
+    expect([photo('Creme de cookies'), photo('Ovomaltine'), photo('Creme de morango')].map((p) => [p?.src.split('/').pop(), p?.fit])).toEqual([
+      ['creme-cookies.png', 'cover'],
+      ['ovomaltine.png', 'cover'],
+      ['creme-morango.png', 'cover'],
+    ])
+  })
+
   it('embalagens aparecem inteiras; texturas preenchem o quadro', () => {
     const fit = (id: string) => ingredientPhoto(TOPPINGS.find((topping) => topping.id === id)!)?.fit
     for (const id of ['leite-condensado', 'leite-em-po', 'farinha-lactea', 'calda-morango', 'calda-chocolate', 'calda-acai']) {

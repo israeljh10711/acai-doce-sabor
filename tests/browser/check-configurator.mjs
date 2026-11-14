@@ -240,6 +240,14 @@ try {
     // --- Açaí Batido ---
     await page('/monte-seu-pedido/acai-batido', viewport)
     check(`${at} foto do batido`, await browser.evaluate(`__photo()`), 'acai-batido')
+    const batidoFits = await browser.evaluate(`__fits()`)
+    check(
+      `${at} batido: creme de cookies, Ovomaltine e creme de morango com as fotos enviadas, preenchendo o quadro`,
+      [batidoFits['creme-cookies.png'], batidoFits['ovomaltine.png'], batidoFits['creme-morango.png']],
+      ['cover', 'cover', 'cover'],
+    )
+    const batidoThumbs = await browser.evaluate(`__brokenThumbs()`)
+    check(`${at} batido: todas as ${batidoThumbs.total} fotos de adicional carregam`, batidoThumbs.broken, [])
     check(
       `${at} batido com os três sabores`,
       await browser.evaluate(`['leite-condensado', 'leite-condensado-amendoim', 'leite-condensado-pacoca'].every((id) => !!__radio(id))`),

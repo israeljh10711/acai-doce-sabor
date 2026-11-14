@@ -37,6 +37,10 @@ const INGREDIENT_FILES: Readonly<Record<string, [file: string, fit: PhotoFit]>> 
   'calda-banana-caramelizada': ['cobertura-banana-caramelada.png', 'contain'],
   'calda-chocolate': ['cobertura-chocolate.png', 'contain'],
   'calda-morango': ['cobertura-morango.png', 'contain'],
+  // Enviadas depois, também em 2026-11-14: adicionais do Açaí Batido.
+  'creme-de-cookies': ['creme-cookies.png', 'cover'],
+  'creme-de-morango': ['creme-morango.png', 'cover'],
+  ovomaltine: ['ovomaltine.png', 'cover'],
   // Fotos de banco com licença comercial, até a loja enviar as suas.
   granola: ['granola.webp', 'cover'],
   'gotas-de-chocolate': ['gotas-de-chocolate.webp', 'cover'],
@@ -47,9 +51,6 @@ const INGREDIENT_FILES: Readonly<Record<string, [file: string, fit: PhotoFit]>> 
   morango: ['morango.webp', 'cover'],
   cereja: ['cereja.webp', 'cover'],
   'kit-kat': ['kit-kat.webp', 'cover'],
-  'creme-de-morango': ['creme-de-morango.webp', 'cover'],
-  'creme-de-cookies': ['creme-de-cookies.webp', 'cover'],
-  ovomaltine: ['ovomaltine.webp', 'cover'],
 }
 
 /** Nome da foto de um ingrediente: os do batido usam as fotos de mesmo nome. */

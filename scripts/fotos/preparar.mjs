@@ -3,7 +3,9 @@
  *
  * Uso (na pasta do projeto):
  *   npm install --no-save sharp
- *   node scripts/fotos/preparar.mjs [loja | miniaturas | produtos]
+ *   node scripts/fotos/preparar.mjs [loja | miniaturas | produtos] [arquivos...]
+ *
+ * Com nomes de arquivo depois de `loja`, refaz só essas fotos (as outras ficam como estão).
  *
  * - `loja`: as fotos de ingredientes e embalagens enviadas em 2026-11-14 (`assets/fotos-loja/`).
  *   Saem em `public/images/ingredientes/` com o mesmo nome, só limpas: tira o ícone do Google
@@ -133,11 +135,13 @@ const STORE_FIXES = {
   'cobertura-morango.png': { trim: true },
 }
 
-async function storePhotos() {
-  const files = readFileSync(join(STORE_PHOTOS, 'LEIA-ME.md'), 'utf8')
+async function storePhotos(only = []) {
+  const listed = readFileSync(join(STORE_PHOTOS, 'LEIA-ME.md'), 'utf8')
     .split('\n')
     .map((line) => line.match(/^\| `([\w-]+\.png)` \|/)?.[1])
     .filter(Boolean)
+  for (const file of only) if (!listed.includes(file)) throw new Error(`${file} não está na tabela do LEIA-ME`)
+  const files = only.length ? only : listed
   for (const file of files) {
     const fix = STORE_FIXES[file] ?? {}
     let image = await sharp(join(STORE_PHOTOS, file)).removeAlpha().png().toBuffer()
@@ -177,9 +181,6 @@ const THUMBS = {
   kiwi: { cx: 0.42, cy: 0.52, s: 0.62 },
   morango: { cx: 0.42, cy: 0.5, s: 0.7 },
   cereja: { cx: 0.5, cy: 0.45, s: 0.78 },
-  'creme-de-morango': { cx: 0.5, cy: 0.46, s: 0.42 },
-  'creme-de-cookies': { cx: 0.5, cy: 0.5, s: 0.8 },
-  ovomaltine: { cx: 0.48, cy: 0.52, s: 0.8 },
 }
 
 /** Barras em fundo branco (BIS e Kit Kat): a peça vai para o centro de um quadrado claro. */
@@ -241,6 +242,6 @@ async function products() {
 /* ---------- Execução ---------- */
 
 const only = process.argv[2]
-if (!only || only === 'loja') await storePhotos()
+if (!only || only === 'loja') await storePhotos(process.argv.slice(3))
 if (!only || only === 'miniaturas') await thumbnails()
 if (!only || only === 'produtos') await products()

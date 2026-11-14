@@ -29,6 +29,7 @@ const STORE_PHOTOS = [
   'Banana',
   'Creme de ninho',
   'Creme de avelã',
+  'Creme de cookies, Creme de morango e Ovomaltine (adicionais do Açaí Batido)',
   'Coberturas Du Porto: frutas vermelhas, doce de leite, açaí, banana caramelada, chocolate e morango',
 ]
 

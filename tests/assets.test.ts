@@ -20,10 +20,10 @@ describe('arquivos de imagem', () => {
     }
   })
 
-  it('as 17 fotos enviadas pela loja estão em public/images/ingredientes e todas em uso', () => {
+  it('as 20 fotos de ingrediente enviadas pela loja estão em public/images/ingredientes e todas em uso', () => {
     const sent = readdirSync(join(ROOT, 'assets', 'fotos-loja')).filter((file) => file.endsWith('.png'))
     const used = new Set(TOPPINGS.map((topping) => ingredientFile(topping)))
-    expect(sent).toHaveLength(17)
+    expect(sent).toHaveLength(20)
     for (const file of sent) {
       expect(existsSync(join(IMAGES, 'ingredientes', file)), file).toBe(true)
       expect(used.has(file), `${file} sem uso`).toBe(true)
