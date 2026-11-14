@@ -5,7 +5,8 @@
  *   npm install --no-save sharp
  *   node scripts/fotos/preparar.mjs [loja | miniaturas | produtos] [arquivos...]
  *
- * Com nomes de arquivo depois de `loja`, refaz só essas fotos (as outras ficam como estão).
+ * Com nomes de arquivo depois de `loja`, ou de produto depois de `produtos` (ex.: `milkshake`),
+ * refaz só esses (os outros ficam como estão).
  *
  * - `loja`: as fotos de ingredientes e embalagens enviadas em 2026-11-14 (`assets/fotos-loja/`).
  *   Saem em `public/images/ingredientes/` com o mesmo nome, só limpas: tira o ícone do Google
@@ -211,32 +212,132 @@ async function thumbnails() {
 /* ---------- Fotos dos produtos ---------- */
 
 /**
- * Foto fixa de cada produto, enviada pela loja em 2026-11-14. Tira a margem branca e devolve uma
- * borda branca igual nos quatro lados: o produto aparece inteiro e centralizado, sem recorte.
- * Sai em PNG (o arquivo de referência, até 1200 px) e em WebP de 480 e 960 px de largura, mais
- * leves, que o navegador escolhe pelo tamanho da tela.
+ * Tira o fundo branco de uma foto e devolve PNG com transparência de verdade (canal alfa).
+ * O fundo é o branco ligado à borda da foto (enchimento a partir das bordas): o branco de dentro
+ * do produto, como o da tampa, fica. Numa faixa fina em volta do fundo, a transparência cresce
+ * com a distância do branco e a cor é separada do branco, para não sobrar contorno claro sobre
+ * fundo escuro. `fill`: até onde é fundo (255 - menor canal); `edge`: onde já é produto;
+ * `band`: largura da faixa, em pixels.
  */
-const PRODUCT_PHOTOS = ['acai-oca', 'acai-tradicional', 'acai-batido', 'milkshake']
+async function removeWhiteBackground(file, { fill = 14, edge = 60, band = 6 } = {}) {
+  const { data, info } = await sharp(file).removeAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { width: W, height: H } = info
+  const N = W * H
+  const dist = new Uint8Array(N)
+  for (let p = 0; p < N; p++) dist[p] = 255 - Math.min(data[p * 3], data[p * 3 + 1], data[p * 3 + 2])
 
-async function products() {
-  for (const name of PRODUCT_PHOTOS) {
-    const trimmed = await sharp(join(STORE_PHOTOS, 'produtos', `${name}.jpg`))
-      .trim({ background: '#ffffff', threshold: 12 })
-      .toBuffer()
+  const background = new Uint8Array(N)
+  const stack = []
+  for (let x = 0; x < W; x++) stack.push(x, (H - 1) * W + x)
+  for (let y = 0; y < H; y++) stack.push(y * W, y * W + W - 1)
+  while (stack.length) {
+    const p = stack.pop()
+    if (background[p] || dist[p] > fill) continue
+    background[p] = 1
+    const x = p % W
+    if (x > 0) stack.push(p - 1)
+    if (x < W - 1) stack.push(p + 1)
+    if (p >= W) stack.push(p - W)
+    if (p < N - W) stack.push(p + W)
+  }
+
+  // Distância (em pixels, 8 vizinhos) até o fundo, só até a largura da faixa.
+  const near = new Uint8Array(N).fill(255)
+  for (let p = 0; p < N; p++) if (background[p]) near[p] = 0
+  for (let step = 1; step <= band; step++) {
+    const next = near.slice()
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const p = y * W + x
+        if (near[p] !== 255) continue
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx
+            const ny = y + dy
+            if (nx >= 0 && nx < W && ny >= 0 && ny < H && near[ny * W + nx] === step - 1) next[p] = step
+          }
+        }
+      }
+    }
+    near.set(next)
+  }
+
+  const out = Buffer.alloc(N * 4)
+  for (let p = 0; p < N; p++) {
+    const alpha = background[p] ? 0 : near[p] <= band ? smoothstep(fill, edge, dist[p]) : 1
+    for (let c = 0; c < 3; c++) {
+      const value = data[p * 3 + c]
+      out[p * 4 + c] = alpha > 0.02 ? Math.max(0, Math.min(255, Math.round((value - (1 - alpha) * 255) / alpha))) : 0
+    }
+    out[p * 4 + 3] = Math.round(alpha * 255)
+  }
+  return sharp(out, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer()
+}
+
+/** Recorta uma imagem com transparência no menor retângulo que contém o que não é transparente. */
+async function trimTransparent(input) {
+  const { data, info } = await sharp(input).raw().toBuffer({ resolveWithObject: true })
+  let [left, top, right, bottom] = [info.width, info.height, -1, -1]
+  for (let y = 0; y < info.height; y++) {
+    for (let x = 0; x < info.width; x++) {
+      if (data[(y * info.width + x) * 4 + 3] === 0) continue
+      left = Math.min(left, x)
+      right = Math.max(right, x)
+      top = Math.min(top, y)
+      bottom = Math.max(bottom, y)
+    }
+  }
+  return sharp(input).extract({ left, top, width: right - left + 1, height: bottom - top + 1 }).png().toBuffer()
+}
+
+/**
+ * Foto fixa de cada produto, enviada pela loja em 2026-11-14. Tira a margem branca e devolve uma
+ * borda igual nos quatro lados: o produto aparece inteiro e centralizado, sem recorte. A borda é
+ * branca, ou transparente nas fotos com `transparent` (fundo removido, para aparecer recortada
+ * sobre o roxo). Sai em PNG (o arquivo de referência, até 1200 px) e em WebP de 480 e 960 px de
+ * largura, mais leves, que o navegador escolhe pelo tamanho da tela (o WebP também guarda a
+ * transparência).
+ */
+const PRODUCT_PHOTOS = {
+  'acai-oca': {},
+  'acai-tradicional': {},
+  'acai-batido': {},
+  // Pedido de 2026-11-14: milk-shake com fundo transparente.
+  milkshake: { transparent: true },
+}
+
+async function products(only = []) {
+  for (const name of only) if (!(name in PRODUCT_PHOTOS)) throw new Error(`Produto desconhecido: ${name}`)
+  const names = only.length ? only : Object.keys(PRODUCT_PHOTOS)
+  for (const name of names) {
+    const source = join(STORE_PHOTOS, 'produtos', `${name}.jpg`)
+    const { transparent } = PRODUCT_PHOTOS[name]
+    const trimmed = transparent
+      ? await trimTransparent(await removeWhiteBackground(source))
+      : await sharp(source).trim({ background: '#ffffff', threshold: 12 }).toBuffer()
     const meta = await sharp(trimmed).metadata()
     const pad = Math.round(Math.max(meta.width, meta.height) * 0.04)
     const framed = await sharp(trimmed)
-      .extend({ top: pad, bottom: pad, left: pad, right: pad, background: '#ffffff' })
+      .extend({
+        top: pad,
+        bottom: pad,
+        left: pad,
+        right: pad,
+        background: transparent ? { r: 0, g: 0, b: 0, alpha: 0 } : '#ffffff',
+      })
       .toBuffer()
     const png = join(OUT, 'produtos', `${name}.png`)
     await sharp(framed).resize(1200, 1200, { fit: 'inside' }).png({ compressionLevel: 9, palette: false }).toFile(png)
     for (const width of [480, 960]) {
-      await sharp(framed).resize({ width }).webp({ quality: 82, effort: 6 }).toFile(join(OUT, 'produtos', `${name}-${width}.webp`))
+      await sharp(framed)
+        .resize({ width })
+        .webp({ quality: 82, alphaQuality: 100, effort: 6 })
+        .toFile(join(OUT, 'produtos', `${name}-${width}.webp`))
     }
     const size = await sharp(png).metadata()
-    console.log(`${name}.png: ${size.width}x${size.height}`)
+    console.log(`${name}.png: ${size.width}x${size.height}${size.hasAlpha ? ', com transparência' : ''}`)
   }
-  console.log('produtos ok:', PRODUCT_PHOTOS.length)
+  console.log('produtos ok:', names.length)
 }
 
 /* ---------- Execução ---------- */
@@ -244,4 +345,4 @@ async function products() {
 const only = process.argv[2]
 if (!only || only === 'loja') await storePhotos(process.argv.slice(3))
 if (!only || only === 'miniaturas') await thumbnails()
-if (!only || only === 'produtos') await products()
+if (!only || only === 'produtos') await products(process.argv.slice(3))

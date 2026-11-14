@@ -6,8 +6,9 @@
  *   as coberturas Du Porto) aparecem inteiras (`contain`); as fotos de textura preenchem o
  *   quadro (`cover`). Origem de cada uma em `assets/fotos-loja/LEIA-ME.md` e em `/creditos`.
  * - Produtos: `public/images/produtos/`, a foto que a loja enviou para cada produto, uma só,
- *   que não muda com os ingredientes nem com o recipiente. Aparece inteira (`contain`) em fundo
- *   branco. Originais em `assets/fotos-loja/produtos/`.
+ *   que não muda com os ingredientes nem com o recipiente. Aparece inteira (`contain`). A do
+ *   milk-shake tem o fundo removido (PNG transparente): recortada sobre o roxo na página inicial,
+ *   igual às outras nos quadros brancos. Originais em `assets/fotos-loja/produtos/`.
  */
 import type { CategorySlug } from './categories.ts'
 import type { Topping } from './menu.ts'
@@ -74,6 +75,8 @@ export type ProductPhotoData = {
   /** Tamanho do PNG, em pixels: reserva o espaço certo antes de a foto carregar. */
   width: number
   height: number
+  /** Fundo removido (PNG com transparência), para aparecer recortada sobre fundo de cor. */
+  transparent?: boolean
 }
 
 /** Foto de cada produto, enviada pela loja em 2026-11-14. */
@@ -101,6 +104,8 @@ const PRODUCT_PHOTOS: Readonly<Record<CategorySlug, ProductPhotoData>> = {
     alt: 'Milk-shake de chocolate no copo com tampa, com calda de chocolate por dentro',
     width: 906,
     height: 1200,
+    // Pedido de 2026-11-14: fundo transparente.
+    transparent: true,
   },
 }
 

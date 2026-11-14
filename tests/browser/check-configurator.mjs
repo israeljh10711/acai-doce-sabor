@@ -51,6 +51,16 @@ const helpers = `
   // Troca window.open para guardar o link do WhatsApp em vez de abrir outra aba.
   window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
   window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
+  // Transparência (alfa, 0 a 255) de pontos de uma foto, em frações da largura e da altura.
+  window.__alpha = async (img, points) => {
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return points.map(([fx, fy]) => ctx.getImageData(Math.floor(fx * (canvas.width - 1)), Math.floor(fy * (canvas.height - 1)), 1, 1).data[3]);
+  };
   window.__liveText = () => [...document.querySelectorAll('p[aria-live]')].map((p) => p.textContent).join('|');
   window.__groupNames = (title) => {
     const section = [...document.querySelectorAll('section')].find((s) => s.querySelector('h2')?.textContent.includes(title));
@@ -120,6 +130,24 @@ try {
     // Carrinho vazio no começo de cada rodada.
     await page('/', viewport)
     await browser.evaluate(`localStorage.clear(); true`)
+
+    // --- Página inicial: milk-shake recortado sobre o roxo ---
+    const heroShake = `document.querySelector('figure [data-product-photo="milkshake"]')`
+    check(
+      `${at} início: milk-shake carregado, da pasta das fotos da loja, inteiro`,
+      await browser.evaluate(`(async () => { const img = ${heroShake}; await img.decode(); return [img.naturalWidth > 0, new URL(img.currentSrc).pathname.split('/').slice(-2, -1)[0], getComputedStyle(img).objectFit] })()`),
+      [true, 'produtos', 'contain'],
+    )
+    check(
+      `${at} início: milk-shake com fundo transparente de verdade (cantos 0, copo 255)`,
+      await browser.evaluate(`__alpha(${heroShake}, [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.55]])`),
+      [0, 0, 0, 0, 255],
+    )
+    check(
+      `${at} início: sem quadro branco em volta do milk-shake`,
+      await browser.evaluate(`[getComputedStyle(${heroShake}).backgroundColor, getComputedStyle(${heroShake}.parentElement).backgroundColor]`),
+      ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'],
+    )
 
     // --- Açaí Tradicional: ordem livre ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)

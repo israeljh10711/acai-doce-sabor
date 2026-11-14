@@ -103,7 +103,10 @@ function Hero() {
   )
 }
 
-/** Fotos reais dos produtos, em três quadros com profundidade: inclinam de leve com o ponteiro. */
+/**
+ * Fotos reais dos produtos, com profundidade: inclinam de leve com o ponteiro. Oca e Tradicional
+ * em quadros brancos; o milk-shake recortado (fundo transparente), direto sobre o roxo.
+ */
 function HeroPhoto() {
   const frame = 'overflow-hidden rounded-[1.75rem] bg-white shadow-[0_24px_50px_-18px_rgb(10_1_7/0.75)] ring-4 ring-white/15'
   return (
@@ -120,8 +123,11 @@ function HeroPhoto() {
         <Depth depth={0.9} className={`absolute bottom-[3%] left-[0%] w-[40%] -rotate-3 ${frame}`}>
           <ProductPhoto slug="acai-tradicional" sizes="(min-width: 64rem) 220px, 40vw" priority decorative />
         </Depth>
-        <Depth depth={1.1} className={`absolute right-[0%] bottom-[9%] w-[36%] rotate-3 ${frame}`}>
-          <ProductPhoto slug="milk-shake" sizes="(min-width: 64rem) 200px, 36vw" priority decorative />
+        <Depth
+          depth={1.1}
+          className="absolute right-[-2%] bottom-[2%] w-[42%] rotate-3 drop-shadow-[0_22px_22px_rgb(10_1_7/0.6)]"
+        >
+          <ProductPhoto slug="milk-shake" sizes="(min-width: 64rem) 230px, 42vw" priority decorative />
         </Depth>
       </TiltStage>
       <figcaption className="sr-only">

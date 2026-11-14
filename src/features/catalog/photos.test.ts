@@ -98,6 +98,10 @@ describe('foto fixa de cada produto', () => {
     }
   })
 
+  it('só o milk-shake tem o fundo transparente', () => {
+    expect(ALL_PRODUCT_PHOTOS.filter((photo) => photo.transparent).map((photo) => photo.name)).toEqual(['milkshake'])
+  })
+
   it('aponta para o PNG enviado e para as cópias leves', () => {
     expect(productPhotoSrc('milkshake')).toMatch(/\/images\/produtos\/milkshake\.png$/)
     expect(productPhotoSrc('acai-oca', 480)).toMatch(/\/images\/produtos\/acai-oca-480\.webp$/)

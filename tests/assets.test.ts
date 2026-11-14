@@ -42,6 +42,8 @@ describe('arquivos de imagem', () => {
       // Largura e altura ficam no cabeçalho do PNG (bloco IHDR, a partir do byte 16).
       const header = readFileSync(png)
       expect([header.readUInt32BE(16), header.readUInt32BE(20)], photo.name).toEqual([photo.width, photo.height])
+      // Tipo de cor do PNG (byte 25): 6 = com canal alfa (fundo transparente), 2 = sem.
+      expect(header[25], `${photo.name}: tipo de cor`).toBe(photo.transparent ? 6 : 2)
       for (const width of [480, 960]) {
         expect(existsSync(join(IMAGES, 'produtos', `${photo.name}-${width}.webp`)), `${photo.name}-${width}`).toBe(true)
       }

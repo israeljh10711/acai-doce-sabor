@@ -13,9 +13,10 @@ type ProductPhotoProps = {
 }
 
 /**
- * Foto fixa e real do produto, enviada pela loja. Aparece inteira e centralizada num quadro
- * branco (`object-contain`): copo, garrafa e cobertura nunca são cortados. Não muda com os
- * ingredientes nem com o recipiente escolhidos.
+ * Foto fixa e real do produto, enviada pela loja. Aparece inteira e centralizada
+ * (`object-contain`): copo, garrafa e cobertura nunca são cortados. Não muda com os ingredientes
+ * nem com o recipiente escolhidos. A foto não pinta fundo: o quadro em volta decide (branco nos
+ * cartões; o roxo da página no milk-shake recortado do topo da página inicial).
  */
 export function ProductPhoto({ slug, sizes, className = '', priority = false, decorative = false }: ProductPhotoProps) {
   const photo = productPhoto(slug)
@@ -30,7 +31,8 @@ export function ProductPhoto({ slug, sizes, className = '', priority = false, de
       loading={priority ? 'eager' : 'lazy'}
       decoding="async"
       data-product-photo={photo.name}
-      className={`aspect-square bg-white object-contain ${className}`}
+      data-transparent={photo.transparent ? '' : undefined}
+      className={`aspect-square object-contain ${className}`}
     />
   )
 }
