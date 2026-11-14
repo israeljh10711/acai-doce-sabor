@@ -2,7 +2,31 @@ import { Check, Info } from '../../components/ui/icons.tsx'
 import { type Product, getTopping } from '../catalog/menu.ts'
 import { StepHeading } from '../configurator-core/StepHeading.tsx'
 import type { ConfiguratorApi } from '../configurator-core/useConfigurator.ts'
-import { BATIDO_FLAVOR_TOPPINGS, SHAKE_COLORS, image, ingredientImage } from '../photo-composer/visuals.ts'
+import { ingredientPhoto } from '../catalog/photos.ts'
+
+/** Cor de cada sabor de milk-shake, na amostra ao lado do nome. */
+const SHAKE_COLORS: Readonly<Record<string, string>> = {
+  acai: '#7a2a5c',
+  toffe: '#c08a50',
+  ninho: '#f2e7cf',
+  pitaya: '#de4a88',
+  maracuja: '#f3c63e',
+  morango: '#f4a3b8',
+  prestigio: '#8a5c40',
+  chocolate: '#6a3c24',
+  choconute: '#7f5634',
+  'laka-bis': '#eedfc3',
+  'iogurte-grego': '#f7f2e9',
+  'ninho-trufado': '#dcc39c',
+  'chocolate-branco': '#f4e6cb',
+}
+
+/** O que cada sabor do batido leva, em fotos: todos levam leite condensado. */
+const BATIDO_FLAVOR_TOPPINGS: Readonly<Record<string, readonly string[]>> = {
+  'leite-condensado': ['leite-condensado'],
+  'leite-condensado-amendoim': ['leite-condensado', 'amendoim'],
+  'leite-condensado-pacoca': ['leite-condensado', 'pacoca'],
+}
 
 /**
  * Escolha do sabor (milk-shake e açaí batido). O aviso de disponibilidade aparece quando o
@@ -66,18 +90,20 @@ function Swatch({ slug, flavorId }: { slug: Product['slug']; flavorId: string })
   if (extras.length > 0) {
     return (
       <span aria-hidden="true" className="flex shrink-0 -space-x-3">
-        <img src={image('ingredients/calda-acai.webp')} alt="" width={40} height={40} className="size-10 rounded-full object-cover ring-2 ring-white" />
         {extras.map((id) => {
-          const topping = getTopping(id)
+          const photo = ingredientPhoto(getTopping(id) ?? { id })
+          if (!photo) return null
           return (
             <img
               key={id}
-              src={ingredientImage(topping ?? { id })}
+              src={photo.src}
               alt=""
               width={40}
               height={40}
               loading="lazy"
-              className="size-10 rounded-full object-cover ring-2 ring-white"
+              className={`size-10 rounded-full bg-white ring-2 ring-white shadow-[0_0_0_1px_rgb(42_8_29/0.18)] ${
+                photo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'
+              }`}
             />
           )
         })}

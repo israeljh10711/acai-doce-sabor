@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_PAID_UNITS, PRODUCTS, TOPPINGS } from './menu.ts'
+import { MAX_PAID_UNITS, PRODUCTS, toppingsOf } from './menu.ts'
 import {
   EMPTY_SELECTION,
   type Selection,
@@ -7,7 +7,9 @@ import {
   addTopping,
   chooseFlavor,
   chooseSize,
+  freeCap,
   freeLimit,
+  freeLimitRange,
   freeUsed,
   missingChoices,
   priceOf,
@@ -26,8 +28,6 @@ function build(product: typeof tradicional, sizeId: string, toppingIds: string[]
   for (const id of toppingIds) selection = addTopping(product, selection, id)
   return selection
 }
-
-const idsOf = (group: string) => TOPPINGS.filter((t) => t.group === group).map((t) => t.id)
 
 describe('limite de adicionais gratuitos', () => {
   it('depende do tamanho escolhido', () => {
@@ -73,14 +73,15 @@ describe('limite de adicionais gratuitos', () => {
 describe('frutas e coberturas', () => {
   it('não consomem o limite: todas podem ser escolhidas com o limite cheio', () => {
     let selection = build(tradicional, 'pote-200', ['granola', 'pacoca'])
-    for (const id of [...idsOf('fruit'), ...idsOf('syrup')]) {
+    const offered = (group: 'fruit' | 'syrup') => toppingsOf(tradicional, group).map((topping) => topping.id)
+    for (const id of [...offered('fruit'), ...offered('syrup')]) {
       expect(addBlocker(tradicional, selection, id)).toBeNull()
       selection = addTopping(tradicional, selection, id)
     }
 
     expect(freeUsed(selection)).toBe(2)
     expect(selectedByGroup(tradicional, selection, 'fruit')).toHaveLength(3)
-    expect(selectedByGroup(tradicional, selection, 'syrup')).toHaveLength(7)
+    expect(selectedByGroup(tradicional, selection, 'syrup')).toHaveLength(8)
   })
 
   it('entram uma vez só cada', () => {
@@ -132,7 +133,7 @@ describe('preço', () => {
   })
 
   it('é o preço do tamanho quando só há itens gratuitos', () => {
-    const selection = build(tradicional, 'isopor-gg', ['granola', 'banana', 'calda-leite-condensado'])
+    const selection = build(tradicional, 'isopor-gg', ['granola', 'banana', 'calda-morango'])
 
     expect(priceOf(tradicional, selection)).toEqual({
       sizeCents: 2200,
@@ -248,11 +249,6 @@ describe('açaí', () => {
 })
 
 describe('proteções', () => {
-  it('nada é adicionado antes de o tamanho ser escolhido', () => {
-    expect(addBlocker(tradicional, EMPTY_SELECTION, 'granola')).toBe('no-size')
-    expect(addBlocker(tradicional, EMPTY_SELECTION, 'kit-kat')).toBe('no-size')
-    expect(addTopping(tradicional, EMPTY_SELECTION, 'granola')).toBe(EMPTY_SELECTION)
-  })
 
   it('um ingrediente desconhecido é recusado', () => {
     const selection = build(tradicional, 'copo-400')
@@ -295,5 +291,76 @@ describe('proteções', () => {
       ['Granola', 2],
       ['Marshmallow', 1],
     ])
+  })
+})
+
+describe('ordem livre (pedido de 2026-11-14)', () => {
+  it('dá para escolher ingredientes antes do tamanho', () => {
+    let selection = EMPTY_SELECTION
+    for (const id of ['granola', 'banana', 'calda-chocolate', 'kit-kat', 'creme-de-ninho']) {
+      expect(addBlocker(tradicional, selection, id), id).toBeNull()
+      selection = addTopping(tradicional, selection, id)
+    }
+    expect(Object.keys(selection.toppings)).toEqual(['granola', 'banana', 'calda-chocolate', 'kit-kat', 'creme-de-ninho'])
+    // Sem tamanho ainda não há preço.
+    expect(priceOf(tradicional, selection)).toBeNull()
+  })
+
+  it('sem tamanho, os grátis vão até o maior limite do produto (7)', () => {
+    const seven = Array.from({ length: 7 }, () => 'granola')
+    let selection = EMPTY_SELECTION
+    for (const id of seven) selection = addTopping(tradicional, selection, id)
+
+    expect(freeCap(tradicional, selection)).toBe(7)
+    expect(freeLimitRange(tradicional)).toEqual({ min: 2, max: 7 })
+    expect(addBlocker(tradicional, selection, 'pacoca')).toBe('free-limit')
+  })
+
+  it('ao escolher o tamanho, o que passa do limite dele sai, com aviso', () => {
+    let selection = EMPTY_SELECTION
+    for (const id of ['granola', 'pacoca', 'amendoim', 'leite-em-po']) selection = addTopping(tradicional, selection, id)
+    const { selection: next, removed } = chooseSize(tradicional, selection, 'pote-200')
+
+    expect(freeUsed(next)).toBe(2)
+    expect(removed).toEqual([
+      { toppingId: 'leite-em-po', quantity: 1 },
+      { toppingId: 'amendoim', quantity: 1 },
+    ])
+  })
+})
+
+describe('caldas e cremes (pedido de 2026-11-14)', () => {
+  it('cada um entra uma vez só', () => {
+    for (const id of ['creme-de-ninho', 'creme-de-avela', 'calda-frutas-vermelhas', 'calda-banana-caramelizada']) {
+      const once = build(tradicional, 'copo-500', [id])
+      expect(addBlocker(tradicional, once, id), id).toBe('item-max')
+      expect(addTopping(tradicional, once, id), id).toBe(once)
+    }
+  })
+
+  it('os cremes custam R$ 3,00; as caldas não custam nada', () => {
+    const selection = build(tradicional, 'copo-500', ['creme-de-ninho', 'creme-de-avela', 'calda-chocolate', 'calda-acai'])
+    const price = priceOf(tradicional, selection)
+
+    expect(price?.paidLines.map((line) => [line.name, line.quantity, line.totalCents])).toEqual([
+      ['Creme de ninho', 1, 300],
+      ['Creme de avelã', 1, 300],
+    ])
+    expect(price?.totalCents).toBe(1200 + 600)
+    expect(freeUsed(selection)).toBe(0)
+  })
+
+  it('o leite condensado agora é adicional: conta no limite grátis e não custa nada', () => {
+    const selection = build(tradicional, 'copo-500', ['leite-condensado', 'granola', 'disquete'])
+
+    expect(freeUsed(selection)).toBe(3)
+    expect(addBlocker(tradicional, selection, 'farinha-lactea')).toBe('free-limit')
+    expect(priceOf(tradicional, selection)?.totalCents).toBe(1200)
+  })
+
+  it('o açaí não oferece a cobertura de leite condensado; o milk-shake oferece', () => {
+    expect(addBlocker(tradicional, build(tradicional, 'copo-500'), 'calda-leite-condensado')).toBe('not-in-product')
+    const shake = chooseSize(milkShake, EMPTY_SELECTION, '400-ml').selection
+    expect(addBlocker(milkShake, shake, 'calda-leite-condensado')).toBeNull()
   })
 })

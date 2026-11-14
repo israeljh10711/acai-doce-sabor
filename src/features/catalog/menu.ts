@@ -31,7 +31,8 @@ export type ToppingGroupId = 'dry' | 'fruit' | 'syrup' | 'paid' | 'batido'
  * Como um grupo de ingredientes entra no pedido:
  *
  * - `limited`: sem custo, mas cada unidade consome o limite gratuito do tamanho;
- * - `included`: sem custo e sem limite; cada item entra uma vez ou não entra;
+ * - `included`: cada item entra uma vez ou não entra, sem limite de itens. Sem custo, exceto os
+ *   que têm preço (os cremes das caldas e cremes, R$ 3,00 cada);
  * - `paid`: cobrado por unidade, fora do limite gratuito.
  */
 export type ToppingRule = 'limited' | 'included' | 'paid'
@@ -46,13 +47,15 @@ export type Topping = {
   id: string
   name: string
   group: ToppingGroupId
-  /** Preço por unidade. Zero nos grupos sem custo. */
+  /** Preço por unidade. Zero nos itens sem custo. */
   priceCents: number
   /**
    * Foto que representa o ingrediente, quando o identificador é outro (os adicionais do batido
    * usam as fotos de mesmo nome: `batido-ovomaltine` usa `ovomaltine`).
    */
   look?: string
+  /** Só estes produtos oferecem o item, mesmo que aceitem o grupo dele. */
+  onlyIn?: readonly CategorySlug[]
 }
 
 export type Flavor = {
@@ -81,17 +84,19 @@ export const MAX_PAID_UNITS = 10
 export const TOPPING_GROUPS: Readonly<Record<ToppingGroupId, ToppingGroup>> = {
   dry: { id: 'dry', name: 'Adicionais', rule: 'limited' },
   fruit: { id: 'fruit', name: 'Frutas', rule: 'included' },
-  syrup: { id: 'syrup', name: 'Coberturas', rule: 'included' },
+  // Caldas e cremes especiais, separados dos adicionais (pedido de 2026-11-14): um de cada.
+  syrup: { id: 'syrup', name: 'Caldas e cremes', rule: 'included' },
   paid: { id: 'paid', name: 'Adicionais pagos', rule: 'paid' },
   // Exclusivos do Açaí Batido, todos a R$ 3,00 (briefing de 2026-11-12).
   batido: { id: 'batido', name: 'Adicionais', rule: 'paid' },
 }
 
-const free = (group: ToppingGroupId, id: string, name: string): Topping => ({
+const free = (group: ToppingGroupId, id: string, name: string, extra: Partial<Topping> = {}): Topping => ({
   id,
   name,
   group,
   priceCents: 0,
+  ...extra,
 })
 
 const paid = (id: string, name: string, priceCents: number, group: ToppingGroupId = 'paid', look?: string): Topping => ({
@@ -116,21 +121,27 @@ export const TOPPINGS: readonly Topping[] = [
   free('dry', 'farinha-lactea', 'Farinha láctea'),
   free('dry', 'sucrilhos', 'Sucrilhos'),
   free('dry', 'marshmallow', 'Marshmallow'),
+  // Pedido de 2026-11-14: o leite condensado passa a ser adicional (conta no limite grátis)
+  // e entra o Disquete (confete).
+  free('dry', 'leite-condensado', 'Leite condensado'),
+  free('dry', 'disquete', 'Disquete (confete)'),
 
   free('fruit', 'kiwi', 'Kiwi'),
   free('fruit', 'morango', 'Morango'),
   free('fruit', 'banana', 'Banana'),
 
-  free('syrup', 'calda-leite-condensado', 'Leite condensado'),
-  free('syrup', 'calda-morango', 'Morango'),
-  free('syrup', 'calda-chocolate', 'Chocolate'),
-  free('syrup', 'calda-banana-caramelizada', 'Banana caramelizada'),
-  free('syrup', 'calda-acai', 'Açaí'),
-  free('syrup', 'calda-doce-de-leite', 'Doce de leite'),
+  // Caldas e cremes, na ordem do pedido de 2026-11-14. Os cremes custam R$ 3,00, um de cada.
+  paid('creme-de-ninho', 'Creme de ninho', 300, 'syrup'),
+  paid('creme-de-avela', 'Creme de avelã', 300, 'syrup'),
   free('syrup', 'calda-frutas-vermelhas', 'Frutas vermelhas'),
+  free('syrup', 'calda-doce-de-leite', 'Doce de leite'),
+  free('syrup', 'calda-acai', 'Açaí'),
+  free('syrup', 'calda-banana-caramelizada', 'Banana caramelada'),
+  free('syrup', 'calda-chocolate', 'Chocolate'),
+  free('syrup', 'calda-morango', 'Morango'),
+  // No açaí o leite condensado virou adicional; o milk-shake continua com ele como cobertura.
+  free('syrup', 'calda-leite-condensado', 'Leite condensado', { look: 'leite-condensado', onlyIn: ['milk-shake'] }),
 
-  paid('creme-de-avela', 'Creme de avelã', 300),
-  paid('creme-de-ninho', 'Creme de ninho', 300),
   paid('cereja', 'Cereja', 300),
   paid('kit-kat', 'Kit Kat', 400),
 
@@ -238,8 +249,13 @@ export function getTopping(id: string): Topping | undefined {
   return toppingsById.get(id)
 }
 
+/** O produto oferece este ingrediente? Aceita o grupo dele e não está fora da lista do item. */
+export function offers(product: Product, topping: Topping): boolean {
+  return product.groups.includes(topping.group) && (!topping.onlyIn || topping.onlyIn.includes(product.slug))
+}
+
 /** Ingredientes de um grupo que o produto aceita, na ordem do cardápio. */
 export function toppingsOf(product: Product, group: ToppingGroupId): Topping[] {
   if (!product.groups.includes(group)) return []
-  return TOPPINGS.filter((topping) => topping.group === group)
+  return TOPPINGS.filter((topping) => topping.group === group && offers(product, topping))
 }

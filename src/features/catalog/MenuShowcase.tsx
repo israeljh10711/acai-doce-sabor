@@ -3,11 +3,11 @@ import { Link } from 'react-router'
 import { ArrowRight, Crown, Flame } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
-import { ProductPhotoComposer } from '../photo-composer/ProductPhotoComposer.tsx'
 import { CATEGORIES, type Category } from './categories.ts'
 import { PRODUCTS } from './menu.ts'
 import { ILLUSTRATIVE_NOTICE } from './notices.ts'
-import { SHOWCASE, startingPriceCents } from './showcase.ts'
+import { ProductPhoto } from './ProductPhoto.tsx'
+import { startingPriceCents } from './showcase.ts'
 
 const BADGE_ICONS = { 'Especialidade da casa': Crown, 'O mais pedido': Flame } as const
 
@@ -69,8 +69,8 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
       className="relative grid scroll-mt-28 overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift lg:grid-cols-[1.05fr_1fr]"
       {...reveal}
     >
-      <div className="relative bg-[radial-gradient(circle_at_50%_45%,#7b1d5c_0%,#4a0e36_58%,#3b072a_100%)] p-6 sm:p-10">
-        <ProductPhotoComposer {...SHOWCASE[category.slug]} tilt className="mx-auto w-full max-w-md" />
+      <div className="relative">
+        <ProductPhoto slug={category.slug} sizes="(min-width: 64rem) 560px, 100vw" className="size-full min-h-72" />
       </div>
       <div className="flex flex-col justify-center gap-5 p-6 sm:p-10">
         <Badges category={category} />
@@ -110,8 +110,8 @@ function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' 
       aria-labelledby={`${category.slug}-titulo`}
       className="group relative flex h-full flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-card ring-1 ring-line transition duration-300 hover:-translate-y-1 hover:shadow-lift"
     >
-      <div className="relative bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#f3e9f1_70%,#e8d6e3_100%)] p-6">
-        <ProductPhotoComposer {...SHOWCASE[category.slug]} className="mx-auto w-full max-w-64" />
+      <div className="relative">
+        <ProductPhoto slug={category.slug} sizes="(min-width: 48rem) 360px, 100vw" className="w-full" />
         <p className="nums absolute top-4 right-4 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
           <span className="font-semibold">a partir de </span>
           {formatBRL(startingPriceCents(category.slug))}

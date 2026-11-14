@@ -133,15 +133,16 @@ describe('quantidades, remoção e totais', () => {
 
 describe('descrição do item', () => {
   it('lista tamanho, recipiente, sabor, grátis por grupo e pagos', () => {
-    const selection = built('acai-tradicional', 'copo-500', ['leite-em-po', 'leite-em-po', 'banana', 'calda-leite-condensado', 'creme-de-ninho'])
+    const selection = built('acai-tradicional', 'copo-500', ['leite-em-po', 'leite-em-po', 'leite-condensado', 'banana', 'calda-morango', 'creme-de-ninho'])
     const { item } = addItem(EMPTY_CART, 'acai-tradicional', selection)
     const description = describeItem(item!)
 
     expect(description).toMatchObject({ productName: 'Açaí Tradicional', sizeName: 'Copo 500 ml', container: 'Copo', flavorName: null })
     expect(description.included).toEqual([
-      { group: 'Adicionais', items: ['2x Leite em pó'] },
+      { group: 'Adicionais', items: ['2x Leite em pó', 'Leite condensado'] },
       { group: 'Frutas', items: ['Banana'] },
-      { group: 'Coberturas', items: ['Leite condensado'] },
+      // O creme de ninho tem preço: vai nas linhas pagas, não aqui.
+      { group: 'Caldas e cremes', items: ['Morango'] },
     ])
     expect(description.paid.map((line) => [line.name, line.quantity, line.totalCents])).toEqual([['Creme de ninho', 1, 300]])
   })

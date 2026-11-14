@@ -1,7 +1,6 @@
-// Usa o site como um cliente: monta açaí, açaí batido e milk-shake, confere a foto montada
-// (camadas do compositor), os limites, os preços, e leva tudo ao carrinho.
-//
-// A foto é lida pelas camadas na página: cada uma tem `data-layer` e `data-topping`.
+// Usa o site como um cliente: monta açaí, açaí batido e milk-shake em qualquer ordem, confere a
+// foto fixa do produto, as fotos reais dos ingredientes, os limites e os preços, e leva tudo ao
+// carrinho.
 //
 // Uso: node tests/browser/check-configurator.mjs [endereçoBase] [pastaDeSaída]
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -19,18 +18,27 @@ let checks = 0
 // Funções que rodam dentro da página.
 const helpers = `
   window.__q = (selector) => document.querySelector(selector);
-  window.__button = (label) => [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? b.textContent.trim()) === label);
-  window.__buttonStarting = (prefix) => [...document.querySelectorAll('button')].find((b) => (b.getAttribute('aria-label') ?? b.textContent.trim()).startsWith(prefix));
+  window.__label = (b) => b.getAttribute('aria-label') ?? b.textContent.trim();
+  window.__button = (label) => [...document.querySelectorAll('button')].find((b) => __label(b) === label);
+  window.__buttonStarting = (prefix) => [...document.querySelectorAll('button')].find((b) => __label(b).startsWith(prefix));
   window.__blocked = (label) => { const b = window.__button(label) ?? window.__buttonStarting(label); return !!b && (b.disabled || b.getAttribute('aria-disabled') === 'true') };
+  window.__pressed = (label) => window.__button(label)?.getAttribute('aria-pressed');
   window.__radio = (value) => document.querySelector('input[type=radio][value="' + value + '"]');
   window.__text = () => document.body.innerText;
   window.__live = () => document.querySelector('[aria-live="polite"]').textContent;
-  window.__composer = (root = '[aria-label="Prévia do pedido"]') => document.querySelector(root + ' [data-composer]');
-  window.__container = (root) => window.__composer(root)?.dataset.container;
-  window.__layers = (root) => [...new Set([...(window.__composer(root)?.querySelectorAll('[data-layer]') ?? [])]
-    .map((el) => el.dataset.topping).filter((id) => !id.startsWith('sabor:')))].sort();
-  window.__count = (id, root) => [...(window.__composer(root)?.querySelectorAll('[data-layer="piece"]') ?? [])].filter((el) => el.dataset.topping === id).length;
+  window.__photo = (root = '[aria-label="Prévia do pedido"]') => document.querySelector(root + ' [data-product-photo]')?.dataset.productPhoto;
   window.__summary = () => __q('#resumo').innerText;
+  window.__groupNames = (title) => {
+    const section = [...document.querySelectorAll('section')].find((s) => s.querySelector('h2')?.textContent.includes(title));
+    return section ? [...section.querySelectorAll('li')].map((li) => li.querySelector('span.font-semibold')?.textContent) : null;
+  };
+  // Todas as fotos dos cartões de ingrediente respondem (as de baixo da tela carregam só ao rolar).
+  window.__brokenThumbs = async () => {
+    const sources = [...new Set([...document.querySelectorAll('img[data-fit]')].map((img) => img.src))];
+    const results = await Promise.all(sources.map((src) => fetch(src).then((r) => (r.ok && r.headers.get('content-type')?.startsWith('image/') ? null : src))));
+    return { total: sources.length, broken: results.filter(Boolean) };
+  };
+  window.__fits = () => Object.fromEntries([...document.querySelectorAll('img[data-fit]')].map((img) => [img.src.split('/').pop(), img.dataset.fit]));
   true;
 `
 
@@ -39,17 +47,6 @@ function check(label, actual, expected) {
   const pass = JSON.stringify(actual) === JSON.stringify(expected)
   if (!pass) failures.push(`${label}: obtido ${JSON.stringify(actual)}, esperado ${JSON.stringify(expected)}`)
   return pass
-}
-
-/** Repete a leitura até bater com o esperado (as camadas animam ao entrar e sair), por até ~6 s. */
-async function eventually(browser, label, expression, expected) {
-  let actual
-  for (let attempt = 0; attempt < 30; attempt++) {
-    actual = await browser.evaluate(expression)
-    if (JSON.stringify(actual) === JSON.stringify(expected)) break
-    await sleep(200)
-  }
-  return check(label, actual, expected)
 }
 
 const browser = await openBrowser(join(outDir, 'edge-profile-principal'), 9337)
@@ -78,41 +75,61 @@ try {
     await page('/', viewport)
     await browser.evaluate(`localStorage.clear(); true`)
 
-    // --- Açaí Tradicional ---
+    // --- Açaí Tradicional: ordem livre ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)
-    check(`${at} antes do tamanho, a foto não tem complementos`, await browser.evaluate(`__layers()`), [])
-    check(`${at} antes do tamanho, "Adicionar Granola" desabilitado`, await browser.evaluate(`__blocked('Adicionar Granola')`), true)
-    check(`${at} antes do tamanho, Banana desabilitada`, await browser.evaluate(`__blocked('Banana')`), true)
-    check(`${at} sem 3D: nenhum canvas na página`, await browser.evaluate(`document.querySelector('canvas') === null`), true)
-    check(`${at} "Ver foto" só no celular`, await browser.evaluate(`!!__button('Ver foto') && __button('Ver foto').offsetParent !== null`), !desktop)
-    check(`${at} carrinho bloqueado antes do tamanho`, await browser.evaluate(`__blocked('Adicionar ao carrinho')`), true)
+    check(`${at} foto fixa e real do produto`, await browser.evaluate(`__photo()`), 'acai-tradicional')
+    check(`${at} sem camadas montadas nem 3D`, await browser.evaluate(`!document.querySelector('[data-composer], canvas')`), true)
+    check(
+      `${at} adicionais com leite condensado e disquete`,
+      await browser.evaluate(`__groupNames('Adicionais')`),
+      ['Leite em pó', 'Granola', 'Biscoito', 'Paçoca', 'Chocoball', 'Amendoim', 'Gotas de chocolate', 'Canudinho', 'BIS', 'Farinha láctea', 'Sucrilhos', 'Marshmallow', 'Leite condensado', 'Disquete (confete)'],
+    )
+    check(
+      `${at} caldas e cremes, na ordem pedida`,
+      await browser.evaluate(`__groupNames('Caldas e cremes')`),
+      ['Creme de ninho', 'Creme de avelã', 'Frutas vermelhas', 'Doce de leite', 'Açaí', 'Banana caramelada', 'Chocolate', 'Morango'],
+    )
+    const thumbs = await browser.evaluate(`__brokenThumbs()`)
+    check(`${at} todas as ${thumbs.total} fotos de ingrediente carregam`, thumbs.broken, [])
+    const fits = await browser.evaluate(`__fits()`)
+    check(
+      `${at} embalagens inteiras e texturas preenchendo o quadro`,
+      [fits['leite-condensado.png'], fits['leite-em-po.png'], fits['farinha-lactea.png'], fits['cobertura-morango.png'], fits['banana.png'], fits['marshmallow.png'], fits['creme-avela.png']],
+      ['contain', 'contain', 'contain', 'contain', 'cover', 'cover', 'cover'],
+    )
+    check(`${at} antes do tamanho, "Adicionar Granola" liberado`, await browser.evaluate(`__blocked('Adicionar Granola')`), false)
+    check(`${at} antes do tamanho, Banana liberada`, await browser.evaluate(`__blocked('Banana')`), false)
+    for (let i = 0; i < 4; i++) await click(`__button('Adicionar Granola')`)
+    await click(`__button('Banana')`)
+    await click(`__button('Creme de ninho')`)
+    check(`${at} sem tamanho: escolhas aceitas, contador de escolhidos`, await browser.evaluate(`__text().includes('4 escolhidos · de 2 a 7 grátis')`), true)
+    check(`${at} sem tamanho, o total espera o tamanho`, await browser.evaluate(`__summary().includes('Escolha o tamanho para ver o preço.')`), true)
+    check(`${at} carrinho espera o tamanho`, await browser.evaluate(`__blocked('Adicionar ao carrinho')`), true)
 
     await click(`__radio('copo-500')`)
-    check(`${at} foto no copo`, await browser.evaluate(`__container()`), 'copo')
-    for (let i = 0; i < 3; i++) await click(`__button('Adicionar Granola')`)
+    check(`${at} copo 500 corta o que passa de 3 grátis`, await browser.evaluate(`__text().includes('Saíram por passar do novo limite: 1 Granola.')`), true)
     check(`${at} contador "3 de 3 adicionais grátis"`, await browser.evaluate(`__text().includes('3 de 3 adicionais grátis · limite atingido')`), true)
-    check(`${at} com o limite cheio, "Adicionar Paçoca" desabilitado`, await browser.evaluate(`__blocked('Adicionar Paçoca')`), true)
+    check(`${at} com o limite cheio, "Adicionar Leite condensado" desabilitado`, await browser.evaluate(`__blocked('Adicionar Leite condensado')`), true)
     check(`${at} com o limite cheio, "Adicionar Kit Kat" habilitado`, await browser.evaluate(`__blocked('Adicionar Kit Kat')`), false)
-    await click(`__button('Adicionar Paçoca')`)
-    check(`${at} tocar no "Adicionar Paçoca" bloqueado não adiciona`, await browser.evaluate(`document.querySelector('[role=group][aria-label="Paçoca: 0"]') !== null`), true)
+    check(`${at} creme de ninho marcado, + R$ 3,00: R$ 15,00`, await browser.evaluate(`__pressed('Creme de ninho') === 'true' && __summary().includes('R$ 15,00')`), true)
+    await click(`__button('Creme de ninho')`)
+    check(`${at} creme é um só: tocar de novo desmarca (R$ 12,00)`, await browser.evaluate(`__pressed('Creme de ninho') === 'false' && __summary().includes('R$ 12,00')`), true)
     await click(`__button('Adicionar Kit Kat')`)
     await click(`__button('Adicionar Kit Kat')`)
-    await click(`__button('Banana')`)
-    check(`${at} Banana marcada (uma vez só)`, await browser.evaluate(`__button('Banana').getAttribute('aria-pressed')`), 'true')
+    await click(`__button('cobertura de Banana caramelada')`)
+    check(`${at} cobertura grátis marcada uma vez`, await browser.evaluate(`__pressed('cobertura de Banana caramelada')`), 'true')
     check(`${at} total R$ 20,00`, await browser.evaluate(`__summary().includes('R$ 20,00')`), true)
-    await eventually(browser, `${at} foto: só o escolhido`, `__layers()`, ['banana', 'granola', 'kit-kat'])
-    await eventually(browser, `${at} foto: 2 Kit Kat`, `__count('kit-kat')`, 2)
+    check(`${at} a foto não muda com os ingredientes`, await browser.evaluate(`__photo()`), 'acai-tradicional')
 
     await click(`__radio('isopor-m')`)
-    await eventually(browser, `${at} trocar para isopor troca a foto pela tigela`, `__container()`, 'isopor')
-    await eventually(browser, `${at} no isopor, os mesmos ingredientes`, `__layers()`, ['banana', 'granola', 'kit-kat'])
-    await sleep(700)
+    check(`${at} no isopor, a foto da tigela`, await browser.evaluate(`__photo()`), 'acai-isopor')
+    await sleep(500)
     writeFileSync(join(outDir, `tradicional-isopor-${viewport.width}.png`), await browser.screenshot())
 
     if (!desktop) {
       await click(`__button('Ver foto')`)
       check(`${at} "Ver foto" abre a foto grande`, await browser.evaluate(`__q('dialog').open`), true)
-      await eventually(browser, `${at} foto grande com o mesmo pedido`, `__layers('dialog')`, ['banana', 'granola', 'kit-kat'])
+      check(`${at} foto grande do mesmo produto`, await browser.evaluate(`__photo('dialog')`), 'acai-isopor')
       await key('Escape', 'Escape')
       check(`${at} Esc fecha a foto grande`, await browser.evaluate(`__q('dialog').open`), false)
       check(`${at} foco volta para "Ver foto"`, await browser.evaluate(`document.activeElement.textContent.trim()`), 'Ver foto')
@@ -122,42 +139,40 @@ try {
     check(`${at} aviso visível da saída`, await browser.evaluate(`__text().includes('Saíram por passar do novo limite: 1 Granola.')`), true)
     check(`${at} anúncio da saída`, await browser.evaluate(`__live()`), 'Tamanho: Pote 200 ml, R$ 7,00. Saíram por passar do novo limite: 1 Granola.')
     check(`${at} total R$ 15,00 no pote`, await browser.evaluate(`__summary().includes('R$ 15,00')`), true)
-    await eventually(browser, `${at} foto no pote`, `__container()`, 'pote')
     await click(`__button('Tirar Kit Kat')`)
     check(`${at} tirar 1 Kit Kat: total R$ 11,00`, await browser.evaluate(`__summary().includes('R$ 11,00')`), true)
     await click(`__button('Banana')`)
-    await eventually(browser, `${at} Banana desmarcada sai da foto`, `__layers()`, ['granola', 'kit-kat'])
     await click(`__buttonStarting('Adicionar ao carrinho')`)
     check(`${at} confirma que foi para o carrinho`, await browser.evaluate(`__text().includes('Açaí Tradicional adicionado ao carrinho.')`), true)
 
     // --- Açaí Oca ---
     await page('/monte-seu-pedido/acai-oca', viewport)
     check(`${at} Oca com os selos`, await browser.evaluate(`document.body.textContent.includes('Especialidade da casa') && document.body.textContent.includes('O mais pedido')`), true)
+    check(`${at} foto do Oca`, await browser.evaluate(`__photo()`), 'acai-oca')
     check(`${at} Oca não tem 150 ml`, await browser.evaluate(`__radio('pote-150') === null`), true)
     await click(`__radio('copo-500')`)
-    for (const id of ['Granola', 'Leite em pó']) await click(`__button('Adicionar ${id}')`)
+    for (const id of ['Leite condensado', 'Leite em pó', 'Disquete (confete)']) await click(`__button('Adicionar ${id}')`)
     await click(`__button('Morango')`)
-    await click(`__button('Adicionar Creme de avelã')`)
+    await click(`__button('Creme de avelã')`)
     check(`${at} Oca copo 500 + creme de avelã: R$ 23,00`, await browser.evaluate(`__summary().includes('R$ 23,00')`), true)
-    await eventually(browser, `${at} Oca: foto com o escolhido`, `__layers()`, ['creme-de-avela', 'granola', 'leite-em-po', 'morango'])
+    check(`${at} leite condensado e disquete contam no limite: 3 de 3`, await browser.evaluate(`__text().includes('3 de 3 adicionais grátis')`), true)
 
     // --- Açaí Batido ---
     await page('/monte-seu-pedido/acai-batido', viewport)
+    check(`${at} foto do batido`, await browser.evaluate(`__photo()`), 'acai-batido')
     check(
       `${at} batido com os três sabores`,
       await browser.evaluate(`['leite-condensado', 'leite-condensado-amendoim', 'leite-condensado-pacoca'].every((id) => !!__radio(id))`),
       true,
     )
-    check(`${at} batido sem aviso de sabores do milk-shake`, await browser.evaluate(`__text().includes('Favor verificar')`), false)
+    await click(`__button('Adicionar Creme de avelã')`)
+    check(`${at} batido: adicional antes do tamanho e do sabor`, await browser.evaluate(`document.querySelector('[role=group][aria-label="Creme de avelã: 1"]') !== null`), true)
     await click(`__radio('300-ml')`)
     check(`${at} batido sem sabor pede o sabor`, await browser.evaluate(`__summary().includes('Falta escolher o sabor.')`), true)
     await click(`__radio('leite-condensado-amendoim')`)
-    check(`${at} batido 300 ml: R$ 10,00`, await browser.evaluate(`__summary().includes('R$ 10,00')`), true)
-    await click(`__button('Adicionar Creme de avelã')`)
     await click(`__button('Adicionar Creme de avelã')`)
     await click(`__button('Adicionar Ovomaltine')`)
-    check(`${at} batido + 3 adicionais de R$ 3,00: R$ 19,00`, await browser.evaluate(`__summary().includes('R$ 19,00')`), true)
-    await eventually(browser, `${at} batido: foto com os adicionais`, `__layers()`, ['batido-creme-de-avela', 'batido-ovomaltine'])
+    check(`${at} batido 300 ml + 3 adicionais de R$ 3,00: R$ 19,00`, await browser.evaluate(`__summary().includes('R$ 19,00')`), true)
     for (let i = 0; i < 11; i++) await click(`__button('Adicionar Creme de cookies')`)
     check(`${at} batido: no máximo 10 de cada adicional`, await browser.evaluate(`__blocked('Adicionar Creme de cookies')`), true)
     check(`${at} batido 300 ml + 13 adicionais: R$ 49,00`, await browser.evaluate(`__summary().includes('R$ 49,00')`), true)
@@ -167,25 +182,26 @@ try {
 
     // --- Milk-shake ---
     await page('/monte-seu-pedido/milk-shake', viewport)
+    check(`${at} foto do milk-shake`, await browser.evaluate(`__photo()`), 'milk-shake')
     check(`${at} aviso de sabores`, await browser.evaluate(`__text().includes('Favor verificar com a nossa atendente a disponibilidade de sabores.')`), true)
     check(`${at} 13 sabores`, await browser.evaluate(`document.querySelectorAll('input[name="milk-shake-sabor"]').length`), 13)
     check(`${at} sem adicionais grátis nem frutas`, await browser.evaluate(`!__button('Adicionar Granola') && !__button('Banana')`), true)
-    check(`${at} coberturas com nome próprio`, await browser.evaluate(`!!__button('cobertura de Morango') && !__button('Morango')`), true)
+    check(`${at} milk-shake continua com a cobertura de leite condensado`, await browser.evaluate(`!!__button('cobertura de Leite condensado')`), true)
     await click(`__radio('500-ml')`)
     check(`${at} sem sabor, o resumo pede o sabor`, await browser.evaluate(`__summary().includes('Falta escolher o sabor.')`), true)
     await click(`__radio('morango')`)
     check(`${at} milk-shake 500 ml de morango: R$ 12,00`, await browser.evaluate(`__summary().includes('R$ 12,00')`), true)
-    await click(`__button('Adicionar Creme de avelã')`)
+    await click(`__button('Creme de avelã')`)
     await click(`__button('cobertura de Chocolate')`)
     check(`${at} milk-shake com creme de avelã: R$ 15,00`, await browser.evaluate(`__summary().includes('R$ 15,00')`), true)
-    await eventually(browser, `${at} milk-shake: foto com calda e creme`, `__layers()`, ['calda-chocolate', 'creme-de-avela'])
-    await sleep(700)
+    await sleep(500)
     writeFileSync(join(outDir, `milk-shake-${viewport.width}.png`), await browser.screenshot())
     await click(`__buttonStarting('Adicionar ao carrinho')`)
 
     // --- Carrinho ---
     await page('/carrinho', viewport)
     check(`${at} carrinho com os 3 itens`, await browser.evaluate(`document.querySelectorAll('[aria-label="Itens do carrinho"] > li').length`), 3)
+    check(`${at} carrinho com as fotos dos produtos`, await browser.evaluate(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] [data-product-photo]')].map((img) => img.dataset.productPhoto)`), ['acai-tradicional', 'acai-batido', 'milk-shake'])
     // Tradicional Pote 200 (R$ 11,00) + Batido 500 ml (R$ 51,00) + Milk-shake (R$ 15,00) = R$ 77,00.
     check(`${at} total do carrinho R$ 77,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 77,00')`), true)
     await click(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] > li')][0].querySelector('[aria-label="Aumentar quantidade"]')`)
@@ -212,14 +228,14 @@ try {
     check(`${at} console sem erros`, browser.consoleProblems(), [])
   }
 
-  // Com "reduzir movimento" ligado, a foto continua montando sem animação.
+  // Com "reduzir movimento" ligado, tudo continua funcionando.
   await browser.goto(baseUrl + '/monte-seu-pedido/acai-tradicional', { width: 390, height: 844, reducedMotion: true })
   await browser.evaluate(helpers)
   await click(`__radio('isopor-m')`)
   await click(`__button('Adicionar Paçoca')`)
   await click(`__button('Kiwi')`)
-  await eventually(browser, 'movimento reduzido: foto com o escolhido', `__layers()`, ['kiwi', 'pacoca'])
   check('movimento reduzido: total R$ 15,00', await browser.evaluate(`__summary().includes('R$ 15,00')`), true)
+  check('movimento reduzido: foto da tigela', await browser.evaluate(`__photo()`), 'acai-isopor')
 } catch (error) {
   failures.push(`ERRO: ${error.message}`)
 } finally {

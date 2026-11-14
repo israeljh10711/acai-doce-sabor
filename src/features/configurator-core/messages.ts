@@ -12,17 +12,15 @@ import {
 } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
 
-/** Nome do ingrediente fora do seu grupo. "Morango" é fruta e também cobertura. */
+/** Nome do ingrediente fora do seu grupo. "Morango" é fruta e também cobertura (calda). */
 export function toppingLabel(topping: Topping): string {
-  return topping.group === 'syrup' ? `cobertura de ${topping.name}` : topping.name
+  return topping.group === 'syrup' && topping.priceCents === 0 ? `cobertura de ${topping.name}` : topping.name
 }
 
 export function blockerText(blocker: AddBlocker, limit: number): string {
   switch (blocker) {
-    case 'no-size':
-      return 'Escolha o tamanho primeiro'
     case 'free-limit':
-      return `Limite de ${limit} grátis atingido`
+      return `Limite de ${limit} adicionais grátis atingido`
     case 'item-max':
       return 'Quantidade máxima atingida'
     case 'not-in-product':
@@ -50,7 +48,9 @@ export function addedText(product: Product, selection: Selection, toppingId: str
     case 'paid':
       return `Você adicionou ${topping.name}. ${paidCount(topping, quantityOf(selection, toppingId))}`
     case 'included':
-      return `Você incluiu ${toppingLabel(topping)}.`
+      return topping.priceCents > 0
+        ? `Você incluiu ${toppingLabel(topping)}, ${formatBRL(topping.priceCents)}.`
+        : `Você incluiu ${toppingLabel(topping)}.`
   }
 }
 
@@ -92,28 +92,4 @@ export function sizeText(product: Product, sizeId: string, removed: RemovedToppi
 export function flavorText(product: Product, flavorId: string): string {
   const flavor = product.flavors.find((candidate) => candidate.id === flavorId)
   return flavor ? `Sabor: ${flavor.name}.` : ''
-}
-
-/** "a", "a e b", "a, b e c". */
-function joinList(items: string[]): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} e ${items.at(-1)}`
-}
-
-/** Descrição da prévia para leitores de tela. */
-export function previewTitle(product: Product, selection: Selection): string {
-  const size = product.sizes.find((candidate) => candidate.id === selection.sizeId)
-  if (!size) return 'Foto ilustrativa: recipiente vazio. Escolha o tamanho para começar.'
-
-  const flavor = product.flavors.find((candidate) => candidate.id === selection.flavorId)
-  const parts = [product.name, size.name]
-  if (flavor) parts.push(`sabor ${flavor.name}`)
-
-  const items = Object.entries(selection.toppings).flatMap(([id, quantity]) => {
-    const topping = getTopping(id)
-    if (!topping) return []
-    return [quantity > 1 ? `${quantity} ${toppingLabel(topping)}` : toppingLabel(topping)]
-  })
-  const extras = items.length > 0 ? `com ${joinList(items)}` : 'sem complementos'
-
-  return `Foto ilustrativa: ${parts.join(', ')}, ${extras}.`
 }

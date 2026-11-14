@@ -102,8 +102,11 @@ describe('Açaí Batido: adicionais exclusivos', () => {
     expect(removeTopping(selection, 'batido-ovomaltine')).toBe(selection)
   })
 
-  it('pede o tamanho antes dos adicionais', () => {
-    expect(addBlocker(batido, EMPTY_SELECTION, 'batido-creme-de-ninho')).toBe('no-size')
+  it('aceita os adicionais antes do tamanho (ordem livre); o preço só sai com o tamanho', () => {
+    const early = addTopping(batido, EMPTY_SELECTION, 'batido-creme-de-ninho')
+    expect(early.toppings).toEqual({ 'batido-creme-de-ninho': 1 })
+    expect(priceOf(batido, early)).toBeNull()
+    expect(priceOf(batido, chooseSize(batido, early, '300-ml').selection)?.totalCents).toBe(1300)
   })
 
   it('não mistura ingredientes do açaí com os do batido', () => {

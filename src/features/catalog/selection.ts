@@ -13,6 +13,7 @@ import {
   type Topping,
   type ToppingGroupId,
   getTopping,
+  offers,
   toppingsOf,
 } from './menu.ts'
 
@@ -44,6 +45,21 @@ export function freeLimit(product: Product, selection: Selection): number {
   return selectedSize(product, selection)?.freeToppings ?? 0
 }
 
+/** Menor e maior limite gratuito entre os tamanhos do produto. */
+export function freeLimitRange(product: Product): { min: number; max: number } {
+  const limits = product.sizes.map((size) => size.freeToppings)
+  return { min: Math.min(...limits), max: Math.max(...limits) }
+}
+
+/**
+ * Até onde os adicionais gratuitos podem ir agora. Com o tamanho escolhido, é o limite dele.
+ * Sem tamanho, o cliente pode montar livremente até o maior limite do produto; ao escolher o
+ * tamanho, o que passar do limite dele sai, com aviso (`chooseSize`).
+ */
+export function freeCap(product: Product, selection: Selection): number {
+  return selectedSize(product, selection)?.freeToppings ?? freeLimitRange(product).max
+}
+
 /** Quantas unidades de adicionais gratuitos já foram escolhidas. */
 export function freeUsed(selection: Selection): number {
   let used = 0
@@ -55,14 +71,15 @@ export function freeUsed(selection: Selection): number {
 }
 
 /**
- * Por que mais uma unidade de um ingrediente não pode entrar:
+ * Por que mais uma unidade de um ingrediente não pode entrar. A ordem das escolhas é livre:
+ * dá para escolher ingredientes antes do tamanho (pedido de 2026-11-14).
  *
- * - `no-size`: o tamanho ainda não foi escolhido;
  * - `not-in-product`: o produto não aceita esse ingrediente;
- * - `free-limit`: o limite de adicionais gratuitos do tamanho está cheio;
- * - `item-max`: o item já está na quantidade máxima.
+ * - `free-limit`: o limite de adicionais gratuitos está cheio;
+ * - `item-max`: o item já está na quantidade máxima (uma vez nas frutas, caldas e cremes; 10 nos
+ *   adicionais pagos e nos adicionais grátis).
  */
-export type AddBlocker = 'no-size' | 'not-in-product' | 'free-limit' | 'item-max'
+export type AddBlocker = 'not-in-product' | 'free-limit' | 'item-max'
 
 export function addBlocker(
   product: Product,
@@ -70,13 +87,13 @@ export function addBlocker(
   toppingId: string,
 ): AddBlocker | null {
   const topping = getTopping(toppingId)
-  if (!topping || !product.groups.includes(topping.group)) return 'not-in-product'
-  if (!selectedSize(product, selection)) return 'no-size'
+  if (!topping || !offers(product, topping)) return 'not-in-product'
 
   const quantity = quantityOf(selection, toppingId)
   switch (ruleOf(topping)) {
     case 'limited':
-      return freeUsed(selection) >= freeLimit(product, selection) ? 'free-limit' : null
+      if (quantity >= MAX_PAID_UNITS) return 'item-max'
+      return freeUsed(selection) >= freeCap(product, selection) ? 'free-limit' : null
     case 'included':
       return quantity >= 1 ? 'item-max' : null
     case 'paid':
@@ -146,6 +163,16 @@ export function chooseFlavor(product: Product, selection: Selection, flavorId: s
   return { ...selection, flavorId }
 }
 
+/** Ingredientes escolhidos de um grupo que têm preço. */
+export function pricedByGroup(product: Product, selection: Selection, group: ToppingGroupId) {
+  return selectedByGroup(product, selection, group).filter(({ topping }) => topping.priceCents > 0)
+}
+
+/** Ingredientes escolhidos de um grupo que não custam nada. */
+export function freeByGroup(product: Product, selection: Selection, group: ToppingGroupId) {
+  return selectedByGroup(product, selection, group).filter(({ topping }) => topping.priceCents === 0)
+}
+
 /** Ingredientes escolhidos de um grupo, na ordem do cardápio. */
 export function selectedByGroup(
   product: Product,
@@ -178,10 +205,9 @@ export function priceOf(product: Product, selection: Selection): Price | null {
   const size = selectedSize(product, selection)
   if (!size) return null
 
-  // Todo grupo cobrado entra: os adicionais pagos do açaí e os adicionais do batido.
-  const paidGroups = product.groups.filter((group) => TOPPING_GROUPS[group].rule === 'paid')
-  const paidLines = paidGroups.flatMap((group) =>
-    selectedByGroup(product, selection, group).map(({ topping, quantity }) => ({
+  // Todo item com preço entra: os adicionais pagos, os do batido e os cremes das caldas e cremes.
+  const paidLines = product.groups.flatMap((group) =>
+    pricedByGroup(product, selection, group).map(({ topping, quantity }) => ({
       toppingId: topping.id,
       name: topping.name,
       quantity,

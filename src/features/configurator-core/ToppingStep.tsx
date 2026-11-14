@@ -1,8 +1,8 @@
 import { m } from 'motion/react'
 import { Check } from '../../components/ui/icons.tsx'
 import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppingsOf } from '../catalog/menu.ts'
+import { ingredientPhoto } from '../catalog/photos.ts'
 import { quantityOf } from '../catalog/selection.ts'
-import { ingredientImage } from '../photo-composer/visuals.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { blockerText, toppingLabel } from './messages.ts'
 import { QuantityStepper } from './QuantityStepper.tsx'
@@ -19,23 +19,35 @@ type ToppingStepProps = {
 const cardBase =
   'relative flex h-full w-full flex-col items-center gap-1.5 rounded-2xl border-2 bg-white px-2 pt-3 pb-2.5 text-center transition duration-200 hover:border-acai-600/40'
 
-/** Um grupo de ingredientes: adicionais, frutas, coberturas ou adicionais pagos. */
+/** Texto da dica ao lado do título do grupo. */
+function hintFor(product: Product, group: ToppingGroupId, cfg: ConfiguratorApi): { text: string; full: boolean } {
+  const { rule } = TOPPING_GROUPS[group]
+  const optional = !product.groups.includes('dry')
+  if (rule === 'limited') {
+    const full = cfg.freeUsed >= cfg.freeCap
+    if (cfg.size) {
+      const text = `${cfg.freeUsed} de ${cfg.freeLimit} adicionais grátis`
+      return { text: full ? `${text} · limite atingido` : text, full }
+    }
+    // Sem tamanho ainda: escolha livre; o limite grátis vem com o tamanho.
+    const { min, max } = cfg.freeRange
+    return { text: `${cfg.freeUsed} escolhidos · de ${min} a ${max} grátis`, full }
+  }
+  if (rule === 'included') {
+    const priced = toppingsOf(product, group).some((topping) => topping.priceCents > 0)
+    if (group === 'fruit') return { text: 'Uma de cada, sem custo', full: false }
+    return { text: priced ? 'Uma de cada · cremes à parte' : 'Uma de cada, sem custo', full: false }
+  }
+  return { text: optional ? 'Opcional, cobrado por unidade' : 'Cobrado por unidade', full: false }
+}
+
+/** Um grupo de ingredientes: adicionais, frutas, caldas e cremes, ou adicionais pagos. */
 export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
   const { rule, name } = TOPPING_GROUPS[group]
   const toppings = toppingsOf(product, group)
-  const optional = !product.groups.includes('dry')
   const headingId = `${product.slug}-${group}`
   const hintId = `${headingId}-dica`
-
-  const limitReached = rule === 'limited' && cfg.size !== undefined && cfg.freeUsed >= cfg.freeLimit
-  let hint: string
-  if (!cfg.size) hint = 'Escolha o tamanho primeiro'
-  else if (rule === 'limited')
-    hint = limitReached
-      ? `${cfg.freeUsed} de ${cfg.freeLimit} adicionais grátis · limite atingido`
-      : `${cfg.freeUsed} de ${cfg.freeLimit} adicionais grátis`
-  else if (rule === 'included') hint = optional ? 'Opcional, sem custo' : 'À vontade, sem custo'
-  else hint = optional ? 'Opcional, cobrado por unidade' : 'Cobrado por unidade'
+  const hint = hintFor(product, group, cfg)
 
   return (
     <section aria-labelledby={headingId} className="min-w-0">
@@ -43,12 +55,12 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
         number={number}
         id={headingId}
         title={name}
-        hint={hint}
+        hint={hint.text}
         hintId={hintId}
-        hintTone={limitReached ? 'alert' : 'neutral'}
+        hintTone={hint.full ? 'alert' : 'neutral'}
       />
 
-      {/* Grade de blocos: miniatura redonda em cima e o nome embaixo, com a largura toda do cartão. */}
+      {/* Grade de blocos: a foto do produto em cima e o nome embaixo, com a largura toda do cartão. */}
       <ul className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-2">
         {toppings.map((topping) => (
           <li key={topping.id}>
@@ -64,11 +76,27 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
   )
 }
 
-/** Miniatura do ingrediente: foto recortada do próprio ingrediente. Decorativa: o nome está ao lado. */
+/**
+ * Foto real do ingrediente num quadro de cantos arredondados. Embalagens aparecem inteiras
+ * (`contain`); texturas preenchem o quadro (`cover`). Decorativa: o nome está logo abaixo.
+ */
 function Thumb({ topping }: { topping: Topping }) {
+  const photo = ingredientPhoto(topping)
   return (
-    <span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full bg-acai-50 ring-1 ring-line">
-      <img src={ingredientImage(topping)} alt="" width={64} height={64} loading="lazy" decoding="async" className="size-full object-cover" />
+    // A foto ocupa o quadro inteiro (posição absoluta): assim a embalagem alta cabe inteira.
+    <span className="relative block size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+      {photo && (
+        <img
+          src={photo.src}
+          alt=""
+          width={96}
+          height={96}
+          loading="lazy"
+          decoding="async"
+          data-fit={photo.fit}
+          className={`absolute inset-0 size-full ${photo.fit === 'contain' ? 'object-contain p-1.5' : 'object-cover'}`}
+        />
+      )}
     </span>
   )
 }
@@ -81,7 +109,16 @@ function FreeBadge() {
   )
 }
 
-/** Fruta ou cobertura: o cartão inteiro marca e desmarca (padrão "Choice Cards" do 21st.dev). */
+function PriceBadge({ cents, each = false }: { cents: number; each?: boolean }) {
+  return (
+    <span className="nums inline-block rounded-full bg-gold-400 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-acai-950">
+      + {formatBRL(cents)}
+      {each && ' cada'}
+    </span>
+  )
+}
+
+/** Fruta, calda ou creme: entra uma vez; o cartão inteiro marca e desmarca. */
 function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: ConfiguratorApi; hintId: string }) {
   const on = quantityOf(cfg.selection, topping.id) > 0
   const blocked = !on && cfg.blockerFor(topping.id) !== null
@@ -101,7 +138,7 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
     >
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
-      <FreeBadge />
+      {topping.priceCents > 0 ? <PriceBadge cents={topping.priceCents} /> : <FreeBadge />}
       {/* Selo de marcado no canto, como nos tamanhos: o nome fica com a largura toda. */}
       <m.span
         aria-hidden="true"
@@ -132,24 +169,16 @@ function StepperCard({
   const blocker = cfg.blockerFor(topping.id)
 
   return (
-    <div
-      className={`${cardBase} ${quantity > 0 ? 'border-gold-400 bg-gold-100' : 'border-line'}`}
-    >
+    <div className={`${cardBase} ${quantity > 0 ? 'border-gold-400 bg-gold-100' : 'border-line'}`}>
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
-      {paid ? (
-        <span className="nums inline-block rounded-full bg-gold-400 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-acai-950">
-          + {formatBRL(topping.priceCents)} cada
-        </span>
-      ) : (
-        <FreeBadge />
-      )}
+      {paid ? <PriceBadge cents={topping.priceCents} each /> : <FreeBadge />}
       <QuantityStepper
         label={topping.name}
         quantity={quantity}
         onAdd={() => cfg.add(topping.id)}
         onRemove={() => cfg.remove(topping.id)}
-        addBlockedReason={blocker ? blockerText(blocker, cfg.freeLimit) : null}
+        addBlockedReason={blocker ? blockerText(blocker, cfg.freeCap) : null}
         describedBy={hintId}
         className="mt-auto"
       />

@@ -1,39 +1,35 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Close, Expand } from '../../components/ui/icons.tsx'
 import { useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { formatBRL } from '../../utils/money.ts'
 import type { Product } from '../catalog/menu.ts'
 import { ILLUSTRATIVE_NOTICE } from '../catalog/notices.ts'
-import { ProductPhotoComposer } from '../photo-composer/ProductPhotoComposer.tsx'
+import { ProductPhoto } from '../catalog/ProductPhoto.tsx'
 import { AnimatedValue } from './AnimatedValue.tsx'
-import { previewTitle } from './messages.ts'
 import type { ConfiguratorApi } from './useConfigurator.ts'
 
 const pill =
   'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
 
 /**
- * Prévia do pedido: a foto montada com o que foi escolhido, o tamanho, os grátis e o total.
- * - Celular: fica fixa no topo, compacta; "Ver foto" abre a foto grande, que inclina com o dedo.
- * - Computador: acompanha a rolagem e inclina com o mouse.
+ * Prévia do pedido: uma foto fixa e real do produto (a da tigela quando o recipiente é isopor),
+ * o tamanho, os grátis e o total. A foto não muda com os ingredientes escolhidos.
+ * - Celular: fica fixa no topo, compacta; "Ver foto" abre a foto grande.
+ * - Computador: acompanha a rolagem.
  */
 export function PreviewPanel({ product, cfg }: { product: Product; cfg: ConfiguratorApi }) {
   const isDesktop = useMediaQuery('(min-width: 64rem)')
   const dialog = useRef<HTMLDialogElement>(null)
   const opener = useRef<HTMLButtonElement>(null)
+  // A foto grande só entra na página quando a janela abre: não baixa à toa.
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
   const hasFreeLimit = product.groups.includes('dry')
   const caption = cfg.size
     ? [cfg.size.name, flavor?.name].filter(Boolean).join(' · ')
-    : 'Escolha o tamanho para começar'
-  const title = previewTitle(product, cfg.selection)
-  const composer = {
-    slug: product.slug,
-    sizeId: cfg.selection.sizeId,
-    flavorId: cfg.selection.flavorId,
-    toppings: cfg.selection.toppings,
-  }
+    : 'Monte na ordem que quiser'
+  const container = cfg.size?.container
 
   return (
     <section
@@ -41,9 +37,14 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
       className="rounded-3xl bg-white p-2.5 ring-1 ring-line lg:p-5 lg:shadow-card"
     >
       <div className="flex items-center gap-3 lg:flex-col lg:items-stretch lg:gap-4">
-        <div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#f3e9f1_72%,#e8d6e3_100%)] min-[360px]:size-28 sm:size-32 lg:mx-auto lg:aspect-square lg:size-auto lg:w-full lg:max-w-sm lg:p-3">
-          <ProductPhotoComposer {...composer} tilt={isDesktop} priority />
-          <p className="sr-only">{title}</p>
+        <div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-acai-50 min-[360px]:size-28 sm:size-32 lg:mx-auto lg:size-auto lg:w-full lg:max-w-sm">
+          <ProductPhoto
+            slug={product.slug}
+            container={container}
+            sizes="(min-width: 64rem) 384px, 128px"
+            className="size-full"
+            priority
+          />
         </div>
 
         <div className="min-w-0 flex-1 lg:text-center">
@@ -57,9 +58,6 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
               {cfg.freeUsed} de {cfg.freeLimit} adicionais grátis
             </p>
           )}
-          {isDesktop && (
-            <p className="mt-2 text-sm font-semibold text-acai-700">A foto muda a cada escolha.</p>
-          )}
         </div>
       </div>
 
@@ -68,7 +66,10 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
         <button
           ref={opener}
           type="button"
-          onClick={() => dialog.current?.showModal()}
+          onClick={() => {
+            setViewerOpen(true)
+            dialog.current?.showModal()
+          }}
           className={`${pill} flex-1 justify-center bg-acai-800 text-white hover:bg-acai-700 active:scale-[0.97]`}
         >
           Ver foto
@@ -87,7 +88,10 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
           aria-labelledby="foto-pedido-titulo"
           onClick={(event) => event.target === dialog.current && dialog.current?.close()}
           // Ao fechar (botão, Esc ou toque fora), o foco volta para "Ver foto".
-          onClose={() => opener.current?.focus()}
+          onClose={() => {
+            setViewerOpen(false)
+            opener.current?.focus()
+          }}
           className="m-auto w-[min(92vw,30rem)] overflow-hidden rounded-3xl bg-white p-0 shadow-lift backdrop:bg-acai-950/70"
         >
           <div className="flex items-center justify-between gap-3 bg-acai-800 px-4 py-3 text-white">
@@ -103,13 +107,9 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
               Fechar
             </button>
           </div>
-          <div className="bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#f3e9f1_72%,#e8d6e3_100%)] p-5">
-            <ProductPhotoComposer {...composer} tilt />
-          </div>
+          {viewerOpen && <ProductPhoto slug={product.slug} container={container} sizes="92vw" className="w-full" priority />}
           <p className="px-4 pt-3 text-sm font-semibold text-acai-950">{caption}</p>
-          <p className="px-4 pt-1 pb-4 text-xs text-ink-soft">
-            Arraste o dedo para os lados para ver o relevo. {ILLUSTRATIVE_NOTICE}
-          </p>
+          <p className="px-4 pt-1 pb-4 text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
         </dialog>
       )}
     </section>

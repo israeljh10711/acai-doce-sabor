@@ -15,7 +15,8 @@ import {
 } from '../features/cart/cart.ts'
 import { cartActions, useCart } from '../features/cart/cartStore.ts'
 import { ILLUSTRATIVE_NOTICE } from '../features/catalog/notices.ts'
-import { ProductPhotoComposer } from '../features/photo-composer/ProductPhotoComposer.tsx'
+import { PRODUCTS } from '../features/catalog/menu.ts'
+import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
 import { storeInfo } from '../services/storeInfo.ts'
@@ -92,12 +93,13 @@ function CartLine({ item, onRemove }: { item: CartItem; onRemove: () => void }) 
   return (
     <m.li layout className="rounded-3xl bg-white p-4 shadow-card ring-1 ring-line sm:p-5">
       <article aria-label={title} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
-        <div className="rounded-2xl bg-[radial-gradient(circle_at_50%_40%,#ffffff_0%,#f3e9f1_72%,#e8d6e3_100%)] p-1.5">
-          <ProductPhotoComposer
+        <div className="overflow-hidden rounded-2xl bg-acai-50">
+          <ProductPhoto
             slug={item.slug}
-            sizeId={item.selection.sizeId}
-            flavorId={item.selection.flavorId}
-            toppings={item.selection.toppings}
+            container={PRODUCTS[item.slug].sizes.find((size) => size.id === item.selection.sizeId)?.container}
+            sizes="112px"
+            className="size-full"
+            decorative
           />
         </div>
 

@@ -11,7 +11,7 @@ const plain = (text: string) => text.replaceAll(NBSP, ' ')
 function sampleCart() {
   const oca = PRODUCTS['acai-oca']
   let ocaSelection = chooseSize(oca, EMPTY_SELECTION, 'copo-500').selection
-  for (const id of ['granola', 'granola', 'banana', 'calda-leite-condensado', 'creme-de-avela']) {
+  for (const id of ['granola', 'granola', 'leite-condensado', 'banana', 'creme-de-avela']) {
     ocaSelection = addTopping(oca, ocaSelection, id)
   }
   const batido = PRODUCTS['acai-batido']
@@ -28,9 +28,8 @@ describe('mensagem do pedido', () => {
 
     expect(message).toContain('*Pedido ADS-0001*')
     expect(message).toContain('*1. 1x Açaí Oca · Copo 500 ml*')
-    expect(message).toContain('Adicionais: 2x Granola')
+    expect(message).toContain('Adicionais: 2x Granola, Leite condensado')
     expect(message).toContain('Frutas: Banana')
-    expect(message).toContain('Coberturas: Leite condensado')
     expect(message).toContain('1x Creme de avelã: + R$ 3,00')
     expect(message).toContain('Valor: 1 x R$ 23,00 = R$ 23,00')
     expect(message).toContain('*2. 2x Açaí Batido · 300 ml · Açaí com Leite Condensado e Amendoim*')

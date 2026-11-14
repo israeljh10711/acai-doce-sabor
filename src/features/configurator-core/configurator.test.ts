@@ -6,7 +6,6 @@ import {
   INITIAL_STATE,
   configuratorReducer,
 } from './configurator.ts'
-import { previewTitle } from './messages.ts'
 
 const tradicional = PRODUCTS['acai-tradicional']
 const milkShake = PRODUCTS['milk-shake']
@@ -34,7 +33,8 @@ describe('configuratorReducer', () => {
     ])
 
     expect(configuratorReducer(tradicional, full, { type: 'add', toppingId: 'pacoca' })).toBe(full)
-    expect(configuratorReducer(tradicional, INITIAL_STATE, { type: 'add', toppingId: 'granola' })).toBe(
+    // Ingrediente que o produto não oferece também não muda nada.
+    expect(configuratorReducer(tradicional, INITIAL_STATE, { type: 'add', toppingId: 'calda-leite-condensado' })).toBe(
       INITIAL_STATE,
     )
   })
@@ -84,38 +84,5 @@ describe('configuratorReducer', () => {
 
     expect(state.selection.flavorId).toBe('morango')
     expect(state.announcement).toBe('Sabor: Morango.')
-  })
-})
-
-describe('previewTitle', () => {
-  it('descreve o recipiente vazio antes do tamanho', () => {
-    expect(previewTitle(tradicional, INITIAL_STATE.selection)).toBe(
-      'Foto ilustrativa: recipiente vazio. Escolha o tamanho para começar.',
-    )
-  })
-
-  it('descreve a montagem com as quantidades', () => {
-    const state = run(tradicional, [
-      { type: 'size', sizeId: 'copo-500' },
-      { type: 'add', toppingId: 'granola' },
-      { type: 'add', toppingId: 'granola' },
-      { type: 'add', toppingId: 'banana' },
-      { type: 'add', toppingId: 'calda-morango' },
-    ])
-
-    expect(previewTitle(tradicional, state.selection)).toBe(
-      'Foto ilustrativa: Açaí Tradicional, Copo 500 ml, com 2 Granola, Banana e cobertura de Morango.',
-    )
-  })
-
-  it('cita o sabor do milk-shake', () => {
-    const state = run(milkShake, [
-      { type: 'size', sizeId: '400-ml' },
-      { type: 'flavor', flavorId: 'ninho' },
-    ])
-
-    expect(previewTitle(milkShake, state.selection)).toBe(
-      'Foto ilustrativa: Milk-shake, 400 ml, sabor Ninho, sem complementos.',
-    )
   })
 })

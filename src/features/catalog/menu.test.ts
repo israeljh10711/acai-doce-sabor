@@ -6,8 +6,6 @@ import { MAX_PAID_UNITS, PRODUCTS, TOPPING_GROUPS, TOPPINGS, getTopping, topping
 const sizeTable = (slug: keyof typeof PRODUCTS) =>
   PRODUCTS[slug].sizes.map((size) => [size.name, size.priceCents, size.freeToppings])
 
-const namesOf = (group: keyof typeof TOPPING_GROUPS) =>
-  TOPPINGS.filter((topping) => topping.group === group).map((topping) => topping.name)
 
 describe('cardápio do Açaí Tradicional', () => {
   it('tem os dez tamanhos, com o preço e os adicionais gratuitos confirmados', () => {
@@ -78,8 +76,11 @@ describe('cardápio do Milk-shake', () => {
 })
 
 describe('ingredientes', () => {
-  it('lista os 12 adicionais do cardápio', () => {
-    expect(namesOf('dry')).toEqual([
+  const names = (slug: keyof typeof PRODUCTS, group: keyof typeof TOPPING_GROUPS) =>
+    toppingsOf(PRODUCTS[slug], group).map((topping) => topping.name)
+
+  it('lista os 14 adicionais: os 12 do cardápio, o leite condensado e o disquete', () => {
+    expect(names('acai-oca', 'dry')).toEqual([
       'Leite em pó',
       'Granola',
       'Biscoito',
@@ -92,33 +93,46 @@ describe('ingredientes', () => {
       'Farinha láctea',
       'Sucrilhos',
       'Marshmallow',
-    ])
-  })
-
-  it('lista as 3 frutas e as 7 coberturas do cardápio', () => {
-    expect(namesOf('fruit')).toEqual(['Kiwi', 'Morango', 'Banana'])
-    expect(namesOf('syrup')).toEqual([
       'Leite condensado',
-      'Morango',
-      'Chocolate',
-      'Banana caramelizada',
-      'Açaí',
-      'Doce de leite',
-      'Frutas vermelhas',
+      'Disquete (confete)',
     ])
   })
 
-  it('cobra só os adicionais pagos, pelos preços do cardápio', () => {
-    const paid = TOPPINGS.filter((topping) => topping.group === 'paid')
-
-    expect(paid.map((topping) => [topping.name, topping.priceCents])).toEqual([
-      ['Creme de avelã', 300],
-      ['Creme de ninho', 300],
-      ['Cereja', 300],
-      ['Kit Kat', 400],
+  it('lista as 3 frutas e as caldas e cremes, na ordem pedida', () => {
+    expect(names('acai-tradicional', 'fruit')).toEqual(['Kiwi', 'Morango', 'Banana'])
+    expect(names('acai-tradicional', 'syrup')).toEqual([
+      'Creme de ninho',
+      'Creme de avelã',
+      'Frutas vermelhas',
+      'Doce de leite',
+      'Açaí',
+      'Banana caramelada',
+      'Chocolate',
+      'Morango',
     ])
-    for (const topping of TOPPINGS.filter((item) => TOPPING_GROUPS[item.group].rule !== 'paid')) {
-      expect(topping.priceCents).toBe(0)
+  })
+
+  it('no açaí, o leite condensado é adicional; o milk-shake continua com ele como cobertura', () => {
+    expect(names('acai-oca', 'syrup')).not.toContain('Leite condensado')
+    expect(names('milk-shake', 'syrup')).toContain('Leite condensado')
+    expect(names('milk-shake', 'dry')).toEqual([])
+  })
+
+  it('cobra só os cremes, os adicionais pagos e os do batido, pelos preços do cardápio', () => {
+    const priced = TOPPINGS.filter((topping) => topping.priceCents > 0).map((topping) => [topping.id, topping.priceCents])
+    expect(priced).toEqual([
+      ['creme-de-ninho', 300],
+      ['creme-de-avela', 300],
+      ['cereja', 300],
+      ['kit-kat', 400],
+      ['batido-creme-de-avela', 300],
+      ['batido-creme-de-morango', 300],
+      ['batido-creme-de-cookies', 300],
+      ['batido-creme-de-ninho', 300],
+      ['batido-ovomaltine', 300],
+    ])
+    for (const topping of TOPPINGS.filter((item) => item.group === 'dry' || item.group === 'fruit')) {
+      expect(topping.priceCents, topping.id).toBe(0)
     }
   })
 
@@ -136,10 +150,10 @@ describe('ingredientes', () => {
 })
 
 describe('regras dos grupos', () => {
-  it('adicionais contam no limite; frutas e coberturas são inclusas; pagos são cobrados', () => {
+  it('adicionais contam no limite; frutas, caldas e cremes entram uma vez; pagos são por unidade', () => {
     expect(TOPPING_GROUPS.dry.rule).toBe('limited')
     expect(TOPPING_GROUPS.fruit.rule).toBe('included')
-    expect(TOPPING_GROUPS.syrup.rule).toBe('included')
+    expect(TOPPING_GROUPS.syrup).toMatchObject({ name: 'Caldas e cremes', rule: 'included' })
     expect(TOPPING_GROUPS.paid.rule).toBe('paid')
   })
 
@@ -149,9 +163,10 @@ describe('regras dos grupos', () => {
   })
 
   it('entrega a um produto só os ingredientes dos grupos que ele aceita', () => {
-    expect(toppingsOf(PRODUCTS['acai-oca'], 'dry')).toHaveLength(12)
-    expect(toppingsOf(PRODUCTS['milk-shake'], 'syrup')).toHaveLength(7)
-    expect(toppingsOf(PRODUCTS['milk-shake'], 'paid')).toHaveLength(4)
+    expect(toppingsOf(PRODUCTS['acai-oca'], 'dry')).toHaveLength(14)
+    expect(toppingsOf(PRODUCTS['acai-oca'], 'syrup')).toHaveLength(8)
+    expect(toppingsOf(PRODUCTS['milk-shake'], 'syrup')).toHaveLength(9)
+    expect(toppingsOf(PRODUCTS['milk-shake'], 'paid').map((topping) => topping.name)).toEqual(['Cereja', 'Kit Kat'])
     expect(toppingsOf(PRODUCTS['milk-shake'], 'dry')).toEqual([])
     expect(toppingsOf(PRODUCTS['milk-shake'], 'fruit')).toEqual([])
   })

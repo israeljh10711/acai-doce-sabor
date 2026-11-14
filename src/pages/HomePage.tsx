@@ -2,13 +2,11 @@ import { m } from 'motion/react'
 import { Logo } from '../components/brand/Logo.tsx'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
+import { Depth, TiltStage } from '../components/ui/TiltStage.tsx'
 import { ArrowRight, Camera, Chat, Clock, Crown, Pin } from '../components/ui/icons.tsx'
 import { CategoryNav } from '../features/catalog/CategoryNav.tsx'
 import { MenuShowcase } from '../features/catalog/MenuShowcase.tsx'
-import { SHOWCASE } from '../features/catalog/showcase.ts'
-import { ProductPhotoComposer } from '../features/photo-composer/ProductPhotoComposer.tsx'
-import { Depth, TiltStage } from '../features/photo-composer/TiltStage.tsx'
-import { SPRITES } from '../features/photo-composer/visuals.ts'
+import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { HOURS_TEXT } from '../features/store-hours/hours.ts'
 import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
 import { useHashScroll } from '../hooks/useHashScroll.ts'
@@ -23,16 +21,6 @@ const rise = (delay: number) => ({
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.6, delay, ease: EASE_OUT },
 })
-
-/** Peças soltas em volta das tigelas, como numa foto de mesa posta. [peça, x, y, tamanho, giro] */
-const LOOSE: [keyof typeof SPRITES, number, number, number, number][] = [
-  ['banana', 0.08, 0.16, 0.11, 20],
-  ['banana', 0.15, 0.06, 0.09, -35],
-  ['cereja', 0.93, 0.5, 0.075, 15],
-  ['chocoball', 0.86, 0.9, 0.06, 0],
-  ['chocoball', 0.92, 0.82, 0.045, 0],
-  ['banana', 0.54, 0.95, 0.1, 60],
-]
 
 export function HomePage() {
   usePageTitle()
@@ -115,8 +103,9 @@ function Hero() {
   )
 }
 
-/** Composição de mesa vista de cima: o Oca no isopor, o Tradicional no copo e o milk-shake. */
+/** Fotos reais dos produtos, em três quadros com profundidade: inclinam de leve com o ponteiro. */
 function HeroPhoto() {
+  const frame = 'overflow-hidden rounded-[1.75rem] shadow-[0_24px_50px_-18px_rgb(10_1_7/0.75)] ring-4 ring-white/15'
   return (
     <m.figure
       className="relative mx-auto w-full max-w-[34rem]"
@@ -125,34 +114,19 @@ function HeroPhoto() {
       transition={{ duration: 0.8, ease: EASE_OUT }}
     >
       <TiltStage enabled maxDegrees={5} className="relative aspect-square">
-        <Depth depth={0.3} className="absolute top-[2%] left-[10%] w-[78%]">
-          <ProductPhotoComposer {...SHOWCASE['acai-oca']} priority />
+        <Depth depth={0.3} className={`absolute top-[4%] left-[14%] w-[68%] ${frame}`}>
+          <ProductPhoto slug="acai-oca" sizes="(min-width: 64rem) 370px, 68vw" priority decorative />
         </Depth>
-        <Depth depth={0.9} className="absolute bottom-[0%] left-[-2%] w-[42%]">
-          <ProductPhotoComposer {...SHOWCASE['acai-tradicional']} priority />
+        <Depth depth={0.9} className={`absolute bottom-[3%] left-[0%] w-[40%] -rotate-3 ${frame}`}>
+          <ProductPhoto slug="acai-tradicional" container="isopor" sizes="(min-width: 64rem) 220px, 40vw" priority decorative />
         </Depth>
-        <Depth depth={1.1} className="absolute right-[-3%] bottom-[8%] w-[34%]">
-          <ProductPhotoComposer {...SHOWCASE['milk-shake']} priority />
-        </Depth>
-        <Depth depth={1.6} className="pointer-events-none absolute inset-0">
-          {LOOSE.map(([sprite, x, y, size, rotate], index) => {
-            const piece = SPRITES[sprite][index % SPRITES[sprite].length]
-            return (
-              <img
-                key={`${sprite}-${index}`}
-                src={piece.src}
-                alt=""
-                draggable={false}
-                className="absolute max-w-none -translate-x-1/2 -translate-y-1/2 drop-shadow-[0_6px_8px_rgb(20_3_14/0.55)]"
-                style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: `${size * 100}%`, rotate: `${rotate}deg` }}
-              />
-            )
-          })}
+        <Depth depth={1.1} className={`absolute right-[0%] bottom-[9%] w-[36%] rotate-3 ${frame}`}>
+          <ProductPhoto slug="milk-shake" sizes="(min-width: 64rem) 200px, 36vw" priority decorative />
         </Depth>
       </TiltStage>
       <figcaption className="sr-only">
-        Açaí Oca no isopor com morango, amendoim, banana, chocoball, granola, leite condensado e creme de ninho; Açaí Tradicional
-        no copo com granola, banana, morango e leite condensado; e milk-shake de morango com calda de chocolate e cereja.
+        Fotos ilustrativas: açaí no copo com granola, morango e banana; açaí na tigela com kiwi, morango e banana; e
+        milk-shake com chantilly e calda de caramelo.
       </figcaption>
     </m.figure>
   )

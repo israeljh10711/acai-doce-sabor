@@ -17,13 +17,28 @@ const LICENSE_URLS: Record<string, string> = {
 
 /** Uso de cada foto no site, pelo nome dela em `fontes.json`. */
 const USES: Record<string, string> = {
-  'acai-superficie': 'superfície do açaí, do batido e calda de açaí',
-  'biscoito-farelo': 'textura de biscoito',
-  isopor: 'tigela de isopor',
-  'cereja-unidade': 'cereja (peça recortada)',
-  'creme-de-ninho': 'creme de ninho e base do milk-shake',
-  'leite-em-po': 'leite em pó e farinha láctea',
+  'produto-acai-oca': 'foto do Açaí Oca',
+  'produto-acai-tradicional': 'foto do Açaí Tradicional',
+  'produto-acai-isopor': 'foto do açaí no isopor',
+  'produto-acai-batido': 'foto do Açaí Batido',
+  'produto-milk-shake': 'foto do Milk-shake',
 }
+
+/** Fotos de ingredientes e embalagens enviadas em 2026-11-14 (assets/fotos-loja). */
+const STORE_PHOTOS = [
+  'Leite condensado (Italac)',
+  'Leite em pó (Ninho)',
+  'Farinha láctea (Nestlé)',
+  'Marshmallow',
+  'Amendoim',
+  'Chocoball',
+  'Paçoca',
+  'Disquete (confete)',
+  'Banana',
+  'Creme de ninho',
+  'Creme de avelã',
+  'Coberturas Du Porto: frutas vermelhas, doce de leite, açaí, banana caramelada, chocolate e morango',
+]
 
 const label = (key: string) => USES[key] ?? key.replaceAll('-', ' ')
 
@@ -43,16 +58,25 @@ export function CreditsPage() {
       <h1 className="font-display text-4xl font-black tracking-tight text-acai-800 uppercase">Créditos das fotos</h1>
       <div className="mt-4 max-w-3xl space-y-3 text-ink-soft">
         <p>
-          A loja ainda não enviou fotos próprias. As fotos de ingredientes do site são de bancos com licença de uso
-          comercial (Wikimedia Commons e Pexels). Não são fotos da loja.
-        </p>
-        <p>
-          Recortes, texturas e ajustes de cor foram feitos a partir delas para montar a foto de cada pedido. As imagens
-          feitas a partir de fotos CC BY-SA seguem a mesma licença.
+          As fotos dos produtos e de parte dos ingredientes são de bancos com licença de uso comercial (Wikimedia
+          Commons). Não são fotos da loja. Foram recortadas em quadrado; as imagens feitas a partir de fotos CC BY-SA
+          seguem a mesma licença.
         </p>
       </div>
 
-      <div className="mt-8 overflow-x-auto rounded-2xl ring-1 ring-line">
+      <h2 className="mt-10 font-display text-2xl font-black tracking-tight text-acai-800 uppercase">Fotos enviadas pela loja</h2>
+      <p className="mt-2 max-w-3xl text-ink-soft">
+        Fotos dos produtos e embalagens que a loja usa, enviadas em 14/11/2026. As marcas pertencem aos seus donos.
+      </p>
+      <ul className="mt-3 grid max-w-3xl list-disc gap-1 pl-5 text-acai-950 sm:grid-cols-2">
+        {STORE_PHOTOS.map((name) => (
+          <li key={name}>{name}</li>
+        ))}
+      </ul>
+
+      <h2 className="mt-10 font-display text-2xl font-black tracking-tight text-acai-800 uppercase">Fotos de banco</h2>
+
+      <div className="mt-4 overflow-x-auto rounded-2xl ring-1 ring-line">
         <table className="w-full min-w-[40rem] text-left text-sm">
           <caption className="sr-only">Fotos, autores e licenças</caption>
           <thead className="bg-acai-50 text-acai-800">

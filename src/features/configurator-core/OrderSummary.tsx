@@ -5,7 +5,7 @@ import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { cartActions } from '../cart/cartStore.ts'
 import { type Product, TOPPING_GROUPS } from '../catalog/menu.ts'
-import { type Selection, selectedByGroup } from '../catalog/selection.ts'
+import { type Selection, freeByGroup } from '../catalog/selection.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import type { ConfiguratorApi } from './useConfigurator.ts'
 
@@ -43,7 +43,7 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
             {flavor && <p className="text-sm text-ink-soft">Sabor: {flavor.name}</p>}
 
             {freeGroups.map((group) => {
-              const items = selectedByGroup(product, cfg.selection, group)
+              const items = freeByGroup(product, cfg.selection, group)
               if (items.length === 0) return null
               return (
                 <p key={group} className="text-sm text-ink-soft">

@@ -18,8 +18,8 @@ import {
   chooseFlavor,
   chooseSize,
   missingChoices,
+  freeByGroup,
   priceOf,
-  selectedByGroup,
   selectedSize,
 } from '../catalog/selection.ts'
 
@@ -170,7 +170,7 @@ export function describeItem(item: CartItem): ItemDescription {
     included: freeGroups
       .map((group) => ({
         group: TOPPING_GROUPS[group].name,
-        items: selectedByGroup(product, item.selection, group).map(({ topping, quantity }) =>
+        items: freeByGroup(product, item.selection, group).map(({ topping, quantity }) =>
           quantity > 1 ? `${quantity}x ${topping.name}` : topping.name,
         ),
       }))

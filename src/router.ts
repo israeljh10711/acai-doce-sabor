@@ -26,15 +26,6 @@ export const router = createBrowserRouter([
           Component: (await import('./pages/ConfiguratorPage.tsx')).ConfiguratorPage,
         }),
       },
-      // Só em desenvolvimento: galeria para conferir o compositor de fotos.
-      ...(import.meta.env.DEV
-        ? [
-            {
-              path: '/dev/compositor',
-              lazy: async () => ({ Component: (await import('./pages/dev/ComposerGallery.tsx')).ComposerGallery }),
-            },
-          ]
-        : []),
       { path: '*', Component: NotFoundPage },
     ],
   },

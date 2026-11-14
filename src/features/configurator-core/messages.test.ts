@@ -14,8 +14,7 @@ function build(sizeId: string, toppingIds: string[]): Selection {
 
 describe('blockerText', () => {
   it('explica por que o item não pode entrar', () => {
-    expect(blockerText('no-size', 0)).toBe('Escolha o tamanho primeiro')
-    expect(blockerText('free-limit', 3)).toBe('Limite de 3 grátis atingido')
+    expect(blockerText('free-limit', 3)).toBe('Limite de 3 adicionais grátis atingido')
     expect(blockerText('item-max', 3)).toBe('Quantidade máxima atingida')
     expect(blockerText('not-in-product', 3)).toBe('Indisponível neste produto')
   })
@@ -37,7 +36,10 @@ describe('addedText', () => {
     )
   })
 
-  it('nas frutas e coberturas, só confirma', () => {
+  it('nas frutas e caldas, só confirma; nos cremes, diz o preço', () => {
+    expect(addedText(tradicional, build('copo-500', ['creme-de-ninho']), 'creme-de-ninho')).toBe(
+      'Você incluiu Creme de ninho, R$ 3,00.',
+    )
     expect(addedText(tradicional, build('copo-500', ['banana']), 'banana')).toBe('Você incluiu Banana.')
     expect(addedText(tradicional, build('copo-500', ['calda-acai']), 'calda-acai')).toBe(
       'Você incluiu cobertura de Açaí.',

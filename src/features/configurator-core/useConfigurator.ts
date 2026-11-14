@@ -3,7 +3,9 @@ import type { Product } from '../catalog/menu.ts'
 import {
   type Selection,
   addBlocker,
+  freeCap,
   freeLimit,
+  freeLimitRange,
   freeUsed,
   missingChoices,
   priceOf,
@@ -29,6 +31,9 @@ export function useConfigurator(product: Product, initialSelection?: Selection) 
     size: selectedSize(product, selection),
     price: priceOf(product, selection),
     freeLimit: freeLimit(product, selection),
+    /** Até onde os grátis podem ir agora: o limite do tamanho ou, sem tamanho, o maior. */
+    freeCap: freeCap(product, selection),
+    freeRange: freeLimitRange(product),
     freeUsed: freeUsed(selection),
     missing: missingChoices(product, selection),
     blockerFor: (toppingId: string) => addBlocker(product, selection, toppingId),
