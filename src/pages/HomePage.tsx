@@ -4,8 +4,7 @@ import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { Depth, TiltStage } from '../components/ui/TiltStage.tsx'
 import { ArrowRight, Camera, Chat, Clock, Crown, Pin } from '../components/ui/icons.tsx'
-import { CategoryNav } from '../features/catalog/CategoryNav.tsx'
-import { MenuShowcase } from '../features/catalog/MenuShowcase.tsx'
+import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { HOURS_TEXT } from '../features/store-hours/hours.ts'
 import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
@@ -29,10 +28,14 @@ export function HomePage() {
   return (
     <>
       <Hero />
-      <CategoryNav />
 
-      <section id="cardapio" aria-labelledby="cardapio-titulo" className="scroll-mt-16 bg-acai-50 py-14 sm:py-20">
-        <Container>
+      {/* Busca, atalhos, vitrine e as 5 gavetas de "Mais opções", iguais aos da página Cardápio. */}
+      <MenuBrowser
+        headingLevel={3}
+        sectionId="cardapio"
+        labelledBy="cardapio-titulo"
+        className="py-14 sm:py-20"
+        intro={
           <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:mb-12 sm:flex-row sm:items-end">
             <div>
               <p className="text-sm font-extrabold tracking-[0.16em] text-acai-600 uppercase">Monte do seu jeito</p>
@@ -44,9 +47,8 @@ export function HomePage() {
               Escolha a categoria, monte o seu com os ingredientes que quiser e acompanhe o preço na hora.
             </p>
           </div>
-          <MenuShowcase />
-        </Container>
-      </section>
+        }
+      />
 
       <StoreInfo />
     </>

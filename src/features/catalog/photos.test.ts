@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { CATEGORIES } from './categories.ts'
 import { PRODUCTS, TOPPINGS, toppingsOf } from './menu.ts'
 import { ALL_PRODUCT_PHOTOS, ingredientFile, ingredientPhoto, productPhoto, productPhotoSrc } from './photos.ts'
 
@@ -80,9 +81,7 @@ describe('fotos dos ingredientes', () => {
 
 describe('foto fixa de cada produto', () => {
   it('cada produto usa a foto enviada pela loja', () => {
-    const names = Object.fromEntries(
-      Object.keys(PRODUCTS).map((slug) => [slug, productPhoto(slug as keyof typeof PRODUCTS).name]),
-    )
+    const names = Object.fromEntries(CATEGORIES.map((category) => [category.slug, productPhoto(category.slug).name]))
     expect(names).toEqual({
       'acai-oca': 'acai-oca',
       'acai-tradicional': 'acai-tradicional',

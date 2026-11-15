@@ -35,6 +35,14 @@ const prepare = `
     document.querySelector('input[value="' + method + '"]').click();
     await __wait(400);
   };
+  // Cardápio completo (2026-11-15): abre todas as gavetas fechadas.
+  window.__openDrawers = async () => {
+    for (const button of document.querySelectorAll('[data-drawer] > :first-child button[aria-expanded="false"]')) {
+      button.click();
+      await __wait(80);
+    }
+    await __wait(600);
+  };
   true;
 `
 
@@ -66,6 +74,31 @@ const routes = [
     label: 'carrinho: sem forma de pagamento escolhida',
     setup: `(async () => { __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
   },
+  // Cardápio completo: gavetas, busca, escolha de sabor, aviso e os produtos das gavetas.
+  { path: '/monte-seu-pedido', label: 'todas as gavetas abertas', setup: `__openDrawers()` },
+  {
+    path: '/monte-seu-pedido',
+    label: 'busca com resultado',
+    setup: `(async () => { __type('#busca-cardapio', 'chocolate'); await __wait(600) })()`,
+  },
+  {
+    path: '/monte-seu-pedido',
+    label: 'busca sem resultado',
+    setup: `(async () => { __type('#busca-cardapio', 'xyz'); await __wait(500) })()`,
+  },
+  {
+    path: '/monte-seu-pedido',
+    label: 'escolha de sabor com aviso de erro',
+    setup: `(async () => { document.querySelector('[data-item="kit-completo-casquinha"] button').click(); await __wait(600); __clickText('dialog[open] button', 'Continuar'); await __wait(400) })()`,
+  },
+  {
+    path: '/monte-seu-pedido',
+    label: 'aviso de item adicionado',
+    setup: `(async () => { document.querySelector('[data-item="combo-de-sorvete"] button').click(); await __wait(600); __clickText('dialog[open] button', 'continuar comprando'); await __wait(600) })()`,
+  },
+  { path: '/carrinho', label: 'carrinho com item das gavetas', setup: `__wait(300)` },
+  '/monte-seu-pedido/pote-de-acai-1-litro',
+  '/monte-seu-pedido/barca-de-acai',
 ]
 const viewports = [
   { width: 390, height: 844 },

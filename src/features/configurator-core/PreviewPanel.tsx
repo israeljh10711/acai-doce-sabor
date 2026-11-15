@@ -4,7 +4,8 @@ import { useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { formatBRL } from '../../utils/money.ts'
 import type { Product } from '../catalog/menu.ts'
 import { ILLUSTRATIVE_NOTICE } from '../catalog/notices.ts'
-import { ProductPhoto } from '../catalog/ProductPhoto.tsx'
+import { hasProductPhoto } from '../catalog/emblems.ts'
+import { ProductVisual } from '../catalog/ItemVisual.tsx'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import type { ConfiguratorApi } from './useConfigurator.ts'
 
@@ -25,6 +26,8 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
   const [viewerOpen, setViewerOpen] = useState(false)
 
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
+  // Os produtos das gavetas ainda não têm foto: mostram o emblema, sem "Ver foto".
+  const hasPhoto = hasProductPhoto(product.slug)
   const hasFreeLimit = product.groups.includes('dry')
   const caption = cfg.size
     ? [cfg.size.name, flavor?.name].filter(Boolean).join(' · ')
@@ -37,12 +40,7 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
     >
       <div className="flex items-center gap-3 lg:flex-col lg:items-stretch lg:gap-4">
         <div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line min-[360px]:size-28 sm:size-32 lg:mx-auto lg:size-auto lg:w-full lg:max-w-sm">
-          <ProductPhoto
-            slug={product.slug}
-            sizes="(min-width: 64rem) 384px, 128px"
-            className="size-full"
-            priority
-          />
+          <ProductVisual slug={product.slug} sizes="(min-width: 64rem) 384px, 128px" className="size-full" priority />
         </div>
 
         <div className="min-w-0 flex-1 lg:text-center">
@@ -61,26 +59,33 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
 
       {/* Celular: os dois botões numa linha só, para a prévia fixa ficar baixa. */}
       <div className="mt-2 flex gap-2 lg:hidden">
-        <button
-          ref={opener}
-          type="button"
-          onClick={() => {
-            setViewerOpen(true)
-            dialog.current?.showModal()
-          }}
-          className={`${pill} flex-1 justify-center bg-acai-800 text-white hover:bg-acai-700 active:scale-[0.97]`}
+        {hasPhoto && (
+          <button
+            ref={opener}
+            type="button"
+            onClick={() => {
+              setViewerOpen(true)
+              dialog.current?.showModal()
+            }}
+            className={`${pill} flex-1 justify-center bg-acai-800 text-white hover:bg-acai-700 active:scale-[0.97]`}
+          >
+            Ver foto
+            <Expand className="size-4" />
+          </button>
+        )}
+        <a
+          href="#resumo"
+          className={`${pill} btn-gold flex-1 justify-center ${hasPhoto ? 'hidden min-[360px]:inline-flex' : 'inline-flex'}`}
         >
-          Ver foto
-          <Expand className="size-4" />
-        </button>
-        <a href="#resumo" className={`${pill} btn-gold hidden flex-1 justify-center min-[360px]:inline-flex`}>
           Ver resumo
         </a>
       </div>
 
-      <p className="mt-2 text-xs leading-snug text-ink-soft lg:mt-4 lg:text-center lg:text-sm">{ILLUSTRATIVE_NOTICE}</p>
+      {hasPhoto && (
+        <p className="mt-2 text-xs leading-snug text-ink-soft lg:mt-4 lg:text-center lg:text-sm">{ILLUSTRATIVE_NOTICE}</p>
+      )}
 
-      {!isDesktop && (
+      {!isDesktop && hasPhoto && (
         <dialog
           ref={dialog}
           aria-labelledby="foto-pedido-titulo"
@@ -105,7 +110,7 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
               Fechar
             </button>
           </div>
-          {viewerOpen && <ProductPhoto slug={product.slug} sizes="92vw" className="w-full" priority />}
+          {viewerOpen && <ProductVisual slug={product.slug} sizes="92vw" className="w-full" priority />}
           <p className="px-4 pt-3 text-sm font-semibold text-acai-950">{caption}</p>
           <p className="px-4 pt-1 pb-4 text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
         </dialog>

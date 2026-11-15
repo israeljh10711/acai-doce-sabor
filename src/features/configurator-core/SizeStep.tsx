@@ -8,6 +8,7 @@ const CONTAINER_NAMES: Record<ContainerKind, string> = {
   pote: 'Pote',
   copo: 'Copo',
   isopor: 'Isopor',
+  barca: 'Barca',
 }
 
 /** "Pote 200 ml" vira "200 ml" quando já está dentro do grupo "Pote". */

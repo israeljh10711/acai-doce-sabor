@@ -1,5 +1,5 @@
 import { m } from 'motion/react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
@@ -7,9 +7,12 @@ import { ArrowLeft, Bag, Minus, Pencil, Plus, Trash } from '../components/ui/ico
 import {
   type Cart,
   type CartItem,
+  type ExtraCartItem,
   MAX_ITEM_QUANTITY,
+  type ProductCartItem,
   cartCount,
   cartTotalCents,
+  describeExtra,
   describeItem,
   lineTotalCents,
   unitPriceCents,
@@ -17,7 +20,8 @@ import {
 import { cartActions, useCart } from '../features/cart/cartStore.ts'
 import { ILLUSTRATIVE_NOTICE } from '../features/catalog/notices.ts'
 import { CheckoutPanel } from '../features/checkout/CheckoutPanel.tsx'
-import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
+import { getExtraItem } from '../features/catalog/extras.ts'
+import { ExtraVisual, ProductVisual } from '../features/catalog/ItemVisual.tsx'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
 import { formatBRL } from '../utils/money.ts'
@@ -31,7 +35,7 @@ export function CartPage() {
 
   const remove = (item: CartItem) => {
     cartActions.remove(item.id)
-    setAnnouncement(`${describeItem(item).productName} removido do carrinho.`)
+    setAnnouncement(`${itemName(item)} removido do carrinho.`)
   }
 
   return (
@@ -78,47 +82,111 @@ function EmptyCart() {
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl bg-acai-50 px-6 py-12 text-center ring-1 ring-line">
       <Bag className="size-10 text-acai-700" />
       <h2 className="font-display text-2xl font-black tracking-tight text-acai-800 uppercase">Seu carrinho está vazio</h2>
-      <p className="text-ink-soft">Monte um açaí, um açaí batido ou um milk-shake e ele aparece aqui.</p>
+      <p className="text-ink-soft">Monte um açaí ou escolha um picolé, uma bebida ou um doce do cardápio e ele aparece aqui.</p>
       <ButtonLink to={paths.buildOrder}>Ver o cardápio</ButtonLink>
     </div>
   )
 }
 
+/** Nome curto do item, para o anúncio de remoção. */
+function itemName(item: CartItem): string {
+  return item.kind === 'extra' ? describeExtra(item).name : describeItem(item).productName
+}
+
 function CartLine({ item, onRemove }: { item: CartItem; onRemove: () => void }) {
+  return item.kind === 'extra' ? (
+    <ExtraLine item={item} onRemove={onRemove} />
+  ) : (
+    <ProductLine item={item} onRemove={onRemove} />
+  )
+}
+
+/** Produto montado no personalizador: tamanho, escolhas por grupo e os adicionais cobrados. */
+function ProductLine({ item, onRemove }: { item: ProductCartItem; onRemove: () => void }) {
   const description = describeItem(item)
-  const title = `${description.productName} · ${description.sizeName}`
+  const title = description.sizeName ? `${description.productName} · ${description.sizeName}` : description.productName
+
+  return (
+    <LineFrame
+      item={item}
+      title={title}
+      visual={<ProductVisual slug={item.slug} sizes="112px" className="size-full" decorative />}
+      editTo={paths.configurator(item.slug, item.id)}
+      onRemove={onRemove}
+    >
+      <h2 className="font-display text-lg leading-tight font-black tracking-tight text-acai-800 uppercase">
+        {description.productName}
+      </h2>
+      {description.sizeName && (
+        <p className="text-sm font-semibold text-acai-950">
+          {description.sizeName}
+          {description.container && !description.sizeName.startsWith(description.container) && ` · ${description.container}`}
+        </p>
+      )}
+      {description.flavorName && (
+        <p className="text-sm text-ink-soft">
+          {description.flavorLabel}: {description.flavorName}
+        </p>
+      )}
+      {description.included.map(({ group, items }) => (
+        <p key={group} className="mt-0.5 text-sm text-ink-soft">
+          <span className="font-semibold text-acai-800">{group}:</span> {items.join(', ')}
+        </p>
+      ))}
+      {description.paid.map((line) => (
+        <p key={line.toppingId} className="mt-0.5 flex justify-between gap-3 text-sm text-ink-soft">
+          <span>
+            {line.quantity}x {line.name}
+          </span>
+          <span className="nums whitespace-nowrap">+ {formatBRL(line.totalCents)}</span>
+        </p>
+      ))}
+    </LineFrame>
+  )
+}
+
+/** Item das gavetas (picolé, bebida, doce...): o sabor escolhido, quando tem. */
+function ExtraLine({ item, onRemove }: { item: ExtraCartItem; onRemove: () => void }) {
+  const { name, rows } = describeExtra(item)
+  const extra = getExtraItem(item.itemId)
+
+  return (
+    <LineFrame item={item} title={name} visual={extra && <ExtraVisual item={extra} size="fill" />} onRemove={onRemove}>
+      <h2 className="font-display text-lg leading-tight font-black tracking-tight text-acai-800 uppercase">{name}</h2>
+      {rows.map((row) => (
+        <p key={row.label} className="mt-0.5 text-sm text-ink-soft">
+          <span className="font-semibold text-acai-800">{row.label}:</span> {row.value}
+        </p>
+      ))}
+    </LineFrame>
+  )
+}
+
+/** Moldura de um item: foto ou emblema, o conteúdo, a quantidade, o valor, Editar e Remover. */
+function LineFrame({
+  item,
+  title,
+  visual,
+  editTo,
+  onRemove,
+  children,
+}: {
+  item: CartItem
+  title: string
+  visual: ReactNode
+  /** Só os produtos montados se editam (no personalizador). */
+  editTo?: string
+  onRemove: () => void
+  children: ReactNode
+}) {
   const unit = unitPriceCents(item)
 
   return (
     <m.li layout className="rounded-3xl bg-white p-4 shadow-card ring-1 ring-line sm:p-5">
       <article aria-label={title} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">
-          <ProductPhoto slug={item.slug} sizes="112px" className="size-full" decorative />
-        </div>
+        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">{visual}</div>
 
-        <div className="min-w-0">
-          <h2 className="font-display text-lg leading-tight font-black tracking-tight text-acai-800 uppercase">
-            {description.productName}
-          </h2>
-          <p className="text-sm font-semibold text-acai-950">
-            {description.sizeName}
-            {description.container && !description.sizeName.startsWith(description.container) && ` · ${description.container}`}
-          </p>
-          {description.flavorName && <p className="text-sm text-ink-soft">Sabor: {description.flavorName}</p>}
-          {description.included.map(({ group, items }) => (
-            <p key={group} className="mt-0.5 text-sm text-ink-soft">
-              <span className="font-semibold text-acai-800">{group}:</span> {items.join(', ')}
-            </p>
-          ))}
-          {description.paid.map((line) => (
-            <p key={line.toppingId} className="mt-0.5 flex justify-between gap-3 text-sm text-ink-soft">
-              <span>
-                {line.quantity}x {line.name}
-              </span>
-              <span className="nums whitespace-nowrap">+ {formatBRL(line.totalCents)}</span>
-            </p>
-          ))}
-        </div>
+        <div className="min-w-0">{children}</div>
 
         <div className="col-span-2 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
           <QuantityControl item={item} title={title} />
@@ -129,13 +197,15 @@ function CartLine({ item, onRemove }: { item: CartItem; onRemove: () => void }) 
             <span className="text-xl font-extrabold whitespace-nowrap text-acai-800">{formatBRL(lineTotalCents(item))}</span>
           </p>
           <div className="flex w-full gap-2 sm:w-auto">
-            <Link
-              to={paths.configurator(item.slug, item.id)}
-              className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-bold text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 sm:flex-none"
-            >
-              <Pencil className="size-4" />
-              Editar<span className="sr-only"> {title}</span>
-            </Link>
+            {editTo && (
+              <Link
+                to={editTo}
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-bold text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 sm:flex-none"
+              >
+                <Pencil className="size-4" />
+                Editar<span className="sr-only"> {title}</span>
+              </Link>
+            )}
             <button
               type="button"
               onClick={onRemove}

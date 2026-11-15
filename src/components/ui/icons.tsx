@@ -175,3 +175,95 @@ export const Copy = (props: IconProps) => (
     <path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" />
   </Icon>
 )
+
+/*
+ * Ícones do Lucide (lucide.dev, pacote lucide-static 0.460.0), copiados para cá no mesmo formato
+ * dos ícones acima, sem instalar pacote. Licença do Lucide:
+ *
+ * ISC License
+ *
+ * Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT).
+ * All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any purpose with or without
+ * fee is hereby granted, provided that the above copyright notice and this permission notice
+ * appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
+ * SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE
+ * AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
+ */
+
+export const Search = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </Icon>
+)
+
+export const ChevronDown = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m6 9 6 6 6-6" />
+  </Icon>
+)
+
+export const Gift = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="3" y="8" width="18" height="4" rx="1" />
+    <path d="M12 8v13" />
+    <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+    <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+  </Icon>
+)
+
+export const IceCreamBowl = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12 17c5 0 8-2.69 8-6H4c0 3.31 3 6 8 6m-4 4h8m-4-3v3M5.14 11a3.5 3.5 0 1 1 6.71 0" />
+    <path d="M12.14 11a3.5 3.5 0 1 1 6.71 0" />
+    <path d="M15.5 6.5a3.5 3.5 0 1 0-7 0" />
+  </Icon>
+)
+
+export const IceCreamCone = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m7 11 4.08 10.35a1 1 0 0 0 1.84 0L17 11" />
+    <path d="M17 7A5 5 0 0 0 7 7" />
+    <path d="M17 7a2 2 0 0 1 0 4H7a2 2 0 0 1 0-4" />
+  </Icon>
+)
+
+export const Popsicle = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M18.6 14.4c.8-.8.8-2 0-2.8l-8.1-8.1a4.95 4.95 0 1 0-7.1 7.1l8.1 8.1c.9.7 2.1.7 2.9-.1Z" />
+    <path d="m22 22-5.5-5.5" />
+  </Icon>
+)
+
+export const CupSoda = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m6 8 1.75 12.28a2 2 0 0 0 2 1.72h4.54a2 2 0 0 0 2-1.72L18 8" />
+    <path d="M5 8h14" />
+    <path d="M7 15a6.47 6.47 0 0 1 5 0 6.47 6.47 0 0 0 5 0" />
+    <path d="m12 8 1-6h2" />
+  </Icon>
+)
+
+export const Candy = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="m9.5 7.5-2 2a4.95 4.95 0 1 0 7 7l2-2a4.95 4.95 0 1 0-7-7Z" />
+    <path d="M14 6.5v10" />
+    <path d="M10 7.5v10" />
+    <path d="m16 7 1-5 1.37.68A3 3 0 0 0 19.7 3H21v1.3c0 .46.1.92.32 1.33L22 7l-5 1" />
+    <path d="m8 17-1 5-1.37-.68A3 3 0 0 0 4.3 21H3v-1.3a3 3 0 0 0-.32-1.33L2 17l5-1" />
+  </Icon>
+)
+
+export const Tag = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+    <circle cx="7.5" cy="7.5" r=".5" fill="currentColor" />
+  </Icon>
+)

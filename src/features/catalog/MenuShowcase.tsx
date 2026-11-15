@@ -3,9 +3,8 @@ import { Link } from 'react-router'
 import { ArrowRight, Crown, Flame } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
-import { CATEGORIES, type Category } from './categories.ts'
+import { CATEGORIES, type Category, type CategorySlug } from './categories.ts'
 import { PRODUCTS } from './menu.ts'
-import { ILLUSTRATIVE_NOTICE } from './notices.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
 import { startingPriceCents } from './showcase.ts'
 
@@ -21,20 +20,30 @@ const reveal = {
 /**
  * Cardápio em vitrine: o Açaí Oca em destaque e as outras três categorias em cartões.
  * Cada cartão tem âncora própria (#acai-oca, #acai-tradicional...) para a navegação por categoria.
+ * Com `visible` (resultado da busca), mostra só essas categorias.
  */
-export function MenuShowcase({ headingLevel = 'h3' }: { headingLevel?: 'h2' | 'h3' }) {
-  const [featured, ...others] = CATEGORIES
+export function MenuShowcase({
+  headingLevel = 'h3',
+  visible,
+}: {
+  headingLevel?: 'h2' | 'h3'
+  visible?: readonly CategorySlug[]
+}) {
+  const [featured, ...rest] = CATEGORIES
+  const shows = (category: Category) => !visible || visible.includes(category.slug)
+  const others = rest.filter(shows)
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <FeaturedCard category={featured} Heading={headingLevel} />
-      <ul className="grid gap-6 md:grid-cols-3">
-        {others.map((category) => (
-          <m.li key={category.slug} id={category.slug} className="scroll-mt-28" {...reveal}>
-            <ProductCard category={category} Heading={headingLevel} />
-          </m.li>
-        ))}
-      </ul>
-      <p className="text-center text-sm text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
+      {shows(featured) && <FeaturedCard category={featured} Heading={headingLevel} />}
+      {others.length > 0 && (
+        <ul className="grid gap-6 md:grid-cols-3">
+          {others.map((category) => (
+            <m.li key={category.slug} id={category.slug} className="scroll-mt-28" {...reveal}>
+              <ProductCard category={category} Heading={headingLevel} />
+            </m.li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

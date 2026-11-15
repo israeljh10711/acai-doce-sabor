@@ -1,10 +1,20 @@
 /**
  * Texto do pedido que vai para o WhatsApp da loja, no modelo pedido em 2026-11-14:
  * itens com tudo o que foi escolhido, total, forma de pagamento e troco.
- * Usa o negrito do WhatsApp (`*texto*`).
+ * Usa o negrito do WhatsApp (`*texto*`). Os itens das gavetas (picolés, bebidas, doces...)
+ * entram com o sabor escolhido (pedido de 2026-11-15).
  */
 import { formatBRL } from '../../utils/money.ts'
-import { type Cart, cartTotalCents, choiceText, lineTotalCents, summarizeSelection } from '../cart/cart.ts'
+import {
+  type Cart,
+  type CartItem,
+  cartTotalCents,
+  choiceText,
+  describeExtra,
+  lineTotalCents,
+  summarizeSelection,
+  unitPriceCents,
+} from '../cart/cart.ts'
 import type { ToppingGroupId } from '../catalog/menu.ts'
 import { type Payment, paymentLabel } from '../checkout/payment.ts'
 
@@ -24,17 +34,7 @@ export function buildOrderMessage(cart: Cart, payment: Payment, { code }: OrderM
   if (code) lines.push(`Pedido ${code}`)
   lines.push('', '*ITENS DO PEDIDO:*')
 
-  for (const item of cart.items) {
-    const summary = summarizeSelection(item.slug, item.selection)
-    const each = item.quantity > 1 ? ` (${formatBRL(summary.unitCents)} cada)` : ''
-    lines.push(`*${item.quantity}x ${summary.productName} (${summary.sizeLabel})* — ${formatBRL(lineTotalCents(item))}${each}`)
-    if (summary.flavorName) lines.push(`• Sabor: ${summary.flavorName}`)
-    for (const section of summary.sections) {
-      const label = MESSAGE_GROUP_LABELS[section.group] ?? section.label
-      lines.push(`• ${label}: ${section.items.map(choiceText).join(', ')}`)
-    }
-    lines.push('')
-  }
+  for (const item of cart.items) lines.push(...itemLines(item), '')
 
   lines.push(SEPARATOR, `*TOTAL DO PEDIDO: ${formatBRL(totalCents)}*`, `*FORMA DE PAGAMENTO:* ${paymentLabel(payment.method)}`)
   if (payment.method === 'dinheiro') {
@@ -46,4 +46,25 @@ export function buildOrderMessage(cart: Cart, payment: Payment, { code }: OrderM
   }
   if (payment.method === 'pix') lines.push('Envio o comprovante do Pix nesta conversa.')
   return lines.join('\n')
+}
+
+/** Linhas de um item: título com quantidade e valor, e o que foi escolhido. */
+function itemLines(item: CartItem): string[] {
+  const each = item.quantity > 1 ? ` (${formatBRL(unitPriceCents(item))} cada)` : ''
+  const price = `${formatBRL(lineTotalCents(item))}${each}`
+
+  if (item.kind === 'extra') {
+    const { name, rows } = describeExtra(item)
+    return [`*${item.quantity}x ${name}* — ${price}`, ...rows.map((row) => `• ${row.label}: ${row.value}`)]
+  }
+
+  const summary = summarizeSelection(item.slug, item.selection)
+  const title = summary.sizeLabel ? `${summary.productName} (${summary.sizeLabel})` : summary.productName
+  const lines = [`*${item.quantity}x ${title}* — ${price}`]
+  if (summary.flavorName) lines.push(`• ${summary.flavorLabel}: ${summary.flavorName}`)
+  for (const section of summary.sections) {
+    const label = MESSAGE_GROUP_LABELS[section.group] ?? section.label
+    lines.push(`• ${label}: ${section.items.map(choiceText).join(', ')}`)
+  }
+  return lines
 }

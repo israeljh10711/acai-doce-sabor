@@ -7,6 +7,8 @@
  * - `tagline` é a frase curta da vitrine. Só fatos: nada de ingrediente que não esteja no cardápio.
  * - `actionLabel` é o texto do botão que leva ao personalizador.
  * - `badges` são os selos pedidos pelo proprietário. Só o Açaí Oca tem.
+ * - `keywords` são sinônimos para a busca do cardápio (pedido de 2026-11-15: "batida" acha o
+ *   Açaí Batido).
  */
 export const CATEGORIES = [
   {
@@ -16,6 +18,7 @@ export const CATEGORIES = [
     tagline: 'A especialidade da casa, montada com os adicionais, as frutas e as coberturas que você quiser.',
     actionLabel: 'Montar açaí Oca',
     badges: ['Especialidade da casa', 'O mais pedido'],
+    keywords: ['oca', 'especialidade'],
   },
   {
     slug: 'acai-tradicional',
@@ -24,6 +27,7 @@ export const CATEGORIES = [
     tagline: 'Do seu jeito: adicionais grátis conforme o tamanho, mais frutas e coberturas à vontade.',
     actionLabel: 'Montar açaí Tradicional',
     badges: [],
+    keywords: ['tradicional'],
   },
   {
     slug: 'acai-batido',
@@ -32,6 +36,7 @@ export const CATEGORIES = [
     tagline: 'Açaí batido com leite condensado, puro, com amendoim ou com paçoca.',
     actionLabel: 'Montar açaí Batido',
     badges: [],
+    keywords: ['batida', 'batido'],
   },
   {
     slug: 'milk-shake',
@@ -40,6 +45,7 @@ export const CATEGORIES = [
     tagline: 'Cremoso e gelado, em 13 sabores, com coberturas se quiser.',
     actionLabel: 'Montar milk-shake',
     badges: [],
+    keywords: ['milkshake', 'milk shake', 'shake'],
   },
 ] as const
 

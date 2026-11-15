@@ -4,13 +4,14 @@ import { Bag } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { cartActions } from '../cart/cartStore.ts'
-import { type Product, TOPPING_GROUPS } from '../catalog/menu.ts'
+import { ProductVisual } from '../catalog/ItemVisual.tsx'
+import { type Product, TOPPING_GROUPS, flavorTermOf } from '../catalog/menu.ts'
+import { productInfo } from '../catalog/productInfo.ts'
 import { freeByGroup } from '../catalog/selection.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import { ConfirmItemDialog } from './ConfirmItemDialog.tsx'
+import { productSummary } from './confirmSummary.ts'
 import type { ConfiguratorApi } from './useConfigurator.ts'
-
-const MISSING_TEXT = { size: 'o tamanho', flavor: 'o sabor' } as const
 
 type OrderSummaryProps = {
   product: Product
@@ -23,6 +24,8 @@ type OrderSummaryProps = {
 export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps) {
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
   const freeGroups = product.groups.filter((group) => TOPPING_GROUPS[group].rule !== 'paid')
+  const term = flavorTermOf(product)
+  const missingText = { size: 'o tamanho', flavor: term.missing } as const
 
   return (
     <section
@@ -40,8 +43,15 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
       <div className="p-5 sm:p-6">
         {cfg.size && cfg.price ? (
           <div className="flex flex-col gap-3 text-acai-950">
-            <Line label={`${product.name} · ${cfg.size.name}`} value={formatBRL(cfg.price.sizeCents)} />
-            {flavor && <p className="text-sm text-ink-soft">Sabor: {flavor.name}</p>}
+            <Line
+              label={product.sizes.length > 1 ? `${product.name} · ${cfg.size.name}` : product.name}
+              value={formatBRL(cfg.price.sizeCents)}
+            />
+            {flavor && (
+              <p className="text-sm text-ink-soft">
+                {term.label}: {flavor.name}
+              </p>
+            )}
 
             {freeGroups.map((group) => {
               const items = freeByGroup(product, cfg.selection, group)
@@ -83,7 +93,7 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
             id="resumo-falta"
             className="mt-4 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-gold-400"
           >
-            Falta escolher {cfg.missing.map((choice) => MISSING_TEXT[choice]).join(' e ')}.
+            Falta escolher {cfg.missing.map((choice) => missingText[choice]).join(' e ')}.
           </p>
         )}
 
@@ -139,11 +149,11 @@ function CartButton({ product, cfg, editingItemId }: OrderSummaryProps) {
       {!editingItemId && (
         <ConfirmItemDialog
           open={confirming}
-          product={product}
-          selection={cfg.selection}
+          summary={productSummary(product.slug, cfg.selection)}
+          visual={<ProductVisual slug={product.slug} sizes="80px" className="size-full" decorative />}
           opener={button}
           onAddAndGoToCart={() => addAndGo(paths.cart)}
-          onAddAndContinue={() => addAndGo(paths.buildOrder, { added: product.name })}
+          onAddAndContinue={() => addAndGo(productInfo(product.slug).continuePath, { added: product.name })}
           onBack={() => setConfirming(false)}
         />
       )}

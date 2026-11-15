@@ -5,12 +5,14 @@
  * normalmente até a página ser fechada.
  */
 import { useSyncExternalStore } from 'react'
-import type { CategorySlug } from '../catalog/categories.ts'
+import type { ProductSlug } from '../catalog/menu.ts'
 import type { Selection } from '../catalog/selection.ts'
 import {
   type Cart,
-  type CartItem,
   EMPTY_CART,
+  type ExtraCartItem,
+  type ProductCartItem,
+  addExtraItem,
   addItem,
   parseCart,
   removeItem,
@@ -59,8 +61,17 @@ if (typeof window !== 'undefined') {
 
 export const cartActions = {
   /** Põe a montagem no carrinho. Devolve o item criado, ou `null` se a montagem está incompleta. */
-  add(slug: CategorySlug, selection: Selection): CartItem | null {
+  add(slug: ProductSlug, selection: Selection): ProductCartItem | null {
     const { cart, item } = addItem(state, slug, selection)
+    commit(cart)
+    return item
+  },
+  /**
+   * Põe um item das gavetas no carrinho (o mesmo item com o mesmo sabor soma na quantidade).
+   * Devolve o item, ou `null` se a escolha é inválida.
+   */
+  addExtra(itemId: string, choices: Readonly<Record<string, string>>): ExtraCartItem | null {
+    const { cart, item } = addExtraItem(state, itemId, choices)
     commit(cart)
     return item
   },

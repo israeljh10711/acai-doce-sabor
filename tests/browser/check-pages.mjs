@@ -39,6 +39,9 @@ const routes = [
   { name: 'acai-tradicional', path: '/monte-seu-pedido/acai-tradicional', h1: 'Açaí Tradicional' },
   { name: 'acai-batido', path: '/monte-seu-pedido/acai-batido', h1: 'Açaí Batido' },
   { name: 'milk-shake', path: '/monte-seu-pedido/milk-shake', h1: 'Milk-shake' },
+  // Produtos das gavetas de "Mais opções do cardápio" (2026-11-15).
+  { name: 'pote-de-acai-1-litro', path: '/monte-seu-pedido/pote-de-acai-1-litro', h1: 'Pote de Açaí 1 Litro Montado' },
+  { name: 'barca-de-acai', path: '/monte-seu-pedido/barca-de-acai', h1: 'Barca de Açaí' },
   // O carrinho é pessoal: fica fora da busca.
   { name: 'carrinho', path: '/carrinho', h1: 'Seu carrinho', title: `Carrinho | ${STORE}`, noindex: true },
   { name: 'categoria-inexistente', path: '/monte-seu-pedido/pizza', h1: 'Página não encontrada' },

@@ -13,7 +13,7 @@
 import type { CategorySlug } from './categories.ts'
 import { FLAVOR_AVAILABILITY_NOTICE } from './notices.ts'
 
-export type ContainerKind = 'pote' | 'copo' | 'isopor'
+export type ContainerKind = 'pote' | 'copo' | 'isopor' | 'barca'
 
 export type ProductSize = {
   id: string
@@ -55,7 +55,7 @@ export type Topping = {
    */
   look?: string
   /** Só estes produtos oferecem o item, mesmo que aceitem o grupo dele. */
-  onlyIn?: readonly CategorySlug[]
+  onlyIn?: readonly ProductSlug[]
 }
 
 export type Flavor = {
@@ -63,8 +63,20 @@ export type Flavor = {
   name: string
 }
 
+/**
+ * Produtos do personalizador que não são categorias da vitrine: entram pelas gavetas de "Mais
+ * opções do cardápio" (pedido de 2026-11-15). Ver `extras.ts`.
+ */
+export type ExtraProductSlug = 'pote-de-acai-1-litro' | 'barca-de-acai'
+export type ProductSlug = CategorySlug | ExtraProductSlug
+
+/** Como a escolha obrigatória se chama e como completa a frase "Falta escolher ...". */
+export type FlavorTerm = { label: string; missing: string }
+
+export const DEFAULT_FLAVOR_TERM: FlavorTerm = { label: 'Sabor', missing: 'o sabor' }
+
 export type Product = {
-  slug: CategorySlug
+  slug: ProductSlug
   name: string
   sizes: readonly ProductSize[]
   /** Grupos de ingredientes que o produto aceita, na ordem em que aparecem. */
@@ -73,6 +85,10 @@ export type Product = {
   flavors: readonly Flavor[]
   /** Aviso que acompanha a escolha do sabor, quando o proprietário pediu um. */
   flavorNotice?: string
+  /** Nome da escolha obrigatória, quando não é "Sabor" (na barca, a cobertura inclusa). */
+  flavorTerm?: FlavorTerm
+  /** Texto curto ao lado do título da escolha obrigatória. */
+  flavorHint?: string
 }
 
 /**
@@ -162,7 +178,7 @@ const size = (
 
 const ACAI_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit', 'syrup', 'paid']
 
-export const PRODUCTS: Readonly<Record<CategorySlug, Product>> = {
+export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
   'acai-oca': {
     slug: 'acai-oca',
     name: 'Açaí Oca',
@@ -240,6 +256,30 @@ export const PRODUCTS: Readonly<Record<CategorySlug, Product>> = {
       { id: 'chocolate-branco', name: 'Chocolate Branco' },
     ],
   },
+
+  // Gaveta "Combos e Ofertas" (pedido de 2026-11-15): pote de 1 litro com até 7 adicionais grátis,
+  // R$ 30,00 (antes R$ 33,00). Os mesmos grupos de ingredientes dos outros açaís.
+  'pote-de-acai-1-litro': {
+    slug: 'pote-de-acai-1-litro',
+    name: 'Pote de Açaí 1 Litro Montado',
+    groups: ACAI_GROUPS,
+    flavors: [],
+    sizes: [size('pote-1-litro', 'Pote 1 litro', 'pote', 3000, 7)],
+  },
+
+  // Gaveta "Barcas e Potes" (pedido de 2026-11-15): R$ 30,00 com 1 cobertura à escolha, entre as
+  // coberturas do cardápio. Opcionais: só os adicionais pagos, os únicos com preço no cardápio.
+  'barca-de-acai': {
+    slug: 'barca-de-acai',
+    name: 'Barca de Açaí',
+    groups: ['paid'],
+    flavorTerm: { label: 'Cobertura', missing: 'a cobertura' },
+    flavorHint: '1 inclusa no preço',
+    flavors: TOPPINGS.filter((topping) => topping.group === 'syrup' && topping.priceCents === 0 && !topping.onlyIn).map(
+      (topping) => ({ id: topping.id, name: topping.name }),
+    ),
+    sizes: [size('barca', 'Barca', 'barca', 3000, 0)],
+  },
 }
 
 const toppingsById = new Map(TOPPINGS.map((topping) => [topping.id, topping]))
@@ -257,4 +297,18 @@ export function offers(product: Product, topping: Topping): boolean {
 export function toppingsOf(product: Product, group: ToppingGroupId): Topping[] {
   if (!product.groups.includes(group)) return []
   return TOPPINGS.filter((topping) => topping.group === group && offers(product, topping))
+}
+
+/** Nome da escolha obrigatória do produto: "Sabor", ou "Cobertura" na barca. */
+export function flavorTermOf(product: Product): FlavorTerm {
+  return product.flavorTerm ?? DEFAULT_FLAVOR_TERM
+}
+
+export function isProductSlug(slug: string): slug is ProductSlug {
+  return Object.hasOwn(PRODUCTS, slug)
+}
+
+/** Produto do personalizador pelo trecho do endereço. */
+export function findProduct(slug: string | undefined): Product | undefined {
+  return slug && isProductSlug(slug) ? PRODUCTS[slug] : undefined
 }

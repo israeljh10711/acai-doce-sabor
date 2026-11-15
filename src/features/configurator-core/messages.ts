@@ -1,7 +1,7 @@
 /**
  * Textos curtos que o personalizador mostra ou anuncia para leitores de tela.
  */
-import { type Product, type Topping, TOPPING_GROUPS, getTopping } from '../catalog/menu.ts'
+import { type Product, type Topping, TOPPING_GROUPS, flavorTermOf, getTopping } from '../catalog/menu.ts'
 import {
   type AddBlocker,
   type RemovedTopping,
@@ -91,5 +91,5 @@ export function sizeText(product: Product, sizeId: string, removed: RemovedToppi
 
 export function flavorText(product: Product, flavorId: string): string {
   const flavor = product.flavors.find((candidate) => candidate.id === flavorId)
-  return flavor ? `Sabor: ${flavor.name}.` : ''
+  return flavor ? `${flavorTermOf(product).label}: ${flavor.name}.` : ''
 }

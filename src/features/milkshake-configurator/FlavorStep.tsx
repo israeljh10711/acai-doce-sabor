@@ -29,11 +29,21 @@ const BATIDO_FLAVOR_TOPPINGS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
- * Escolha do sabor (milk-shake e açaí batido). O aviso de disponibilidade aparece quando o
- * proprietário pediu (no milk-shake). Cada sabor tem a sua amostra: a cor do milk-shake ou as
- * fotos do que o batido leva por cima.
+ * Escolha obrigatória: o sabor (milk-shake e açaí batido) ou a cobertura inclusa (barca). O aviso
+ * de disponibilidade aparece quando o proprietário pediu (no milk-shake). Cada opção tem a sua
+ * amostra: a cor do milk-shake, as fotos do que o batido leva por cima ou a foto da cobertura.
  */
-export function FlavorStep({ product, cfg, number }: { product: Product; cfg: ConfiguratorApi; number: number }) {
+export function FlavorStep({
+  product,
+  cfg,
+  number,
+  title = 'Sabor',
+}: {
+  product: Product
+  cfg: ConfiguratorApi
+  number: number
+  title?: string
+}) {
   const headingId = `${product.slug}-sabor`
   const noticeId = `${headingId}-aviso`
   const longNames = product.flavors.some((flavor) => flavor.name.length > 22)
@@ -44,7 +54,7 @@ export function FlavorStep({ product, cfg, number }: { product: Product; cfg: Co
       aria-describedby={product.flavorNotice ? noticeId : undefined}
       className="min-w-0"
     >
-      <StepHeading number={number} id={headingId} title="Sabor" />
+      <StepHeading number={number} id={headingId} title={title} hint={product.flavorHint} />
 
       {product.flavorNotice && (
         <p
@@ -86,7 +96,9 @@ export function FlavorStep({ product, cfg, number }: { product: Product; cfg: Co
 }
 
 function Swatch({ slug, flavorId }: { slug: Product['slug']; flavorId: string }) {
-  const extras = slug === 'acai-batido' ? (BATIDO_FLAVOR_TOPPINGS[flavorId] ?? []) : []
+  // Batido: o que cada sabor leva por cima. Barca: a própria cobertura (as opções são as caldas).
+  const extras =
+    slug === 'acai-batido' ? (BATIDO_FLAVOR_TOPPINGS[flavorId] ?? []) : slug === 'barca-de-acai' ? [flavorId] : []
   if (extras.length > 0) {
     return (
       <span aria-hidden="true" className="flex shrink-0 -space-x-3">

@@ -180,8 +180,8 @@ describe('regras dos grupos', () => {
 })
 
 describe('produtos e categorias', () => {
-  it('existe um produto para cada categoria de Monte seu Pedido', () => {
-    expect(Object.keys(PRODUCTS)).toEqual(CATEGORIES.map((category) => category.slug))
+  it('existe um produto para cada categoria e para os dois das gavetas (Pote 1 L Montado e Barca)', () => {
+    expect(Object.keys(PRODUCTS)).toEqual([...CATEGORIES.map((category) => category.slug), 'pote-de-acai-1-litro', 'barca-de-acai'])
     for (const category of CATEGORIES) {
       expect(PRODUCTS[category.slug].name).toBe(category.name)
     }

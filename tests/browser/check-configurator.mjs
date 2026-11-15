@@ -254,9 +254,13 @@ try {
     check(`${at} Esc também volta sem adicionar`, await browser.evaluate(`[__confirm().open, __cartCount()]`), [false, '0'])
     await click(`__buttonStarting('Adicionar ao carrinho')`)
     await click(`__confirmButton('continuar comprando')`)
-    await waitFor(`location.pathname === '/monte-seu-pedido' && document.body.textContent.includes('adicionado ao carrinho')`)
+    await waitFor(`location.pathname === '/monte-seu-pedido' && document.body.textContent.includes('Adicionado ao carrinho')`)
     check(`${at} "continuar comprando" volta ao cardápio`, await browser.evaluate(`location.pathname`), '/monte-seu-pedido')
-    check(`${at} aviso de item adicionado e carrinho com 1`, await browser.evaluate(`[__text().includes('Açaí Tradicional adicionado ao carrinho.'), __cartCount()]`), [true, '1'])
+    check(
+      `${at} aviso de item adicionado e carrinho com 1`,
+      await browser.evaluate(`[document.querySelector('[role=status].fixed')?.textContent.includes('Adicionado ao carrinhoAçaí Tradicional'), __cartCount()]`),
+      [true, '1'],
+    )
 
     // --- Açaí Oca ---
     await page('/monte-seu-pedido/acai-oca', viewport)

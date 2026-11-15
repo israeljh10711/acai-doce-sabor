@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { PRODUCTS } from '../catalog/menu.ts'
 import { EMPTY_SELECTION, type Selection, addTopping, chooseFlavor, chooseSize, priceOf } from '../catalog/selection.ts'
 import {
+  type Cart,
   EMPTY_CART,
+  type ProductCartItem,
   MAX_ITEM_QUANTITY,
   addItem,
   cartCount,
@@ -21,6 +23,13 @@ import {
 } from './cart.ts'
 
 type Slug = keyof typeof PRODUCTS
+
+/** O item na posição, que precisa ser um produto montado. */
+function productAt(cart: Cart, index: number): ProductCartItem {
+  const item = cart.items[index]
+  if (item.kind !== 'product') throw new Error(`item ${index} não é um produto montado`)
+  return item
+}
 
 /** Montagem pronta: tamanho, sabor (se houver) e ingredientes, na ordem dada. */
 function built(slug: Slug, sizeId: string, toppings: string[] = [], flavorId?: string): Selection {
@@ -68,8 +77,8 @@ describe('itens independentes', () => {
     const second = addTopping(product, addTopping(product, first, 'banana'), 'creme-de-avela')
     cart = addItem(cart, 'acai-tradicional', second, 'b').cart
 
-    expect(cart.items[0].selection.toppings).toEqual({ granola: 1 })
-    expect(cart.items[1].selection.toppings).toEqual({ granola: 1, banana: 1, 'creme-de-avela': 1 })
+    expect(productAt(cart, 0).selection.toppings).toEqual({ granola: 1 })
+    expect(productAt(cart, 1).selection.toppings).toEqual({ granola: 1, banana: 1, 'creme-de-avela': 1 })
   })
 
   it('o item guardado não pode ser alterado por fora', () => {
@@ -84,8 +93,8 @@ describe('itens independentes', () => {
     cart = addItem(cart, 'acai-oca', built('acai-oca', 'pote-200', ['granola']), 'b').cart
     cart = updateItem(cart, 'b', built('acai-oca', 'isopor-gg', ['pacoca', 'morango']))
 
-    expect(cart.items[0].selection).toMatchObject({ sizeId: 'pote-200', toppings: { granola: 1 } })
-    expect(cart.items[1].selection).toMatchObject({ sizeId: 'isopor-gg', toppings: { pacoca: 1, morango: 1 } })
+    expect(productAt(cart, 0).selection).toMatchObject({ sizeId: 'pote-200', toppings: { granola: 1 } })
+    expect(productAt(cart, 1).selection).toMatchObject({ sizeId: 'isopor-gg', toppings: { pacoca: 1, morango: 1 } })
   })
 
   it('edição incompleta é ignorada', () => {
@@ -194,7 +203,7 @@ describe('guardar no aparelho', () => {
     )
     const restored = parseCart(serializeCart(cart))
     expect(restored.items).toEqual(cart.items)
-    expect(Object.keys(restored.items[0].selection.toppings)).toEqual(['granola', 'pacoca', 'kiwi', 'kit-kat'])
+    expect(Object.keys(productAt(restored, 0).selection.toppings)).toEqual(['granola', 'pacoca', 'kiwi', 'kit-kat'])
   })
 
   it('ignora dado corrompido, versão desconhecida e itens inválidos', () => {
@@ -215,7 +224,7 @@ describe('guardar no aparelho', () => {
     const cart = parseCart(raw)
     expect(cart.items.map((item) => item.id)).toEqual(['ok', 'qtd'])
     expect(cart.items[1].quantity).toBe(MAX_ITEM_QUANTITY)
-    expect(cart.items[1].selection.toppings).toEqual({ cereja: 10 })
+    expect(productAt(cart, 1).selection.toppings).toEqual({ cereja: 10 })
   })
 
   it('carrinho guardado com Biscoito (saiu do cardápio) volta sem ele', () => {
@@ -235,7 +244,7 @@ describe('guardar no aparelho', () => {
         },
       ],
     })
-    expect(parseCart(raw).items[0].selection.toppings).toEqual({ granola: 1 })
+    expect(productAt(parseCart(raw), 0).selection.toppings).toEqual({ granola: 1 })
   })
 })
 

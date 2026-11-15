@@ -1,18 +1,19 @@
 import { m } from 'motion/react'
-import { type RefObject, useEffect, useRef } from 'react'
-import { ArrowRight, Bag, Pencil } from '../../components/ui/icons.tsx'
+import { type ReactNode, type RefObject, useEffect, useRef } from 'react'
+import { ArrowLeft, ArrowRight, Bag, Pencil } from '../../components/ui/icons.tsx'
 import { formatBRL } from '../../utils/money.ts'
-import { choiceText, summarizeSelection } from '../cart/cart.ts'
-import type { Product } from '../catalog/menu.ts'
-import { ProductPhoto } from '../catalog/ProductPhoto.tsx'
-import type { Selection } from '../catalog/selection.ts'
-
-const list = new Intl.ListFormat('pt-BR', { style: 'long', type: 'conjunction' })
+import type { ConfirmSummary } from './confirmSummary.ts'
 
 type ConfirmItemDialogProps = {
   open: boolean
-  product: Product
-  selection: Selection
+  summary: ConfirmSummary
+  /** Foto ou emblema do item. */
+  visual: ReactNode
+  /**
+   * Texto do botão que fecha sem adicionar. "Voltar e editar" quando há o que editar (volta com
+   * tudo marcado); "Voltar" nos itens sem escolha.
+   */
+  backLabel?: 'Voltar e editar' | 'Voltar'
   onAddAndGoToCart: () => void
   onAddAndContinue: () => void
   /** Fecha sem adicionar, com as escolhas intactas (botão, Esc ou toque fora da janela). */
@@ -26,12 +27,14 @@ const action =
 
 /**
  * Confirmação antes de pôr o item no carrinho (pedido de 2026-11-14): tudo o que foi escolhido,
- * o valor e três saídas. "Voltar e editar" não adiciona nem apaga nada.
+ * o valor e três saídas. Voltar não adiciona nem apaga nada. Serve aos produtos do personalizador
+ * e aos itens das gavetas de "Mais opções do cardápio" (pedido de 2026-11-15).
  */
 export function ConfirmItemDialog({
   open,
-  product,
-  selection,
+  summary,
+  visual,
+  backLabel = 'Voltar e editar',
   onAddAndGoToCart,
   onAddAndContinue,
   onBack,
@@ -50,12 +53,6 @@ export function ConfirmItemDialog({
       element.close()
     }
   }, [open])
-
-  const summary = summarizeSelection(product.slug, selection)
-  const rows = [
-    ...(summary.flavorName ? [{ label: 'Sabor', value: summary.flavorName }] : []),
-    ...summary.sections.map((section) => ({ label: section.label, value: list.format(section.items.map(choiceText)) })),
-  ]
 
   return (
     <dialog
@@ -86,31 +83,29 @@ export function ConfirmItemDialog({
 
           <div id="confirmar-item-resumo" className="overflow-y-auto px-5 pt-5 pb-4">
             <div className="flex items-center gap-4">
-              <div className="size-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line">
-                <ProductPhoto slug={product.slug} sizes="80px" className="size-full" decorative />
-              </div>
+              <div className="size-20 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line">{visual}</div>
               <div className="min-w-0">
-                <p className="text-xs font-bold tracking-wide text-ink-soft uppercase">Produto e tamanho</p>
-                <p className="font-display text-lg leading-snug font-black text-acai-800">
-                  {summary.productName} — {summary.sizeLabel}
-                </p>
+                <p className="text-xs font-bold tracking-wide text-ink-soft uppercase">{summary.eyebrow}</p>
+                <p className="font-display text-lg leading-snug font-black text-acai-800">{summary.title}</p>
               </div>
             </div>
 
-            <dl className="mt-4 divide-y divide-line border-y border-line">
-              {rows.map((row) => (
-                <div key={row.label} className="py-2.5">
-                  <dt className="text-xs font-bold tracking-wide text-ink-soft uppercase">{row.label}</dt>
-                  <dd className="mt-0.5 font-semibold text-acai-950">{row.value}</dd>
-                </div>
-              ))}
-              {rows.length === 0 && (
-                <div className="py-2.5">
-                  <dt className="sr-only">Ingredientes</dt>
-                  <dd className="text-ink-soft">Sem adicionais, frutas nem caldas.</dd>
-                </div>
-              )}
-            </dl>
+            {(summary.rows.length > 0 || summary.emptyText) && (
+              <dl className="mt-4 divide-y divide-line border-y border-line">
+                {summary.rows.map((row) => (
+                  <div key={row.label} className="py-2.5">
+                    <dt className="text-xs font-bold tracking-wide text-ink-soft uppercase">{row.label}</dt>
+                    <dd className="mt-0.5 font-semibold text-acai-950">{row.value}</dd>
+                  </div>
+                ))}
+                {summary.rows.length === 0 && (
+                  <div className="py-2.5">
+                    <dt className="sr-only">Ingredientes</dt>
+                    <dd className="text-ink-soft">{summary.emptyText}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
 
             <p className="mt-4 flex items-baseline justify-between gap-3 rounded-2xl bg-gold-100 px-4 py-3 text-acai-950 ring-1 ring-gold-400">
               <span className="font-bold">Valor do item:</span>
@@ -140,8 +135,8 @@ export function ConfirmItemDialog({
               onClick={() => dialog.current?.close()}
               className={`text-acai-800 ring-1 ring-acai-800/35 transition hover:bg-acai-100 ${action}`}
             >
-              <Pencil className="size-4" />
-              Voltar e editar
+              {backLabel === 'Voltar' ? <ArrowLeft className="size-4" /> : <Pencil className="size-4" />}
+              {backLabel}
             </button>
           </div>
         </m.div>
