@@ -6,6 +6,9 @@ import { cartActions } from '../cart/cartStore.ts'
 import { ConfirmItemDialog } from '../configurator-core/ConfirmItemDialog.tsx'
 import { extraSummary } from '../configurator-core/confirmSummary.ts'
 import type { AddedItemState } from '../configurator-core/OrderSummary.tsx'
+import { FloatingOfferToast } from '../offers/FloatingOfferToast.tsx'
+import type { OfferNotification } from '../offers/offerNotifications.ts'
+import { useOfferScheduler } from '../offers/useOfferScheduler.ts'
 import { type AddedNotice, AddedToast } from './AddedToast.tsx'
 import { CATEGORIES } from './categories.ts'
 import { CategoryNav, type NavTarget } from './CategoryNav.tsx'
@@ -46,7 +49,9 @@ type MenuBrowserProps = {
  * O cardápio inteiro, igual no início e na página Cardápio (pedido de 2026-11-15):
  * busca, barra fixa de atalhos, a vitrine dos 4 produtos e as 5 gavetas de "Mais opções".
  * Os itens das gavetas passam pela escolha de sabor (quando têm) e pela mesma confirmação do
- * personalizador antes de entrar no carrinho.
+ * personalizador antes de entrar no carrinho. De tempos em tempos, uma notificação flutuante
+ * mostra uma das 12 ofertas escolhidas (`features/offers`); ela some enquanto há janela aberta,
+ * texto na busca ou o aviso de item adicionado.
  */
 export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, className = 'py-10 sm:py-14' }: MenuBrowserProps) {
   const location = useLocation()
@@ -165,6 +170,27 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
     else notify(item.name)
   }
 
+  /* Notificações de ofertas: param com janela aberta, busca digitada ou aviso do carrinho. */
+  const offers = useOfferScheduler(flow !== null || query.trim().length > 0 || notice !== null)
+
+  const takeOffer = (offer: OfferNotification) => {
+    offers.scheduler.accept()
+    const { item, slug } = offer
+    if (slug) {
+      navigate(paths.configurator(slug))
+      return
+    }
+    if (!item) return
+    if (item.action.type === 'customizer') {
+      navigate(paths.configurator(item.action.product))
+      return
+    }
+    // A janela devolve o foco ao botão do item, quando ele está na tela, ou ao conteúdo.
+    const button =
+      document.querySelector<HTMLElement>(`[data-item="${item.id}"] button`) ?? document.getElementById('conteudo')
+    if (button) choose(item, button)
+  }
+
   /* O que aparece */
   const views: DrawerView[] = DRAWERS.flatMap((drawer) => {
     const items = searching ? result.drawers.get(drawer.id) : EXTRA_ITEMS.filter((item) => item.drawer === drawer.id)
@@ -243,6 +269,14 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
         opener={opener}
       />
       <AddedToast notice={notice} onDismiss={dismiss} />
+      <FloatingOfferToast
+        offer={offers.offer}
+        snapshot={offers.snapshot}
+        onAccept={takeOffer}
+        onDismiss={() => offers.scheduler.dismiss()}
+        onHold={(held) => offers.scheduler.setHeld(held)}
+        onReactivate={() => offers.scheduler.reactivate()}
+      />
     </>
   )
 }

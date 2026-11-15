@@ -99,6 +99,12 @@ const routes = [
   { path: '/carrinho', label: 'carrinho com item das gavetas', setup: `__wait(300)` },
   '/monte-seu-pedido/pote-de-acai-1-litro',
   '/monte-seu-pedido/barca-de-acai',
+  // Notificação flutuante de oferta (aparece 4 s depois de abrir a página).
+  {
+    path: '/monte-seu-pedido',
+    label: 'notificação de oferta',
+    setup: `(async () => { for (let i = 0; i < 100 && !document.querySelector('aside[aria-label="Oferta"]'); i++) await __wait(100); await __wait(500); return !!document.querySelector('aside[aria-label="Oferta"]') })()`,
+  },
 ]
 const viewports = [
   { width: 390, height: 844 },
