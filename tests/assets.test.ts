@@ -125,6 +125,22 @@ describe('arquivos de imagem', () => {
     }
   })
 
+  it('fotos inteiras nos cartões quadrados: as artes com texto e as embalagens que o corte tiraria (2026-11-16)', () => {
+    expect(
+      Object.entries(PHOTO_INFO)
+        .filter(([, info]) => info.fit === 'contain')
+        .map(([file]) => file)
+        .sort(),
+    ).toEqual([
+      'combo-1-litro.jpg',
+      'combo-de-sorvete.jpg',
+      'fini-gelatinas.jpg',
+      'kit-completo-casquinha-duo.jpg',
+      'picole-gourmet.jpg',
+      'refrigerante-350ml.jpg',
+    ])
+  })
+
   it('a miniatura de cada uma das 12 notificações de oferta existe e é uma imagem válida', () => {
     expect(FEATURED_OFFER_NOTIFICATIONS).toHaveLength(12)
     for (const offer of FEATURED_OFFER_NOTIFICATIONS) {
