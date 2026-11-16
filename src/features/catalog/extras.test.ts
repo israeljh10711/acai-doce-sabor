@@ -104,8 +104,62 @@ describe('gavetas de "Mais opções do cardápio"', () => {
     }
   })
 
-  it('nenhum item tem foto ainda: todos com image null (o cartão mostra o emblema)', () => {
-    expect(EXTRA_ITEMS.filter((item) => item.image !== null)).toEqual([])
+  it('todo item tem a foto do pedido de 2026-11-15 em images/catalogo, local, com texto alternativo', () => {
+    // Nomes do pedido. Fotos de comida em JPG (o pedido dizia .png em algumas: em PNG cada uma
+    // pesaria de 0,7 a 1,7 MB); PNG só nas embalagens inteiras e nas montagens dos combos.
+    const FOTOS: Record<string, string> = {
+      'kit-completo-casquinha': 'kit-completo-casquinha.png',
+      'kit-completo': 'kit-completo.png',
+      'pote-de-acai-1-litro': 'pote-acai-1l-montado.jpg',
+      'combo-1-litro': 'combo-1-litro.png',
+      'combo-de-sorvete': 'combo-sorvete.jpg',
+      'barca-de-acai': 'barca-acai.jpg',
+      'pote-de-acai-2-litros': 'pote-acai-2l.jpg',
+      'acai-de-1-litro': 'acai-1-litro.jpg',
+      'pote-de-sorvete-1-5-litro': 'pote-sorvete-1-5l.jpg',
+      'pote-de-sorvete-2-litros-especiais': 'pote-sorvete-2l-especiais.jpg',
+      'pote-de-sorvete-2-litros-tradicional': 'pote-sorvete-2l-tradicional.jpg',
+      'pote-de-sorvete-1-litro-especiais': 'pote-sorvete-1l-especiais.jpg',
+      'pote-de-sorvete-1-litro-tradicional': 'pote-sorvete-1l-tradicional.jpg',
+      'acai-com-creme-ninho': 'acai-creme-ninho-pronto.jpg',
+      'acai-mix-150-ml': 'acai-mix-150ml.jpg',
+      'copo-diamante-negro': 'copo-diamante-negro.jpg',
+      'copao-400-ml': 'copao-400ml.jpg',
+      sundae: 'sundae.jpg',
+      'cascao-duo': 'cascao-duo.jpg',
+      'cobertura-sterbom': 'cobertura-sterbom.jpg',
+      moreninha: 'moreninha.jpg',
+      'picole-trufado': 'picole-trufado.jpg',
+      'picole-gourmet': 'picole-gourmet.jpg',
+      garrafinha: 'garrafinha.jpg',
+      'roscao-mel': 'roscao-mel.jpg',
+      'picole-comum': 'picole-comum.jpg',
+      cremosinho: 'cremosinho.jpg',
+      'refrigerante-350-ml': 'refrigerante-350ml.jpg',
+      'agua-mineral-500-ml': 'agua-mineral-500ml.jpg',
+      'quadradinho-de-brownie': 'quadradinho-brownie.jpg',
+      pippos: 'pippos.jpg',
+      trufas: 'trufas.jpg',
+      trident: 'trident.png',
+      'batom-ao-leite': 'batom-ao-leite.jpg',
+      mentos: 'mentos.png',
+      halls: 'halls.png',
+      'pipoca-kigarot-75g': 'pipoca-kigarot-75g.jpg',
+      'pipoca-kigarot-45g': 'pipoca-kigarot-45g.jpg',
+      'fini-gelatinas': 'fini-gelatinas.png',
+      'docile-canudinho': 'docile-canudinho.jpg',
+      jujuba: 'jujuba.jpg',
+      nucita: 'nucita.png',
+      'chocolate-recheado': 'chocolate-recheado.jpg',
+    }
+    expect(Object.fromEntries(EXTRA_ITEMS.map((item) => [item.id, item.image]))).toEqual(
+      Object.fromEntries(Object.entries(FOTOS).map(([id, file]) => [id, `images/catalogo/${file}`])),
+    )
+    for (const item of EXTRA_ITEMS) {
+      expect(item.image, item.id).not.toMatch(/^(https?:)?\/\//)
+      expect(item.imageAlt.trim().length, item.id).toBeGreaterThan(10)
+    }
+    expect(new Set(EXTRA_ITEMS.map((item) => item.image)).size, 'uma foto diferente por item').toBe(EXTRA_ITEMS.length)
   })
 
   it('o tipo de cada item segue o pedido: direto, escolha de sabor ou personalizador', () => {

@@ -3,7 +3,7 @@
  *
  * Uso (na pasta do projeto):
  *   npm install --no-save sharp
- *   node scripts/fotos/preparar.mjs [loja | miniaturas | produtos] [arquivos...]
+ *   node scripts/fotos/preparar.mjs [loja | miniaturas | produtos | catalogo] [arquivos...]
  *
  * Com nomes de arquivo depois de `loja`, ou de produto depois de `produtos` (ex.: `milkshake`),
  * refaz só esses (os outros ficam como estão).
@@ -16,9 +16,13 @@
  * - `produtos`: a foto fixa de cada produto, enviada pela loja (`assets/fotos-loja/produtos/`).
  *   Sai em `public/images/produtos/` só com a margem branca acertada: nada do produto é cortado.
  *
+ * - `catalogo` (só quando pedido): as fotos dos 43 itens das gavetas, de bancos com licença
+ *   comercial (`catalogo.json`), em `public/images/catalogo/`. Ver a seção "Fotos do cardápio".
+ *
  * Os originais de banco são baixados uma vez para `scripts/fotos/.originais/` (fora do Git).
  * As imagens derivadas de fotos CC BY-SA seguem a mesma licença (ver `public/images/CREDITOS.md`).
  */
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -398,9 +402,238 @@ async function products(only = []) {
   console.log('produtos ok:', names.length)
 }
 
+/* ---------- Fotos do cardápio (os 43 itens das gavetas) ---------- */
+
+/**
+ * Pedido de 2026-11-15: uma foto de qualidade para cada item das gavetas, de bancos com licença
+ * de uso comercial (fontes, autores e recortes em `catalogo.json`; créditos em /creditos). Saem em
+ * `public/images/catalogo/`, sempre quadradas: o arquivo de referência com o nome do pedido (JPG
+ * de até 1000 px; PNG de 800 px nas embalagens e nas composições) e as cópias leves
+ * `<nome>-480.webp` e `<nome>-960.webp`, que o site usa.
+ *
+ * - `recorte`: foto de comida, recortada em quadrado (preenche o quadro).
+ * - `inteira`: embalagem inteira sobre fundo branco, com margem (pode girar, nas balas em rolo).
+ * - `composicao`: combos montados com fotos recortadas (pote, casquinhas e o frasco de cobertura
+ *   que a loja enviou), vistos de cima sobre fundo de estúdio, com sombra suave.
+ *
+ * Só refaz o que pedir: `node scripts/fotos/preparar.mjs catalogo [arquivo...]`. Não mexe nas
+ * fotos enviadas pela loja (só lê as das coberturas, para as composições).
+ */
+const CATALOG = JSON.parse(readFileSync(join(ROOT, 'scripts/fotos/catalogo.json'), 'utf8'))
+const CATALOG_OUT = join(OUT, 'catalogo')
+const CATALOG_CACHE = join(CACHE, 'catalogo')
+const MASTER_SIDE = { jpg: 1000, png: 800 }
+const VARIANT_WIDTHS = [480, 960]
+
+async function catalogOriginal(key, url) {
+  mkdirSync(CATALOG_CACHE, { recursive: true })
+  // O nome do arquivo guardado leva um resumo do endereço: trocar a fonte baixa a foto nova.
+  const file = join(CATALOG_CACHE, `${key}-${createHash('sha1').update(url).digest('hex').slice(0, 10)}.img`)
+  for (let attempt = 1; !existsSync(file); attempt++) {
+    const response = await fetch(url, { headers: { 'User-Agent': UA } })
+    if (response.ok) {
+      writeFileSync(file, Buffer.from(await response.arrayBuffer()))
+    } else if (response.status === 429 && attempt < 5) {
+      // Muitos pedidos seguidos (Wikimedia): espera e tenta de novo.
+      await new Promise((resolve) => setTimeout(resolve, attempt * 15000))
+    } else {
+      throw new Error(`${key}: download falhou (${response.status})`)
+    }
+  }
+  // Gira conforme o EXIF (fotos de celular) antes de qualquer recorte.
+  return sharp(file).rotate().toBuffer()
+}
+
+/** Quadrado de lado `s` (fração do menor lado) com centro em (cx, cy), frações da foto. */
+async function squareOf(input, { cx, cy, s }) {
+  const meta = await sharp(input).metadata()
+  const side = Math.round(s * Math.min(meta.width, meta.height))
+  const left = Math.max(0, Math.min(meta.width - side, Math.round(cx * meta.width - side / 2)))
+  const top = Math.max(0, Math.min(meta.height - side, Math.round(cy * meta.height - side / 2)))
+  return sharp(input).extract({ left, top, width: side, height: side }).toBuffer()
+}
+
+/**
+ * Embalagem inteira, centralizada num quadrado branco (girada, se pedir). `margem`: fração do lado
+ * que a embalagem pode ocupar (as balas em rolo, giradas, vão quase até a borda).
+ */
+async function wholeOnWhite(input, { girar = 0, margem = 0.84 }, side) {
+  let piece = await sharp(input).flatten({ background: '#ffffff' }).trim({ background: '#ffffff', threshold: 18 }).toBuffer()
+  if (girar) piece = await sharp(piece).rotate(girar, { background: '#ffffff' }).toBuffer()
+  const inner = Math.round(side * margem)
+  const fitted = await sharp(piece).resize(inner, inner, { fit: 'inside' }).toBuffer()
+  const meta = await sharp(fitted).metadata()
+  return sharp({ create: { width: side, height: side, channels: 3, background: '#ffffff' } })
+    .composite([{ input: fitted, left: Math.round((side - meta.width) / 2), top: Math.round((side - meta.height) / 2) }])
+    .png()
+    .toBuffer()
+}
+
+/** Peça recortada do fundo claro ligado à borda (enchimento), com a borda suavizada. */
+async function cutLightBackground(input, { fill = 18, edge = 60 } = {}) {
+  const { data, info } = await sharp(input).removeAlpha().raw().toBuffer({ resolveWithObject: true })
+  const { width: w, height: h } = info
+  const n = w * h
+  const dist = new Uint8Array(n)
+  for (let p = 0; p < n; p++) dist[p] = 255 - Math.min(data[p * 3], data[p * 3 + 1], data[p * 3 + 2])
+  const background = new Uint8Array(n)
+  const stack = []
+  for (let x = 0; x < w; x++) stack.push(x, (h - 1) * w + x)
+  for (let y = 0; y < h; y++) stack.push(y * w, y * w + w - 1)
+  while (stack.length) {
+    const p = stack.pop()
+    if (background[p] || dist[p] > fill) continue
+    background[p] = 1
+    const x = p % w
+    if (x > 0) stack.push(p - 1)
+    if (x < w - 1) stack.push(p + 1)
+    if (p >= w) stack.push(p - w)
+    if (p < n - w) stack.push(p + w)
+  }
+  const touchesBackground = (p) => {
+    const x = p % w
+    return (x > 0 && background[p - 1]) || (x < w - 1 && background[p + 1]) || (p >= w && background[p - w]) || (p < n - w && background[p + w])
+  }
+  const out = Buffer.alloc(n * 4)
+  for (let p = 0; p < n; p++) {
+    const alpha = background[p] ? 0 : touchesBackground(p) ? smoothstep(fill, edge, dist[p]) : 1
+    for (let c = 0; c < 3; c++) out[p * 4 + c] = data[p * 3 + c]
+    out[p * 4 + 3] = Math.round(alpha * 255)
+  }
+  return sharp(out, { raw: { width: w, height: h, channels: 4 } }).trim().png().toBuffer()
+}
+
+/** Recorte redondo (a pilha de casquinhas vista de cima). */
+async function roundPiece(input, { cx, cy, r }) {
+  const meta = await sharp(input).metadata()
+  const side = Math.round(2 * r * Math.min(meta.width, meta.height))
+  const crop = await sharp(input)
+    .extract({ left: Math.round(cx * meta.width - side / 2), top: Math.round(cy * meta.height - side / 2), width: side, height: side })
+    .toBuffer()
+  const mask = Buffer.from(`<svg width="${side}" height="${side}"><circle cx="${side / 2}" cy="${side / 2}" r="${side / 2 - 2}" fill="#fff"/></svg>`)
+  return sharp(crop).ensureAlpha().composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer()
+}
+
+/** Sombra de estúdio: o contorno da peça, escurecido e desfocado. */
+async function softShadow(piece, { blur, opacity }) {
+  const meta = await sharp(piece).metadata()
+  const alpha = await sharp(piece).extractChannel('alpha').raw().toBuffer()
+  const rgba = Buffer.alloc(meta.width * meta.height * 4)
+  for (let i = 0; i < meta.width * meta.height; i++) rgba[i * 4 + 3] = Math.round(alpha[i] * opacity)
+  const pad = blur * 3
+  return sharp(rgba, { raw: { width: meta.width, height: meta.height, channels: 4 } })
+    .extend({ top: pad, bottom: pad, left: pad, right: pad, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .blur(blur)
+    .png()
+    .toBuffer()
+}
+
+/** Põe uma peça (centro x, y; largura w; giro) com a sombra embaixo, à direita (luz de cima à esquerda). */
+async function placePiece(layers, piece, { x, y, w, rotate = 0 }) {
+  let p = await sharp(piece).resize({ width: w }).png().toBuffer()
+  if (rotate) p = await sharp(p).rotate(rotate, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer()
+  const meta = await sharp(p).metadata()
+  const shadow = { dx: 12, dy: 15, blur: 16, opacity: 0.32 }
+  const pad = shadow.blur * 3
+  layers.push({
+    input: await softShadow(p, shadow),
+    left: Math.round(x - meta.width / 2 + shadow.dx - pad),
+    top: Math.round(y - meta.height / 2 + shadow.dy - pad),
+  })
+  layers.push({ input: p, left: Math.round(x - meta.width / 2), top: Math.round(y - meta.height / 2) })
+}
+
+/** Fundo de estúdio claro, com a luz no centro. */
+function studioBackground(side) {
+  const svg = `<svg width="${side}" height="${side}"><defs><radialGradient id="g" cx="50%" cy="42%" r="75%"><stop offset="0" stop-color="#fffdfa"/><stop offset="1" stop-color="#ece3d8"/></radialGradient></defs><rect width="${side}" height="${side}" fill="url(#g)"/></svg>`
+  return sharp(Buffer.from(svg)).png().toBuffer()
+}
+
+/** Posição de cada peça nas composições (lado de 800 px). O pote sai pela borda de baixo. */
+const COMPOSITIONS = {
+  'kit-casquinha': [
+    ['pote', { x: 235, y: 548, w: 360 }],
+    ['casquinhas', { x: 585, y: 222, w: 340 }],
+    ['cobertura', { x: 592, y: 612, w: 128, rotate: -62 }],
+  ],
+  'kit-completo': [
+    ['casquinhas', { x: 215, y: 222, w: 340 }],
+    ['pote', { x: 580, y: 548, w: 360 }],
+    ['cobertura', { x: 196, y: 618, w: 124, rotate: 62 }],
+  ],
+  'combo-1-litro': [
+    ['pote', { x: 250, y: 575, w: 320 }],
+    ['casquinhas', { x: 575, y: 330, w: 360 }],
+  ],
+}
+
+const catalogPieces = new Map()
+async function catalogPiece(key) {
+  if (catalogPieces.has(key)) return catalogPieces.get(key)
+  const source = CATALOG._pecas[key]
+  let piece
+  if (key === 'pote') {
+    // Forma preta do pote vista de cima, com a concha; corta a tigela de madeira do canto esquerdo.
+    const image = await catalogOriginal(`peca-${key}`, source.download)
+    const meta = await sharp(image).metadata()
+    const crop = await sharp(image)
+      .extract({ left: Math.round(0.16 * meta.width), top: 0, width: Math.round(0.84 * meta.width), height: meta.height })
+      .toBuffer()
+    piece = await cutLightBackground(crop, { fill: 22, edge: 70 })
+  } else if (key === 'casquinhas') {
+    piece = await roundPiece(await catalogOriginal(`peca-${key}`, source.download), { cx: 0.5, cy: 0.5, r: 0.48 })
+  } else {
+    piece = await cutLightBackground(join(ROOT, source.arquivoLoja), { fill: 10, edge: 50 })
+  }
+  catalogPieces.set(key, piece)
+  return piece
+}
+
+async function composition(entry) {
+  const side = MASTER_SIDE.png
+  const layers = []
+  for (const [role, spot] of COMPOSITIONS[entry.composicao]) {
+    const key = role === 'cobertura' ? entry.pecas.find((piece) => piece.startsWith('cobertura')) : role
+    await placePiece(layers, await catalogPiece(key), spot)
+  }
+  return sharp(await studioBackground(side)).composite(layers).png().toBuffer()
+}
+
+async function catalog(only = []) {
+  mkdirSync(CATALOG_OUT, { recursive: true })
+  const names = only.length ? only : Object.keys(CATALOG.fotos)
+  for (const name of names) {
+    const entry = CATALOG.fotos[name]
+    if (!entry) throw new Error(`Foto desconhecida em catalogo.json: ${name}`)
+    const ext = name.split('.').pop()
+    const side = MASTER_SIDE[ext]
+    let square
+    if (entry.composicao) square = await composition(entry)
+    else if (entry.inteira) square = await wholeOnWhite(await catalogOriginal(name, entry.download), entry.inteira, side)
+    else square = await squareOf(await catalogOriginal(name, entry.download), entry.recorte)
+
+    const base = name.replace(/\.(jpg|png)$/, '')
+    const master = sharp(square).resize(side, side, { withoutEnlargement: true })
+    if (ext === 'jpg') await master.flatten({ background: '#ffffff' }).jpeg({ quality: 84, mozjpeg: true }).toFile(join(CATALOG_OUT, name))
+    else await master.png({ compressionLevel: 9, palette: false }).toFile(join(CATALOG_OUT, name))
+    for (const width of VARIANT_WIDTHS) {
+      await sharp(square)
+        .resize(width, width)
+        .flatten({ background: '#ffffff' })
+        .webp({ quality: 82, effort: 6 })
+        .toFile(join(CATALOG_OUT, `${base}-${width}.webp`))
+    }
+    const size = await sharp(join(CATALOG_OUT, name)).metadata()
+    console.log(`${name}: ${size.width}x${size.height}`)
+  }
+  console.log('catálogo ok:', names.length)
+}
+
 /* ---------- Execução ---------- */
 
 const only = process.argv[2]
 if (!only || only === 'loja') await storePhotos(process.argv.slice(3))
 if (!only || only === 'miniaturas') await thumbnails()
 if (!only || only === 'produtos') await products(process.argv.slice(3))
+// Só quando pedido: `catalogo` baixa as fotos de banco das gavetas (uma vez) e refaz as cópias.
+if (only === 'catalogo') await catalog(process.argv.slice(3))

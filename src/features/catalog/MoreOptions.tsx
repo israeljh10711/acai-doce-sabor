@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { ArrowRight, ChevronDown, Plus } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
+import { drawerEmblem } from './emblems.ts'
 import { type Drawer, type DrawerId, type ExtraItem, choiceGroupsOf } from './extras.ts'
 import { ExtraVisual, ItemEmblem } from './ItemVisual.tsx'
 
@@ -111,7 +112,7 @@ function DrawerPanel({
           onClick={onToggle}
           className="flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-left shadow-card ring-1 ring-line transition hover:ring-acai-600/40 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 sm:gap-4 sm:px-4"
         >
-          <ItemEmblem emblem={{ icon: drawer.icon, seal: drawer.seal, tone: 'acai' }} size="sm" />
+          <ItemEmblem emblem={drawerEmblem(drawer)} size="sm" />
           <span className="min-w-0 flex-1 font-display text-lg leading-tight font-black tracking-tight text-acai-800 sm:text-xl">
             {drawer.title}
           </span>
@@ -160,7 +161,7 @@ function DrawerPanel({
 const actionClass =
   'btn-gold inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-sm font-extrabold whitespace-nowrap focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
 
-/** Cartão de um item: emblema (ou foto), nome, descrição, preço e o botão certo para o tipo. */
+/** Cartão de um item: foto, nome, descrição, preço e o botão certo para o tipo. */
 function ExtraItemCard({ item, level, onChoose }: { item: ExtraItem; level: Level; onChoose: MoreOptionsProps['onChoose'] }) {
   const nameId = `${item.id}-nome`
   const groups = choiceGroupsOf(item)

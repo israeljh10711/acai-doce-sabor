@@ -4,7 +4,6 @@ import { useMediaQuery } from '../../hooks/useMediaQuery.ts'
 import { formatBRL } from '../../utils/money.ts'
 import type { Product } from '../catalog/menu.ts'
 import { ILLUSTRATIVE_NOTICE } from '../catalog/notices.ts'
-import { hasProductPhoto } from '../catalog/emblems.ts'
 import { ProductVisual } from '../catalog/ItemVisual.tsx'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import type { ConfiguratorApi } from './useConfigurator.ts'
@@ -13,8 +12,9 @@ const pill =
   'inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
 
 /**
- * Prévia do pedido: a foto fixa e real do produto (enviada pela loja), o tamanho, os grátis e o
- * total. A foto não muda com os ingredientes nem com o recipiente escolhidos.
+ * Prévia do pedido: a foto fixa do produto (a enviada pela loja; no Pote 1 L Montado e na Barca, a
+ * foto da gaveta), o tamanho, os grátis e o total. A foto não muda com os ingredientes nem com o
+ * recipiente escolhidos.
  * - Celular: fica fixa no topo, compacta; "Ver foto" abre a foto grande.
  * - Computador: acompanha a rolagem.
  */
@@ -26,8 +26,6 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
   const [viewerOpen, setViewerOpen] = useState(false)
 
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
-  // Os produtos das gavetas ainda não têm foto: mostram o emblema, sem "Ver foto".
-  const hasPhoto = hasProductPhoto(product.slug)
   const hasFreeLimit = product.groups.includes('dry')
   const caption = cfg.size
     ? [cfg.size.name, flavor?.name].filter(Boolean).join(' · ')
@@ -59,33 +57,26 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
 
       {/* Celular: os dois botões numa linha só, para a prévia fixa ficar baixa. */}
       <div className="mt-2 flex gap-2 lg:hidden">
-        {hasPhoto && (
-          <button
-            ref={opener}
-            type="button"
-            onClick={() => {
-              setViewerOpen(true)
-              dialog.current?.showModal()
-            }}
-            className={`${pill} flex-1 justify-center bg-acai-800 text-white hover:bg-acai-700 active:scale-[0.97]`}
-          >
-            Ver foto
-            <Expand className="size-4" />
-          </button>
-        )}
-        <a
-          href="#resumo"
-          className={`${pill} btn-gold flex-1 justify-center ${hasPhoto ? 'hidden min-[360px]:inline-flex' : 'inline-flex'}`}
+        <button
+          ref={opener}
+          type="button"
+          onClick={() => {
+            setViewerOpen(true)
+            dialog.current?.showModal()
+          }}
+          className={`${pill} flex-1 justify-center bg-acai-800 text-white hover:bg-acai-700 active:scale-[0.97]`}
         >
+          Ver foto
+          <Expand className="size-4" />
+        </button>
+        <a href="#resumo" className={`${pill} btn-gold hidden flex-1 justify-center min-[360px]:inline-flex`}>
           Ver resumo
         </a>
       </div>
 
-      {hasPhoto && (
-        <p className="mt-2 text-xs leading-snug text-ink-soft lg:mt-4 lg:text-center lg:text-sm">{ILLUSTRATIVE_NOTICE}</p>
-      )}
+      <p className="mt-2 text-xs leading-snug text-ink-soft lg:mt-4 lg:text-center lg:text-sm">{ILLUSTRATIVE_NOTICE}</p>
 
-      {!isDesktop && hasPhoto && (
+      {!isDesktop && (
         <dialog
           ref={dialog}
           aria-labelledby="foto-pedido-titulo"

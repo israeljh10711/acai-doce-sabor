@@ -1,9 +1,10 @@
 import type { ComponentType } from 'react'
 import { Candy, CupSoda, Gift, IceCreamBowl, IceCreamCone, Popsicle } from '../../components/ui/icons.tsx'
 import { findCategoryBySlug } from './categories.ts'
-import { type Emblem, emblemOf } from './emblems.ts'
+import type { Emblem } from './emblems.ts'
 import { type EmblemIcon, type ExtraItem, extraForProduct } from './extras.ts'
 import type { ExtraProductSlug, ProductSlug } from './menu.ts'
+import { catalogPhotoSrc, catalogPhotoSrcSet } from './photos.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
 
 const ICONS: Record<EmblemIcon, ComponentType<{ className?: string }>> = {
@@ -15,27 +16,33 @@ const ICONS: Record<EmblemIcon, ComponentType<{ className?: string }>> = {
   candy: Candy,
 }
 
-type EmblemSize = 'sm' | 'md' | 'fill'
+type VisualSize = 'sm' | 'md' | 'fill'
 
-const BOX: Record<EmblemSize, string> = {
+const BOX: Record<VisualSize, string> = {
   sm: 'size-11 rounded-xl',
-  md: 'size-18 rounded-2xl',
+  md: 'size-24 rounded-2xl',
   fill: 'aspect-square w-full rounded-2xl',
 }
 
 // No tamanho "fill" o emblema ocupa o quadro em volta: o ícone acompanha a largura dele.
-const ICON_SIZE: Record<EmblemSize, string> = {
+const ICON_SIZE: Record<VisualSize, string> = {
   sm: 'size-6',
   md: 'size-8',
   fill: 'aspect-square h-auto w-[38%]',
 }
 
+/** Largura em que a foto aparece em cada tamanho (atributo `sizes`): o navegador escolhe a cópia. */
+const PHOTO_SIZES: Record<VisualSize, string> = {
+  sm: '44px',
+  md: '96px',
+  fill: '(min-width: 40rem) 160px, 112px',
+}
+
 /**
- * Emblema no lugar da foto, enquanto o item não tem foto real (pedido de 2026-11-15): o ícone da
- * categoria e um selo curto, em fundo lilás (ou dourado nas ofertas). É decorativo: o nome do
- * item está sempre ao lado.
+ * Emblema da gaveta (ícone e selo, em fundo lilás) no botão que abre cada gaveta. É decorativo:
+ * o título da gaveta está sempre ao lado.
  */
-export function ItemEmblem({ emblem, size = 'md', className = '' }: { emblem: Emblem; size?: EmblemSize; className?: string }) {
+export function ItemEmblem({ emblem, size = 'md', className = '' }: { emblem: Emblem; size?: VisualSize; className?: string }) {
   const Icon = ICONS[emblem.icon]
   const tone = emblem.tone === 'gold' ? 'bg-gold-400/25 ring-gold-400/60' : 'bg-acai-800/10 ring-acai-800/10'
   return (
@@ -56,22 +63,36 @@ export function ItemEmblem({ emblem, size = 'md', className = '' }: { emblem: Em
   )
 }
 
-/** Foto real do item das gavetas, quando houver; até lá, o emblema. */
-export function ExtraVisual({ item, size = 'md' }: { item: ExtraItem; size?: EmblemSize }) {
-  if (item.image) {
-    return (
-      <img
-        src={`${import.meta.env.BASE_URL}${item.image}`}
-        alt=""
-        width={72}
-        height={72}
-        loading="lazy"
-        decoding="async"
-        className={`shrink-0 bg-white object-cover ring-1 ring-line ${BOX[size]}`}
-      />
-    )
-  }
-  return <ItemEmblem emblem={emblemOf(item)} size={size} />
+type ExtraVisualProps = {
+  item: ExtraItem
+  size?: VisualSize
+  /** Largura em que a foto aparece, quando não é a padrão do tamanho. */
+  sizes?: string
+  /** Nos cartões e janelas o nome do item está ao lado: a foto é enfeite (sem texto alternativo). */
+  decorative?: boolean
+  /** Foto da primeira dobra: carregar já. */
+  priority?: boolean
+}
+
+/**
+ * Foto do item das gavetas (pedido de 2026-11-15): quadrada, preenchendo o quadro, na cópia leve
+ * (WebP de 480 ou 960 px) que serve ao tamanho em que aparece.
+ */
+export function ExtraVisual({ item, size = 'md', sizes, decorative = true, priority = false }: ExtraVisualProps) {
+  return (
+    <img
+      src={catalogPhotoSrc(item.image, 480)}
+      srcSet={catalogPhotoSrcSet(item.image)}
+      sizes={sizes ?? PHOTO_SIZES[size]}
+      alt={decorative ? '' : item.imageAlt}
+      width={480}
+      height={480}
+      loading={priority ? 'eager' : 'lazy'}
+      decoding="async"
+      data-item-photo={item.id}
+      className={`shrink-0 bg-white object-cover ring-1 ring-line ${BOX[size]}`}
+    />
+  )
 }
 
 type ProductVisualProps = {
@@ -83,8 +104,8 @@ type ProductVisualProps = {
 }
 
 /**
- * Foto fixa do produto do personalizador. Os que vêm das gavetas (Pote 1 L Montado, Barca)
- * ainda não têm foto e mostram o emblema da gaveta.
+ * Foto fixa do produto do personalizador: a enviada pela loja (Açaí Oca, Tradicional, Batido e
+ * Milk-shake) ou, nos que vêm das gavetas (Pote 1 L Montado, Barca), a foto do item da gaveta.
  */
 export function ProductVisual({ slug, sizes, className = '', priority, decorative }: ProductVisualProps) {
   const category = findCategoryBySlug(slug)
@@ -92,5 +113,5 @@ export function ProductVisual({ slug, sizes, className = '', priority, decorativ
     return <ProductPhoto slug={category.slug} sizes={sizes} className={className} priority={priority} decorative={decorative} />
   }
   const extra = extraForProduct(slug as ExtraProductSlug)
-  return <ExtraVisual item={extra} size="fill" />
+  return <ExtraVisual item={extra} size="fill" sizes={sizes} decorative={decorative ?? false} priority={priority} />
 }

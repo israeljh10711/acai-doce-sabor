@@ -125,6 +125,17 @@ try {
       [true, true, true, true],
     )
     check(`${at} a barra de tempo está correndo`, await run(`__q('[data-offer-bar]').getAnimations()[0]?.playState`), 'running')
+    check(
+      `${at} miniatura da foto do cardápio: 48 px, arredondada, carregada, sem texto alternativo`,
+      await run(`(async () => {
+        const img = __offer().querySelector('img[data-offer-photo]');
+        if (!img) return null;
+        await img.decode().catch(() => null);
+        const box = img.getBoundingClientRect();
+        return [Math.round(box.width) + 'x' + Math.round(box.height), parseFloat(getComputedStyle(img).borderTopLeftRadius) >= 10, img.naturalWidth > 0, img.alt, new URL(img.currentSrc).pathname.startsWith('/images/')];
+      })()`),
+      ['48x48', true, true, '', true],
+    )
     await click(`__q('button[aria-label="Fechar oferta"]')`)
     check(`${at} o X fecha na hora`, await waitFor(`__offer() === null`, 1000), true)
     check(`${at} o X conta um fechamento`, await run(`__memory().dismissed`), 1)
@@ -189,6 +200,13 @@ try {
       await open('/monte-seu-pedido', viewport, withOffer(id))
       await waitFor(`__offer()`, 9000)
       check(`${at} oferta ${id} na tela`, await run(`__offerId()`), id)
+      // Foto da gaveta preenchendo o quadro; a dos produtos principais (foto da loja), inteira.
+      const fit = id === 'acai-oca' || id === 'acai-batido' ? 'contain' : 'cover'
+      check(
+        `${at} ${id}: miniatura certa (${fit})`,
+        await run(`(async () => { const img = __offer().querySelector('img[data-offer-photo]'); await img.decode().catch(() => null); return [img.naturalWidth > 0, getComputedStyle(img).objectFit, new URL(img.currentSrc).pathname.split('/').pop()] })()`),
+        [true, fit, `${{ 'pote-de-acai-1-litro': 'pote-acai-1l-montado', 'barca-de-acai': 'barca-acai', 'acai-oca': 'acai-oca', 'acai-batido': 'acai-batido' }[id]}-480.webp`],
+      )
       await click(toastBody)
       check(`${at} ${id}: abre a montagem`, await waitFor(`location.pathname === '${path}' && __q('h1')`, 5000), true)
     }

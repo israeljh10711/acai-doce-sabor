@@ -1,0 +1,615 @@
+{
+  "_sobre": "Fotos dos 43 itens das gavetas (pedido de 2026-11-15). Todas com licença de uso comercial: Licença Pexels, CC0, domínio público, CC BY ou CC BY-SA (as derivadas de CC BY-SA seguem a mesma licença). recorte = quadrado (cx, cy: centro em frações; s: lado em fração do menor lado). inteira = embalagem inteira sobre fundo branco (girar em graus). composicao = montagem feita por preparar.mjs com as peças de _pecas. Os créditos aparecem em /creditos.",
+  "_pecas": {
+    "pote": {
+      "origem": "Pexels",
+      "titulo": "Scooped Chocolate Ice Cream in Black Container",
+      "autor": "Alisha Mishra",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/scooped-chocolate-ice-cream-in-black-container-1346341/",
+      "download": "https://images.pexels.com/photos/1346341/pexels-photo-1346341.jpeg?auto=compress&cs=tinysrgb&w=2000"
+    },
+    "casquinhas": {
+      "origem": "Pexels",
+      "titulo": "Pile of Ice Cream Cone",
+      "autor": "Karol D",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/pile-of-ice-cream-cone-787666/",
+      "download": "https://images.pexels.com/photos/787666/pexels-photo-787666.jpeg?auto=compress&cs=tinysrgb&w=2000"
+    },
+    "cobertura-chocolate": {
+      "origem": "Loja",
+      "titulo": "Cobertura sabor chocolate (foto enviada pela loja em 2026-11-14)",
+      "autor": "Açaí Doce Sabor",
+      "licenca": "Foto da loja",
+      "arquivoLoja": "public/images/ingredientes/cobertura-chocolate.png"
+    },
+    "cobertura-morango": {
+      "origem": "Loja",
+      "titulo": "Cobertura sabor morango (foto enviada pela loja em 2026-11-14)",
+      "autor": "Açaí Doce Sabor",
+      "licenca": "Foto da loja",
+      "arquivoLoja": "public/images/ingredientes/cobertura-morango.png"
+    }
+  },
+  "fotos": {
+    "kit-completo-casquinha.png": {
+      "item": "kit-completo-casquinha",
+      "composicao": "kit-casquinha",
+      "pecas": [
+        "pote",
+        "casquinhas",
+        "cobertura-chocolate"
+      ]
+    },
+    "kit-completo.png": {
+      "item": "kit-completo",
+      "composicao": "kit-completo",
+      "pecas": [
+        "pote",
+        "casquinhas",
+        "cobertura-morango"
+      ]
+    },
+    "pote-acai-1l-montado.jpg": {
+      "item": "pote-de-acai-1-litro",
+      "origem": "Pexels",
+      "titulo": "Close-up of an Acai Bowl",
+      "autor": "Saskia",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/close-up-of-an-acai-bowl-6637835/",
+      "download": "https://images.pexels.com/photos/6637835/pexels-photo-6637835.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "combo-1-litro.png": {
+      "item": "combo-1-litro",
+      "composicao": "combo-1-litro",
+      "pecas": [
+        "pote",
+        "casquinhas"
+      ]
+    },
+    "combo-sorvete.jpg": {
+      "item": "combo-de-sorvete",
+      "origem": "Pexels",
+      "titulo": "Two Ice Cream Cups",
+      "autor": "Teejay",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/two-ice-cream-cups-1362534/",
+      "download": "https://images.pexels.com/photos/1362534/pexels-photo-1362534.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.53,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "barca-acai.jpg": {
+      "item": "barca-de-acai",
+      "origem": "Pexels",
+      "titulo": "Refreshing Acai Bowl with Fresh Kiwi and Strawberry",
+      "autor": "Rodrigo Ortega",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/refreshing-acai-bowl-with-fresh-kiwi-and-strawberry-29173451/",
+      "download": "https://images.pexels.com/photos/29173451/pexels-photo-29173451.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.3,
+        "s": 0.82
+      }
+    },
+    "pote-acai-2l.jpg": {
+      "item": "pote-de-acai-2-litros",
+      "origem": "Wikimedia Commons",
+      "titulo": "Açaí do Pará.jpg",
+      "autor": "Túllio F",
+      "licenca": "CC BY-SA 4.0",
+      "pagina": "https://commons.wikimedia.org/wiki/File:A%C3%A7a%C3%AD_do_Par%C3%A1.jpg",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/6/6d/A%C3%A7a%C3%AD_do_Par%C3%A1.jpg",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.4,
+        "s": 1
+      }
+    },
+    "acai-1-litro.jpg": {
+      "item": "acai-de-1-litro",
+      "origem": "Wikimedia Commons",
+      "titulo": "Açaí na tigela 2.jpg",
+      "autor": "Melsj",
+      "licenca": "CC BY-SA 4.0",
+      "pagina": "https://commons.wikimedia.org/wiki/File:A%C3%A7a%C3%AD_na_tigela_2.jpg",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/f/f0/A%C3%A7a%C3%AD_na_tigela_2.jpg",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "pote-sorvete-1-5l.jpg": {
+      "item": "pote-de-sorvete-1-5-litro",
+      "origem": "Pexels",
+      "titulo": "Scoops of different ice cream on plate",
+      "autor": "Valeria Boltneva",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/scoops-of-different-ice-cream-on-plate-1683546/",
+      "download": "https://images.pexels.com/photos/1683546/pexels-photo-1683546.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.45,
+        "s": 1
+      }
+    },
+    "pote-sorvete-2l-especiais.jpg": {
+      "item": "pote-de-sorvete-2-litros-especiais",
+      "origem": "Pexels",
+      "titulo": "Ice Cream Dessert on Marble Surface",
+      "autor": "David Disponett",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/ice-cream-dessert-on-marble-surface-2161643/",
+      "download": "https://images.pexels.com/photos/2161643/pexels-photo-2161643.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.52,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "pote-sorvete-2l-tradicional.jpg": {
+      "item": "pote-de-sorvete-2-litros-tradicional",
+      "origem": "Pexels",
+      "titulo": "Ice Cream in Small Ceramic Bowls",
+      "autor": "DS stories",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/ice-cream-in-small-ceramic-bowls-9227979/",
+      "download": "https://images.pexels.com/photos/9227979/pexels-photo-9227979.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.47,
+        "s": 1
+      }
+    },
+    "pote-sorvete-1l-especiais.jpg": {
+      "item": "pote-de-sorvete-1-litro-especiais",
+      "origem": "Pexels",
+      "titulo": "Ice Cream on Bowl Beside Spoon",
+      "autor": "Alisha Mishra",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/ice-cream-on-bowl-beside-spoon-1343504/",
+      "download": "https://images.pexels.com/photos/1343504/pexels-photo-1343504.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 0.95
+      }
+    },
+    "pote-sorvete-1l-tradicional.jpg": {
+      "item": "pote-de-sorvete-1-litro-tradicional",
+      "origem": "Pexels",
+      "titulo": "Scoop of Chocolate Chip Ice Cream",
+      "autor": "Saher Suthriwala",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/scoop-of-chocolate-chip-ice-cream-8589559/",
+      "download": "https://images.pexels.com/photos/8589559/pexels-photo-8589559.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.4,
+        "s": 1
+      }
+    },
+    "acai-creme-ninho-pronto.jpg": {
+      "item": "acai-com-creme-ninho",
+      "origem": "Wikimedia Commons",
+      "titulo": "Acai bowl - Açaí na tigela.jpg",
+      "autor": "chahayes",
+      "licenca": "CC BY 2.0",
+      "pagina": "https://commons.wikimedia.org/wiki/File:Acai_bowl_-_A%C3%A7a%C3%AD_na_tigela.jpg",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Acai_bowl_-_A%C3%A7a%C3%AD_na_tigela.jpg",
+      "recorte": {
+        "cx": 0.48,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "acai-mix-150ml.jpg": {
+      "item": "acai-mix-150-ml",
+      "origem": "Wikimedia Commons",
+      "titulo": "The small acai bowl..in a cup",
+      "autor": "Janine from Mililani, Hawaii, United States",
+      "licenca": "CC BY 2.0",
+      "pagina": "https://commons.wikimedia.org/w/index.php?curid=23234142",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/1/19/The_small_acai_bowl..in_a_cup.jpg",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "copo-diamante-negro.jpg": {
+      "item": "copo-diamante-negro",
+      "origem": "Pexels",
+      "titulo": "Chocolate Pudding in the Shadow",
+      "autor": "Abdulvahap Demir",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/chocolate-pudding-in-the-shadow-19806623/",
+      "download": "https://images.pexels.com/photos/19806623/pexels-photo-19806623.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.55,
+        "s": 1
+      }
+    },
+    "copao-400ml.jpg": {
+      "item": "copao-400-ml",
+      "origem": "Pexels",
+      "titulo": "Ice Cream Scoops in Bowl",
+      "autor": "Adriel Macedo",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/ice-cream-scoops-in-bowl-16015237/",
+      "download": "https://images.pexels.com/photos/16015237/pexels-photo-16015237.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "sundae.jpg": {
+      "item": "sundae",
+      "origem": "Pexels",
+      "titulo": "Ice Cream With Chocolate Syrup on Clear Glass Bowl",
+      "autor": "Suman Roy",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/ice-cream-with-chocolate-syrup-on-clear-glass-bowl-8585804/",
+      "download": "https://images.pexels.com/photos/8585804/pexels-photo-8585804.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "cascao-duo.jpg": {
+      "item": "cascao-duo",
+      "origem": "Pexels",
+      "titulo": "Vanilla Ice Cream on Cone",
+      "autor": "K.",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/vanilla-ice-cream-on-cone-12635411/",
+      "download": "https://images.pexels.com/photos/12635411/pexels-photo-12635411.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.42,
+        "s": 1
+      }
+    },
+    "cobertura-sterbom.jpg": {
+      "item": "cobertura-sterbom",
+      "origem": "Pexels",
+      "titulo": "Chocolate syrup dropping on delicious ice cream",
+      "autor": "Geraud pfeiffer",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/chocolate-syrup-dropping-on-delicious-ice-cream-6542780/",
+      "download": "https://images.pexels.com/photos/6542780/pexels-photo-6542780.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.56,
+        "s": 1
+      }
+    },
+    "moreninha.jpg": {
+      "item": "moreninha",
+      "origem": "Pexels",
+      "titulo": "A Hand Holding an Ice Cream Cone",
+      "autor": "Nick Mayer",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/a-hand-holding-an-ice-cream-cone-7761774/",
+      "download": "https://images.pexels.com/photos/7761774/pexels-photo-7761774.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.42,
+        "s": 1
+      }
+    },
+    "picole-trufado.jpg": {
+      "item": "picole-trufado",
+      "origem": "Pexels",
+      "titulo": "Close up of Bitten Ice Cream",
+      "autor": "Polina Tankilevitch",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/close-up-of-bitten-ice-cream-4725715/",
+      "download": "https://images.pexels.com/photos/4725715/pexels-photo-4725715.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.53,
+        "s": 0.55
+      }
+    },
+    "picole-gourmet.jpg": {
+      "item": "picole-gourmet",
+      "origem": "Pexels",
+      "titulo": "Ice Creams on White Background",
+      "autor": "Polina Tankilevitch",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/ice-creams-on-white-background-4725706/",
+      "download": "https://images.pexels.com/photos/4725706/pexels-photo-4725706.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "garrafinha.jpg": {
+      "item": "garrafinha",
+      "origem": "Wikimedia Commons",
+      "titulo": "Pineapple ice candy (Philippines) 01.jpg",
+      "autor": "Obsidian Soul",
+      "licenca": "CC BY-SA 4.0",
+      "pagina": "https://commons.wikimedia.org/wiki/File:Pineapple_ice_candy_(Philippines)_01.jpg",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/6/66/Pineapple_ice_candy_%28Philippines%29_01.jpg",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "roscao-mel.jpg": {
+      "item": "roscao-mel",
+      "origem": "Pexels",
+      "titulo": "Ice Cream in Paper Cup Decorated with Cone and Peanuts",
+      "autor": "ROMAN ODINTSOV",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/ice-cream-in-paper-cup-decorated-with-cone-and-peanuts-5060292/",
+      "download": "https://images.pexels.com/photos/5060292/pexels-photo-5060292.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.56,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "picole-comum.jpg": {
+      "item": "picole-comum",
+      "origem": "Pexels",
+      "titulo": "Colorful ice cream on blue background",
+      "autor": "Ave Calvar Martinez",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/colorful-ice-cream-on-blue-background-4705113/",
+      "download": "https://images.pexels.com/photos/4705113/pexels-photo-4705113.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.4,
+        "s": 1
+      }
+    },
+    "cremosinho.jpg": {
+      "item": "cremosinho",
+      "origem": "Wikimedia Commons",
+      "titulo": "Home-made pineapple and chocolate ice candy (Philippines).jpg",
+      "autor": "Obsidian Soul",
+      "licenca": "CC0",
+      "pagina": "https://commons.wikimedia.org/wiki/File:Home-made_pineapple_and_chocolate_ice_candy_(Philippines).jpg",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Home-made_pineapple_and_chocolate_ice_candy_%28Philippines%29.jpg",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "refrigerante-350ml.jpg": {
+      "item": "refrigerante-350-ml",
+      "origem": "Pexels",
+      "titulo": "Close-Up Shot of a Canned Coca-Cola",
+      "autor": "Hadis Padidaran",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/close-up-shot-of-a-canned-coca-cola-7429792/",
+      "download": "https://images.pexels.com/photos/7429792/pexels-photo-7429792.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "agua-mineral-500ml.jpg": {
+      "item": "agua-mineral-500-ml",
+      "origem": "Pexels",
+      "titulo": "A Person Holding a Water Bottle with a Blank Label",
+      "autor": "MART PRODUCTION",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/a-person-holding-a-water-bottle-with-a-blank-label-8217497/",
+      "download": "https://images.pexels.com/photos/8217497/pexels-photo-8217497.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.48,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "quadradinho-brownie.jpg": {
+      "item": "quadradinho-de-brownie",
+      "origem": "Pexels",
+      "titulo": "Close-Up Photo Of Stacked Brownies On Chopping Board",
+      "autor": "Marta Dzedyshko",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/close-up-photo-of-stacked-brownies-on-chopping-board-2067396/",
+      "download": "https://images.pexels.com/photos/2067396/pexels-photo-2067396.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.45,
+        "s": 1
+      }
+    },
+    "pippos.jpg": {
+      "item": "pippos",
+      "origem": "Pexels",
+      "titulo": "Delicious Potato Chips",
+      "autor": "Srattha Nualsate",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/delicious-potato-chips-13060681/",
+      "download": "https://images.pexels.com/photos/13060681/pexels-photo-13060681.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "trufas.jpg": {
+      "item": "trufas",
+      "origem": "Pexels",
+      "titulo": "Delicious Chocolate Truffles on Rustic Wood",
+      "autor": "Jessica Lewis (thepaintedsquare)",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/delicious-chocolate-truffles-on-rustic-wood-39889190/",
+      "download": "https://images.pexels.com/photos/39889190/pexels-photo-39889190.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.28,
+        "cy": 0.5,
+        "s": 0.85
+      }
+    },
+    "trident.png": {
+      "item": "trident",
+      "origem": "Open Food Facts",
+      "titulo": "Trident sem açúcar, canela, 8 g (7895800304235)",
+      "autor": "nebenmond (Open Food Facts)",
+      "licenca": "CC BY-SA 3.0",
+      "pagina": "https://world.openfoodfacts.org/product/7895800304235",
+      "download": "https://images.openfoodfacts.org/images/products/789/580/030/4235/front_pt.13.full.jpg",
+      "inteira": {
+        "girar": 0
+      }
+    },
+    "batom-ao-leite.jpg": {
+      "item": "batom-ao-leite",
+      "origem": "Pexels",
+      "titulo": "Close-Up Photograph of Broken Chocolate Bars",
+      "autor": "hello aesthe",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/close-up-photograph-of-broken-chocolate-bars-9045832/",
+      "download": "https://images.pexels.com/photos/9045832/pexels-photo-9045832.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.55,
+        "s": 1
+      }
+    },
+    "mentos.png": {
+      "item": "mentos",
+      "origem": "Open Food Facts",
+      "titulo": "Mentos Fruit (87108026)",
+      "autor": "duhowpi (Open Food Facts)",
+      "licenca": "CC BY-SA 3.0",
+      "pagina": "https://world.openfoodfacts.org/product/87108026",
+      "download": "https://images.openfoodfacts.org/images/products/000/008/710/8026/front_en.115.full.jpg",
+      "inteira": {
+        "girar": -32,
+        "margem": 0.96
+      }
+    },
+    "halls.png": {
+      "item": "halls",
+      "origem": "Open Food Facts",
+      "titulo": "Halls Mentol (78938823)",
+      "autor": "kiliweb (Open Food Facts)",
+      "licenca": "CC BY-SA 3.0",
+      "pagina": "https://world.openfoodfacts.org/product/78938823",
+      "download": "https://images.openfoodfacts.org/images/products/000/007/893/8823/front_en.3.full.jpg",
+      "inteira": {
+        "girar": -32,
+        "margem": 0.96
+      }
+    },
+    "pipoca-kigarot-75g.jpg": {
+      "item": "pipoca-kigarot-75g",
+      "origem": "Pexels",
+      "titulo": "Close-Up Shot of Popcorn",
+      "autor": "hello aesthe",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/close-up-shot-of-popcorn-8652508/",
+      "download": "https://images.pexels.com/photos/8652508/pexels-photo-8652508.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.45,
+        "s": 1
+      }
+    },
+    "pipoca-kigarot-45g.jpg": {
+      "item": "pipoca-kigarot-45g",
+      "origem": "Pexels",
+      "titulo": "Popcorn in Buckets at the Cinema",
+      "autor": "John Booth",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/popcorn-in-buckets-at-the-cinema-8610548/",
+      "download": "https://images.pexels.com/photos/8610548/pexels-photo-8610548.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "fini-gelatinas.png": {
+      "item": "fini-gelatinas",
+      "origem": "Open Food Facts",
+      "titulo": "Fini Ursinhos, balas de gelatina (7898279790639)",
+      "autor": "foodvisor (Open Food Facts)",
+      "licenca": "CC BY-SA 3.0",
+      "pagina": "https://world.openfoodfacts.org/product/7898279790639",
+      "download": "https://images.openfoodfacts.org/images/products/789/827/979/0639/front_en.3.full.jpg",
+      "inteira": {
+        "girar": 0
+      }
+    },
+    "docile-canudinho.jpg": {
+      "item": "docile-canudinho",
+      "origem": "Wikimedia Commons",
+      "titulo": "Four-color straw candy.jpg",
+      "autor": "Fumikas Sagisavas",
+      "licenca": "CC0",
+      "pagina": "https://commons.wikimedia.org/wiki/File:Four-color_straw_candy.jpg",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/8/8d/Four-color_straw_candy.jpg",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 0.92
+      }
+    },
+    "jujuba.jpg": {
+      "item": "jujuba",
+      "origem": "Pexels",
+      "titulo": "Colorful Candy",
+      "autor": "Polina Tankilevitch",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/colorful-candy-5469044/",
+      "download": "https://images.pexels.com/photos/5469044/pexels-photo-5469044.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    },
+    "nucita.png": {
+      "item": "nucita",
+      "origem": "Open Food Facts",
+      "titulo": "Nucita, Colombina (7702011012401)",
+      "autor": "vivianasalcedo (Open Food Facts)",
+      "licenca": "CC BY-SA 3.0",
+      "pagina": "https://world.openfoodfacts.org/product/7702011012401",
+      "download": "https://images.openfoodfacts.org/images/products/770/201/101/2401/front_es.6.full.jpg",
+      "inteira": {
+        "girar": 0
+      }
+    },
+    "chocolate-recheado.jpg": {
+      "item": "chocolate-recheado",
+      "origem": "Wikimedia Commons",
+      "titulo": "Rocky Mountain chocolates.jpg",
+      "autor": "Wilfredor",
+      "licenca": "CC0",
+      "pagina": "https://commons.wikimedia.org/wiki/File:Rocky_Mountain_chocolates.jpg",
+      "download": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Rocky_Mountain_chocolates.jpg/1920px-Rocky_Mountain_chocolates.jpg",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.5,
+        "s": 1
+      }
+    }
+  }
+}

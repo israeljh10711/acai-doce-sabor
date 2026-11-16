@@ -1,18 +1,8 @@
 import { AnimatePresence, m, useReducedMotion } from 'motion/react'
-import { type ComponentType, useEffect, useRef } from 'react'
-import { ArrowRight, Bell, Candy, Close, Crown, CupSoda, Gift, IceCreamBowl, IceCreamCone, Popsicle } from '../../components/ui/icons.tsx'
-import type { OfferIcon, OfferNotification } from './offerNotifications.ts'
+import { useEffect, useRef } from 'react'
+import { ArrowRight, Bell, Close } from '../../components/ui/icons.tsx'
+import type { OfferNotification } from './offerNotifications.ts'
 import { OFFER_TIMING, type OfferSnapshot } from './offerScheduler.ts'
-
-const ICONS: Record<OfferIcon, ComponentType<{ className?: string }>> = {
-  crown: Crown,
-  gift: Gift,
-  iceCreamBowl: IceCreamBowl,
-  iceCreamCone: IceCreamCone,
-  popsicle: Popsicle,
-  cupSoda: CupSoda,
-  candy: Candy,
-}
 
 type FloatingOfferToastProps = {
   offer: OfferNotification | undefined
@@ -66,12 +56,10 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
     else if (!snapshot.held && current.playState === 'paused') current.play()
   }, [snapshot.held])
 
-  const Icon = offer ? ICONS[offer.icon] : null
-
   return (
     <>
       <AnimatePresence>
-        {offer && Icon && (
+        {offer && (
           <m.aside
             key={snapshot.showKey}
             aria-label="Oferta"
@@ -114,9 +102,16 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
               onClick={() => onAccept(offer)}
               className="flex w-full cursor-pointer items-start gap-3 px-3 pb-3 text-left focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-acai-800"
             >
-              <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-xl bg-acai-800 text-gold-400">
-                <Icon className="size-6" />
-              </span>
+              {/* Miniatura da foto do cardápio: enfeite, o nome da oferta está ao lado. */}
+              <img
+                src={offer.photo.src}
+                alt=""
+                width={48}
+                height={48}
+                decoding="async"
+                data-offer-photo={offer.photo.fit}
+                className={`size-12 shrink-0 rounded-xl bg-white ring-1 ring-line ${offer.photo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'}`}
+              />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm leading-tight font-extrabold text-acai-800 sm:text-base">{offer.title}</span>
                 <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-soft">{offer.subtitle}</span>

@@ -3,14 +3,29 @@
  * quebrada. Também confere que as fotos enviadas pela loja estão todas em uso e que não sobra
  * foto sem uso (como a do Biscoito, que saiu do cardápio).
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { EXTRA_ITEMS } from '../src/features/catalog/extras.ts'
 import { TOPPINGS } from '../src/features/catalog/menu.ts'
-import { ALL_PRODUCT_PHOTOS, ingredientFile } from '../src/features/catalog/photos.ts'
+import { ALL_PRODUCT_PHOTOS, catalogPhotoSrc, ingredientFile } from '../src/features/catalog/photos.ts'
+import { FEATURED_OFFER_NOTIFICATIONS } from '../src/features/offers/offerNotifications.ts'
+import catalog from '../scripts/fotos/catalogo.json'
+import { imageInfo } from './imageHeader.ts'
 
 const ROOT = join(import.meta.dirname, '..')
 const IMAGES = join(ROOT, 'public', 'images')
+const CATALOG = join(IMAGES, 'catalogo')
+
+/** Licenças que permitem uso comercial e recorte (sem NC nem ND). */
+const COMMERCIAL_LICENSES = ['Licença Pexels', 'CC0', 'Domínio público', 'CC BY 2.0', 'CC BY 4.0', 'CC BY-SA 3.0', 'CC BY-SA 4.0']
+
+type CatalogSource = { item: string; autor?: string; licenca?: string; pagina?: string; download?: string; pecas?: string[] }
+const SOURCES = catalog.fotos as unknown as Record<string, CatalogSource>
+const PIECES = catalog._pecas as unknown as Record<string, { autor: string; licenca: string; pagina?: string; arquivoLoja?: string }>
+
+/** Arquivo em public/ de um endereço do site ("/images/catalogo/x-480.webp"). */
+const publicFile = (src: string) => join(ROOT, 'public', src.replace(/^\//, ''))
 
 describe('arquivos de imagem', () => {
   it('a foto de cada ingrediente existe em public/images/ingredientes', () => {
@@ -47,6 +62,64 @@ describe('arquivos de imagem', () => {
       for (const width of [480, 960]) {
         expect(existsSync(join(IMAGES, 'produtos', `${photo.name}-${width}.webp`)), `${photo.name}-${width}`).toBe(true)
       }
+    }
+  })
+
+  it('fotos do cardápio: a de cada item e as cópias de 480 e 960 px existem, são imagens válidas e quadradas', () => {
+    expect(EXTRA_ITEMS).toHaveLength(43)
+    for (const item of EXTRA_ITEMS) {
+      const master = join(ROOT, 'public', item.image)
+      expect(existsSync(master), item.image).toBe(true)
+      const info = imageInfo(readFileSync(master))
+      expect(info?.format, item.image).toBe(item.image.endsWith('.png') ? 'png' : 'jpeg')
+      expect(info!.width, `${item.image}: quadrada`).toBe(info!.height)
+      expect(info!.width, `${item.image}: resolução`).toBeGreaterThanOrEqual(600)
+      // Pedido: arquivo maior que 15 KB (foto de verdade, não página de erro nem imagem vazia).
+      expect(statSync(master).size, `${item.image}: tamanho`).toBeGreaterThan(15 * 1024)
+      for (const width of [480, 960] as const) {
+        const file = publicFile(catalogPhotoSrc(item.image, width))
+        expect(existsSync(file), file).toBe(true)
+        expect(imageInfo(readFileSync(file)), file).toEqual({ format: 'webp', width, height: width })
+      }
+    }
+  })
+
+  it('a miniatura de cada uma das 12 notificações de oferta existe e é uma imagem válida', () => {
+    expect(FEATURED_OFFER_NOTIFICATIONS).toHaveLength(12)
+    for (const offer of FEATURED_OFFER_NOTIFICATIONS) {
+      const file = publicFile(offer.photo.src)
+      expect(existsSync(file), `${offer.id}: ${file}`).toBe(true)
+      expect(imageInfo(readFileSync(file))?.format, offer.id).toBe('webp')
+    }
+  })
+
+  it('fotos do cardápio: não sobra arquivo sem uso em public/images/catalogo', () => {
+    const expected = EXTRA_ITEMS.flatMap((item) => {
+      const name = item.image.split('/').pop()!
+      const base = name.replace(/\.(jpg|png)$/, '')
+      return [name, `${base}-480.webp`, `${base}-960.webp`]
+    }).sort()
+    expect(readdirSync(CATALOG).sort()).toEqual(expected)
+  })
+
+  it('fotos do cardápio: cada uma tem fonte, autor e licença de uso comercial (créditos em /creditos)', () => {
+    const files = EXTRA_ITEMS.map((item) => item.image.split('/').pop()).sort()
+    expect(Object.keys(SOURCES).sort()).toEqual(files)
+    for (const [file, source] of Object.entries(SOURCES)) {
+      expect(EXTRA_ITEMS.find((item) => item.id === source.item)?.image, file).toBe(`images/catalogo/${file}`)
+      if (source.pecas) {
+        for (const key of source.pecas) {
+          const piece = PIECES[key]
+          expect(piece, `${file}: peça ${key}`).toBeDefined()
+          if (piece.arquivoLoja) expect(existsSync(join(ROOT, piece.arquivoLoja)), piece.arquivoLoja).toBe(true)
+          else expect([piece.autor, piece.pagina?.startsWith('https://'), COMMERCIAL_LICENSES.includes(piece.licenca)], `${file}: ${key}`).toEqual([piece.autor, true, true])
+        }
+        continue
+      }
+      expect(source.autor?.trim(), `${file}: autor`).toBeTruthy()
+      expect(COMMERCIAL_LICENSES, `${file}: ${source.licenca}`).toContain(source.licenca)
+      expect(source.pagina, `${file}: página`).toMatch(/^https:\/\//)
+      expect(source.download, `${file}: download`).toMatch(/^https:\/\//)
     }
   })
 

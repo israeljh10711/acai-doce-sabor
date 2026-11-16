@@ -7,8 +7,8 @@
  */
 import { formatBRL } from '../../utils/money.ts'
 import type { CategorySlug } from '../catalog/categories.ts'
-import { type EmblemIcon, type ExtraItem, getExtraItem } from '../catalog/extras.ts'
-import { emblemOf } from '../catalog/emblems.ts'
+import { type ExtraItem, getExtraItem } from '../catalog/extras.ts'
+import { catalogPhotoSrc, productPhoto, productPhotoSrc } from '../catalog/photos.ts'
 import { startingPriceCents } from '../catalog/showcase.ts'
 
 /** O que acontece ao tocar na notificação (os nomes são os do pedido). */
@@ -158,7 +158,12 @@ export const NEVER_IN_OFFERS: readonly string[] = [
   'agua-mineral-500-ml',
 ]
 
-export type OfferIcon = EmblemIcon | 'crown'
+/**
+ * Miniatura da notificação (pedido de 2026-11-15): a mesma foto do cardápio, na cópia de 480 px.
+ * As fotos da gaveta são quadradas e preenchem o quadro (`cover`); as dos produtos principais,
+ * enviadas pela loja, aparecem inteiras (`contain`), como em todo o site.
+ */
+export type OfferPhoto = { src: string; fit: 'cover' | 'contain' }
 
 /** Oferta pronta para mostrar: textos com os preços do catálogo e o destino do toque. */
 export type OfferNotification = {
@@ -168,7 +173,7 @@ export type OfferNotification = {
   subtitle: string
   priceText: string
   oldPriceText: string | null
-  icon: OfferIcon
+  photo: OfferPhoto
   actionType: OfferActionType
   /** O item das gavetas (escolha de sabor, confirmação ou personalizador). */
   item: ExtraItem | null
@@ -186,7 +191,7 @@ function resolve(config: OfferConfig): OfferNotification {
       subtitle: config.subtitle({ price: formatBRL(startingPriceCents(config.target.slug)), oldPrice: null }),
       priceText: price,
       oldPriceText: null,
-      icon: config.target.slug === 'acai-oca' ? 'crown' : 'cupSoda',
+      photo: { src: productPhotoSrc(productPhoto(config.target.slug).name, 480), fit: 'contain' },
       actionType: config.actionType,
       item: null,
       slug: config.target.slug,
@@ -203,7 +208,7 @@ function resolve(config: OfferConfig): OfferNotification {
     subtitle: config.subtitle({ price, oldPrice }),
     priceText: price,
     oldPriceText: oldPrice,
-    icon: emblemOf(item).icon,
+    photo: { src: catalogPhotoSrc(item.image, 480), fit: 'cover' },
     actionType: config.actionType,
     item,
     slug: null,

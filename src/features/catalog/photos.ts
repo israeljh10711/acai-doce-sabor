@@ -118,3 +118,13 @@ export const ALL_PRODUCT_PHOTOS: readonly ProductPhotoData[] = Object.values(PRO
 /** O PNG enviado (sem largura) ou a cópia WebP de 480 ou 960 px de largura. */
 export const productPhotoSrc = (name: string, width?: 480 | 960) =>
   width ? `${base}produtos/${name}-${width}.webp` : `${base}produtos/${name}.png`
+
+/**
+ * Foto de um item das gavetas (`image`, ex.: `images/catalogo/sundae.jpg`): a cópia WebP quadrada
+ * de 480 ou 960 px que fica ao lado do arquivo de referência (`sundae-480.webp`).
+ */
+export const catalogPhotoSrc = (image: string, width: 480 | 960) =>
+  `${import.meta.env.BASE_URL}${image.replace(/\.(jpg|png)$/, `-${width}.webp`)}`
+
+/** As duas cópias, para o navegador escolher pelo tamanho em que a foto aparece. */
+export const catalogPhotoSrcSet = (image: string) => `${catalogPhotoSrc(image, 480)} 480w, ${catalogPhotoSrc(image, 960)} 960w`

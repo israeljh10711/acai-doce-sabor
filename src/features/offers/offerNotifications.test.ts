@@ -81,6 +81,24 @@ describe('ofertas das notificações flutuantes', () => {
     }
   })
 
+  it('cada oferta mostra a foto do cardápio em miniatura (a dos produtos principais, inteira)', () => {
+    expect(FEATURED_OFFER_NOTIFICATIONS.map((offer) => [offer.id, offer.photo.src.split('/').pop(), offer.photo.fit])).toEqual([
+      ['pote-de-acai-1-litro', 'pote-acai-1l-montado-480.webp', 'cover'],
+      ['barca-de-acai', 'barca-acai-480.webp', 'cover'],
+      ['kit-completo-casquinha', 'kit-completo-casquinha-480.webp', 'cover'],
+      ['pote-de-acai-2-litros', 'pote-acai-2l-480.webp', 'cover'],
+      ['combo-1-litro', 'combo-1-litro-480.webp', 'cover'],
+      ['pote-de-sorvete-2-litros-especiais', 'pote-sorvete-2l-especiais-480.webp', 'cover'],
+      ['acai-oca', 'acai-oca-480.webp', 'contain'],
+      ['acai-batido', 'acai-batido-480.webp', 'contain'],
+      ['picole-gourmet', 'picole-gourmet-480.webp', 'cover'],
+      ['picole-trufado', 'picole-trufado-480.webp', 'cover'],
+      ['moreninha', 'moreninha-480.webp', 'cover'],
+      ['cremosinho', 'cremosinho-480.webp', 'cover'],
+    ])
+    // Que os arquivos existem em public/images é conferido em tests/assets.test.ts.
+  })
+
   it('acha a oferta pelo identificador', () => {
     expect(getOffer('moreninha')?.title).toBe('Sorvete Moreninha')
     expect(getOffer('halls')).toBeUndefined()

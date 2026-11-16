@@ -118,10 +118,38 @@ try {
     check(`${at} só a primeira gaveta começa aberta`, await browser.evaluate(`__expanded()`), ['true', 'false', 'false', 'false', 'false'])
     check(`${at} contagem de itens de cada gaveta`, await browser.evaluate(`__badges()`), ['5 itens', '10 itens', '12 itens', '2 itens', '14 itens'])
     check(
-      `${at} gaveta 1 com os 5 combos, emblemas e nenhuma imagem`,
-      await browser.evaluate(`[__items('combos-e-ofertas').length, document.querySelectorAll('#combos-e-ofertas [data-emblem]').length, document.querySelectorAll('#combos-e-ofertas img').length]`),
-      [5, 6, 0],
+      `${at} gaveta 1 com os 5 combos, cada um com a sua foto; emblema só no botão da gaveta`,
+      await browser.evaluate(`[__items('combos-e-ofertas').length, document.querySelectorAll('#combos-e-ofertas [data-emblem]').length, document.querySelectorAll('#combos-e-ofertas img[data-item-photo]').length]`),
+      [5, 1, 5],
     )
+    // As 43 fotos das gavetas (pedido de 2026-11-15): abre as gavetas, rola até cada foto e espera
+    // carregar. Nenhuma quebrada; todas quadradas, com 96 px, preenchendo o quadro, sem texto
+    // alternativo (o nome está ao lado) e servidas da pasta local images/catalogo.
+    for (const id of DRAWER_IDS.slice(1)) await click(`__q('#${id}-gaveta')`)
+    const photos = await browser.evaluate(`(async () => {
+      const imgs = [...document.querySelectorAll('[data-item] img[data-item-photo]')];
+      const results = [];
+      for (const img of imgs) {
+        img.scrollIntoView({ block: 'center' });
+        await Promise.race([img.decode().catch(() => null), new Promise((resolve) => setTimeout(resolve, 8000))]);
+        const box = img.getBoundingClientRect();
+        results.push({
+          ok: img.complete && img.naturalWidth > 0,
+          square: img.naturalWidth === img.naturalHeight,
+          size: Math.round(box.width) + 'x' + Math.round(box.height),
+          fit: getComputedStyle(img).objectFit,
+          alt: img.alt,
+          local: new URL(img.currentSrc).origin === location.origin && new URL(img.currentSrc).pathname.startsWith('/images/catalogo/'),
+          id: img.dataset.itemPhoto,
+        });
+      }
+      return results;
+    })()`)
+    check(`${at} as 43 fotos das gavetas carregam (nenhuma quebrada)`, [photos.length, photos.filter((p) => p.ok).map((p) => p.id).length], [43, 43])
+    check(`${at} fotos das gavetas: quadradas, locais, sem texto alternativo`, photos.filter((p) => !p.square || !p.local || p.alt !== '').map((p) => p.id), [])
+    check(`${at} fotos das gavetas: 96 px, preenchendo o quadro`, [...new Set(photos.map((p) => p.size + ' ' + p.fit))], ['96x96 cover'])
+    await browser.evaluate(`window.scrollTo(0, 0); true`)
+    for (const id of DRAWER_IDS.slice(1)) await click(`__q('#${id}-gaveta')`)
     check(
       `${at} preço riscado e selo de oferta no Pote 1 Litro`,
       await browser.evaluate(`(() => { const card = __q('[data-item="pote-de-acai-1-litro"]'); return [card.querySelector('s')?.textContent, card.querySelector('strong')?.textContent, card.textContent.includes('Oferta')] })()`),
@@ -251,7 +279,16 @@ try {
     await click(`__itemButton('pote-de-acai-1-litro')`)
     await waitFor(`location.pathname === '/monte-seu-pedido/pote-de-acai-1-litro' && __q('h1')?.textContent === 'Pote de Açaí 1 Litro Montado'`)
     check(`${at} pote 1 L: tamanho já escolhido, R$ 30,00 e 7 grátis`, await browser.evaluate(`[__q('input[value="pote-1-litro"]').checked, __q('#resumo').innerText.includes('R$ 30,00'), document.body.textContent.includes('0 de 7 adicionais grátis')]`), [true, true, true])
-    check(`${at} pote 1 L: emblema no lugar da foto, sem "Ver foto"`, await browser.evaluate(`[!!__q('[aria-label="Prévia do pedido"] [data-emblem]'), [...document.querySelectorAll('button')].some((b) => b.textContent.includes('Ver foto'))]`), [true, false])
+    check(
+      `${at} pote 1 L: a foto da gaveta na prévia, com texto alternativo, "Ver foto" e o aviso de imagem ilustrativa`,
+      await browser.evaluate(`(async () => {
+        const img = __q('[aria-label="Prévia do pedido"] img[data-item-photo="pote-de-acai-1-litro"]');
+        if (!img) return null;
+        await img.decode().catch(() => null);
+        return [img.naturalWidth > 0, img.alt.length > 10, [...document.querySelectorAll('button')].some((b) => b.textContent.includes('Ver foto')), __q('[aria-label="Prévia do pedido"]').textContent.includes('Imagens meramente ilustrativas')];
+      })()`),
+      [true, true, true, true],
+    )
     check(`${at} pote 1 L: selo e preço riscado no topo`, await browser.evaluate(`[document.body.textContent.includes('De R$ 33,00 por R$ 30,00'), __q('[aria-label="Destaques"]')?.textContent]`), [true, 'Oferta'])
     for (const name of ['Granola', 'Paçoca']) await click(`__q('[aria-label="Adicionar ${name}"]')`)
     await click(`__q('[aria-label="Kiwi"]')`)
