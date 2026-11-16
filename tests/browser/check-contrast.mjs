@@ -94,7 +94,7 @@ const routes = [
   {
     path: '/monte-seu-pedido',
     label: 'aviso de item adicionado',
-    setup: `(async () => { document.querySelector('[data-item="combo-de-sorvete"] button:not([data-zoom])').click(); await __wait(600); __clickText('dialog[open] button', 'continuar comprando'); await __wait(600) })()`,
+    setup: `(async () => { document.getElementById('barcas-e-potes-gaveta').click(); await __wait(500); document.querySelector('[data-item="pote-de-acai-2-litros"] button:not([data-zoom])').click(); await __wait(600); __clickText('dialog[open] button', 'continuar comprando'); await __wait(600) })()`,
   },
   { path: '/carrinho', label: 'carrinho com item das gavetas', setup: `__wait(300)` },
   // Foto ampliada (pedido de 2026-11-16): nome, preço, botão e descrição sobre o fundo escuro.

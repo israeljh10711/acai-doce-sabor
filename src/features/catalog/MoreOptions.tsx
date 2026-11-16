@@ -5,7 +5,7 @@ import { ArrowRight, ChevronDown, Plus } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { drawerEmblem } from './emblems.ts'
-import { type Drawer, type DrawerId, type ExtraItem, choiceGroupsOf } from './extras.ts'
+import { type Drawer, type DrawerId, type ExtraItem, choiceGroupsOf, hasPricedChoices } from './extras.ts'
 import { ExtraVisual, ItemEmblem } from './ItemVisual.tsx'
 
 type Level = 2 | 3 | 4 | 5
@@ -195,6 +195,7 @@ function ExtraItemCard({ item, level, onChoose }: { item: ExtraItem; level: Leve
                 <span className="sr-only"> por </span>
               </>
             )}
+            {hasPricedChoices(item) && <span className="text-sm font-semibold text-ink-soft">a partir de</span>}
             <strong className="text-lg font-extrabold whitespace-nowrap text-acai-800">{formatBRL(item.priceCents)}</strong>
           </p>
 
@@ -218,6 +219,8 @@ function ExtraItemCard({ item, level, onChoose }: { item: ExtraItem; level: Leve
                 </>
               ) : groups.length > 1 ? (
                 'Escolher sabores'
+              ) : groups[0].prices ? (
+                'Escolher tamanho'
               ) : (
                 'Escolher sabor'
               )}

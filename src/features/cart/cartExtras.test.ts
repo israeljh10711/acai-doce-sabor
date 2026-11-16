@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { PRODUCTS } from '../catalog/menu.ts'
-import { EMPTY_SELECTION, type Selection, addTopping, chooseFlavor } from '../catalog/selection.ts'
+import {
+  EMPTY_SELECTION,
+  type Selection,
+  addBlocker,
+  addTopping,
+  chooseFlavor,
+  freeUsed,
+  removeTopping,
+} from '../catalog/selection.ts'
 import {
   EMPTY_CART,
   MAX_ITEM_QUANTITY,
@@ -16,6 +24,7 @@ import {
   serializeCart,
   setQuantity,
   summarizeSelection,
+  unitPriceCents,
 } from './cart.ts'
 
 describe('itens das gavetas no carrinho', () => {
@@ -53,12 +62,23 @@ describe('itens das gavetas no carrinho', () => {
   it('kit com dois sabores e "outro sabor" escrito pelo cliente', () => {
     const { item } = addExtraItem(EMPTY_CART, 'kit-completo-casquinha', { sorvete: 'ninho com morango', cobertura: 'Caramelo' })
     expect(describeExtra(item!)).toEqual({
-      name: 'Kit Completo Casquinha',
+      name: 'Kit Completo Casquinha DUO',
       rows: [
         { label: 'Sabor do sorvete (2 litros)', value: 'Ninho com morango (outro sabor)' },
         { label: 'Sabor da cobertura', value: 'Caramelo' },
       ],
     })
+  })
+
+  it('Açaí do Oca: o tamanho escolhido decide o preço (500 ml R$ 17,00, 1 Litro R$ 33,00)', () => {
+    const litro = addExtraItem(EMPTY_CART, 'acai-do-oca-pronto', { tamanho: '1 Litro' }, 'oca')
+    expect([unitPriceCents(litro.item!), describeExtra(litro.item!).rows]).toEqual([3300, [{ label: 'Tamanho', value: '1 Litro' }]])
+    const meio = addExtraItem(litro.cart, 'acai-do-oca-pronto', { tamanho: '500 ml' }, 'oca-500')
+    expect(meio.cart.items.map((item) => unitPriceCents(item))).toEqual([3300, 1700])
+    expect(cartTotalCents(meio.cart)).toBe(5000)
+    // Tamanho que não existe, ou escrito pelo cliente: não entra (o tamanho não aceita "outro").
+    expect(addExtraItem(EMPTY_CART, 'acai-do-oca-pronto', { tamanho: '2 Litros' }).item).toBeNull()
+    expect(addExtraItem(EMPTY_CART, 'acai-do-oca-pronto', {}).item).toBeNull()
   })
 
   it('soma com os produtos montados; quantidade e remoção funcionam igual', () => {
@@ -75,7 +95,7 @@ describe('itens das gavetas no carrinho', () => {
 describe('guardar no aparelho, versão 2', () => {
   it('produtos e itens das gavetas voltam iguais', () => {
     let cart = addItem(EMPTY_CART, 'acai-tradicional', { ...EMPTY_SELECTION, sizeId: 'copo-400' }, 'tr').cart
-    cart = addExtraItem(cart, 'kit-completo', { sorvete: 'Flocos', cobertura: 'Morango' }, 'kit').cart
+    cart = addExtraItem(cart, 'kit-completo', { sorvete: 'Pavê', cobertura: 'Morango' }, 'kit').cart
     cart = setQuantity(cart, 'kit', 2)
     expect(parseCart(serializeCart(cart)).items).toEqual(cart.items)
   })
@@ -119,9 +139,9 @@ describe('produtos das gavetas no personalizador', () => {
     expect([summary.sizeLabel, summary.unitCents]).toEqual(['', 3000])
   })
 
-  it('Barca de Açaí: R$ 30,00, cobertura obrigatória entre as 6 do cardápio e adicionais pagos', () => {
+  it('Barca de Açaí: R$ 30,00 com 1 cobertura, 2 frutas e 7 adicionais grátis; adicionais pagos à parte', () => {
     const barca = PRODUCTS['barca-de-acai']
-    expect(barca.sizes.map((size) => [size.name, size.priceCents])).toEqual([['Barca', 3000]])
+    expect(barca.sizes.map((size) => [size.name, size.priceCents, size.freeToppings])).toEqual([['Barca', 3000, 7]])
     expect(barca.flavors.map((flavor) => flavor.name)).toEqual([
       'Frutas vermelhas',
       'Doce de leite',
@@ -130,12 +150,28 @@ describe('produtos das gavetas no personalizador', () => {
       'Chocolate',
       'Morango',
     ])
-    expect(barca.groups).toEqual(['paid'])
+    expect(barca.groups).toEqual(['dry', 'fruit', 'paid'])
     const noCover = { ...EMPTY_SELECTION, sizeId: 'barca' }
     expect(addItem(EMPTY_CART, 'barca-de-acai', noCover).item).toBeNull()
     const withCover = addTopping(barca, chooseFlavor(barca, noCover, 'calda-chocolate'), 'kit-kat')
     const { item } = addItem(EMPTY_CART, 'barca-de-acai', withCover)
     expect(describeItem(item!)).toMatchObject({ productName: 'Barca de Açaí', sizeName: '', flavorLabel: 'Cobertura', flavorName: 'Chocolate' })
     expect(summarizeSelection('barca-de-acai', withCover).unitCents).toBe(3400)
+
+    // 2 frutas: a terceira não entra.
+    let full = addTopping(barca, addTopping(barca, withCover, 'kiwi'), 'morango')
+    expect(addBlocker(barca, full, 'banana')).toBe('group-limit')
+    expect(addTopping(barca, full, 'banana')).toBe(full)
+    // 7 adicionais grátis: o oitavo não entra.
+    for (let unit = 0; unit < 7; unit++) full = addTopping(barca, full, unit < 4 ? 'granola' : 'pacoca')
+    expect([freeUsed(full), addBlocker(barca, full, 'amendoim')]).toEqual([7, 'free-limit'])
+    // Tudo isso pelo mesmo preço: só o Kit Kat é cobrado.
+    expect(summarizeSelection('barca-de-acai', full).unitCents).toBe(3400)
+    // Tirar uma fruta libera outra.
+    expect(addBlocker(barca, removeTopping(full, 'kiwi'), 'banana')).toBeNull()
+    // Montagem guardada com 3 frutas (de antes da regra): volta com 2.
+    const stored = { ...full, toppings: { ...full.toppings, banana: 1 } }
+    const normalized = addItem(EMPTY_CART, 'barca-de-acai', stored).item!
+    expect(Object.keys(normalized.selection.toppings).filter((id) => ['kiwi', 'morango', 'banana'].includes(id))).toEqual(['kiwi', 'morango'])
   })
 })

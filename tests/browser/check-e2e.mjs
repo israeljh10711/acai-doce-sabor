@@ -3,7 +3,7 @@
 // - vitrine: os 4 produtos principais com as fotos da loja;
 // - busca com e sem acento e os sinônimos do pedido (batida, dindin, refri, agua, casquinha, barca);
 // - cada uma das 5 gavetas abre e fecha; cada um dos 9 atalhos leva ao lugar certo;
-// - TODOS os 43 itens das gavetas: os 41 que vão direto ao carrinho (com sabor ou sem) passam pela
+// - TODOS os 44 itens das gavetas: os 42 que vão direto ao carrinho (com sabor, tamanho ou sem) passam pela
 //   confirmação e entram no carrinho; os 2 de montagem abrem o personalizador;
 // - carrinho com os 41 itens, total certo, mensagem do WhatsApp com cada um, no crédito e no débito;
 // - o exemplo do pedido: pedido de R$ 48,00 com troco para R$ 50,00 leva R$ 2,00 de troco;
@@ -86,7 +86,7 @@ const quietOffers = `sessionStorage.setItem('acai-doce-sabor:ofertas', JSON.stri
 
 const DRAWERS = [
   ['combos-e-ofertas', 5],
-  ['barcas-e-potes', 10],
+  ['barcas-e-potes', 11],
   ['picoles-e-sorvetes', 12],
   ['bebidas', 2],
   ['doces-e-bomboniere', 14],
@@ -102,14 +102,22 @@ const PILLS = [
   ['Bebidas', 'bebidas', 'bebidas'],
   ['Doces e Bomboniere', 'doces-e-bomboniere', 'doces-e-bomboniere'],
 ]
-const ACAI_ITEMS = ['Pote de Açaí 1 Litro Montado', 'Barca de Açaí', 'Pote de Açaí 2 Litros (Açaímix)', 'Açaí de 1 Litro (Açaímix)', 'Açaí com Creme Ninho (Pronto)', 'Açaí Mix 150 ml']
+const ACAI_ITEMS = [
+  'Pote de Açaí 1 Litro Montado',
+  'Barca de Açaí',
+  'Pote de Açaí 2 Litros (Açaímix Brazil)',
+  'Açaí de 1 Litro (Açaímix Brazil)',
+  'Açaí do Oca (Pote Pronto)',
+  'Açaí com Creme Ninho (Pronto)',
+  'Açaí Mix 150 ml',
+]
 const SEARCHES = [
   ['batida', ['acai-batido'], []],
   ['dindin', [], ['Garrafinha', 'Cremosinho']],
   ['refri', [], ['Refrigerante 350 ml']],
   ['agua', [], ['Água Mineral 500 ml']],
   ['água', [], ['Água Mineral 500 ml']],
-  ['casquinha', [], ['Kit Completo Casquinha', 'Kit Completo', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha']],
+  ['casquinha', [], ['Kit Completo Casquinha DUO', 'Kit Completo', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha']],
   ['barca', [], ['Barca de Açaí']],
   ['Açaí', ['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'], ACAI_ITEMS],
   ['acai', ['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'], ACAI_ITEMS],
@@ -201,7 +209,7 @@ try {
       check(`${at} atalho "${label}" leva ao lugar certo${drawer ? ' e abre a gaveta' : ''}`, [where, opened], [true, 'true'])
     }
 
-    // --- Os 43 itens das gavetas ---
+    // --- Os 44 itens das gavetas ---
     await page('/monte-seu-pedido', viewport)
     const orderable = EXTRA_ITEMS.filter((item) => item.action.type !== 'customizer')
     const problems = []
@@ -279,7 +287,7 @@ try {
     check(`${at} carrinho: − no picolé = R$ 48,00`, await run(`__total().includes('R$ 48,00')`), true)
     await click(`__line('Água Mineral 500 ml').querySelector('button[aria-label="Diminuir quantidade"]')`)
     check(`${at} carrinho: − na água (2 para 1) = R$ 46,00`, await run(`__total().includes('R$ 46,00')`), true)
-    await click(`__line('Kit Completo Casquinha').querySelector('button[class*="red"]')`)
+    await click(`__line('Kit Completo Casquinha DUO').querySelector('button[class*="red"]')`)
     check(`${at} carrinho: remover o kit = R$ 5,00`, await run(`[__lines().length, __total().includes('R$ 5,00')]`), [2, true])
 
     // --- "Adicionar e continuar comprando" zera o personalizador ---

@@ -83,8 +83,8 @@ const OFFERS: readonly OfferConfig[] = [
     target: extra('pote-de-sorvete-2-litros-especiais'),
     badge: { emoji: '🍧', text: 'Super cremoso' },
     title: 'Pote de Sorvete 2 Litros',
-    // "Chocolate Trufado": é o nome do sabor no cardápio (o pedido escreveu "Chocolate").
-    subtitle: ({ price }) => `Sabores especiais como Sensação, Napolitano e Chocolate Trufado por ${price}!`,
+    // O texto do pedido de 2026-11-15: desde 2026-11-16 o pote de 2 litros tem o sabor Chocolate.
+    subtitle: ({ price }) => `Sabores especiais como Sensação, Napolitano e Chocolate por ${price}!`,
     actionType: 'flavor_modal',
   },
   {

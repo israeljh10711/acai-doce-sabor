@@ -9,8 +9,8 @@ const PEDIDO = [
   ['barca-de-acai', 'Especial da casa', 'Barca de Açaí Completa', 'Barca super recheada + 1 cobertura à sua escolha por R$ 30,00!', 'R$ 30,00', null, 'customizer_barca'],
   ['kit-completo-casquinha', 'Combo família', 'Kit Completo Casquinha', 'Pote de sorvete 2 Litros + 1 cobertura + 10 casquinhas por R$ 41,00!', 'R$ 41,00', null, 'flavor_modal'],
   ['pote-de-acai-2-litros', 'Tamanho família', 'Açaí Pote de 2 Litros', '2 litros de açaí cremoso pronto para dividir com a galera!', 'R$ 35,00', null, 'direct_confirm'],
-  ['combo-1-litro', 'Combo perfeito', 'Combo Sorvete 1L + 10 Casquinhas', 'Pote de 1 Litro + 10 casquinhas crocantes por apenas R$ 24,00!', 'R$ 24,00', null, 'flavor_modal'],
-  ['pote-de-sorvete-2-litros-especiais', 'Super cremoso', 'Pote de Sorvete 2 Litros', 'Sabores especiais como Sensação, Napolitano e Chocolate Trufado por R$ 28,00!', 'R$ 28,00', null, 'flavor_modal'],
+  ['combo-1-litro', 'Combo perfeito', 'Combo Sorvete 1L + 10 Casquinhas', 'Pote de 1 Litro + 10 casquinhas crocantes por apenas R$ 23,99!', 'R$ 23,99', null, 'flavor_modal'],
+  ['pote-de-sorvete-2-litros-especiais', 'Super cremoso', 'Pote de Sorvete 2 Litros', 'Sabores especiais como Sensação, Napolitano e Chocolate por R$ 28,00!', 'R$ 28,00', null, 'flavor_modal'],
   ['acai-oca', 'Carro-chefe da loja', 'Açaí Oca — O Mais Pedido', 'Monte no pote, copo ou isopor a partir de R$ 10,00 com adicionais grátis!', 'A partir de R$ 10,00', null, 'open_oca'],
   ['acai-batido', 'Refrescante', 'Açaí Batido Cremoso', 'Com leite condensado, amendoim ou paçoca a partir de R$ 10,00!', 'A partir de R$ 10,00', null, 'open_batido'],
   ['picole-gourmet', 'Dica irresistível', 'Picolé Gourmet Cremoso', 'Sabores Nutella, Paçoca, Morango com Chocolate e Iogurte por R$ 3,00!', 'R$ 3,00', null, 'flavor_modal'],
@@ -70,7 +70,7 @@ describe('ofertas das notificações flutuantes', () => {
 
   it('os sabores citados nos textos existem no item', () => {
     const cited: Record<string, string[]> = {
-      'pote-de-sorvete-2-litros-especiais': ['Sensação', 'Napolitano', 'Chocolate Trufado'],
+      'pote-de-sorvete-2-litros-especiais': ['Sensação', 'Napolitano', 'Chocolate'],
       'picole-gourmet': ['Nutella', 'Paçoca', 'Morango com Chocolate', 'Iogurte'],
       'picole-trufado': ['Mousse de Maracujá', 'Ninho com Nutella'],
       cremosinho: ['Ninho', 'Chocolate', 'Morango', 'Coco'],
@@ -83,12 +83,12 @@ describe('ofertas das notificações flutuantes', () => {
 
   it('cada oferta mostra a foto do cardápio em miniatura (a dos produtos principais, inteira)', () => {
     expect(FEATURED_OFFER_NOTIFICATIONS.map((offer) => [offer.id, offer.photo.src.split('/').pop(), offer.photo.fit])).toEqual([
-      ['pote-de-acai-1-litro', 'pote-acai-1l-montado-480.webp', 'cover'],
-      ['barca-de-acai', 'barca-acai-480.webp', 'cover'],
-      ['kit-completo-casquinha', 'kit-completo-casquinha-480.webp', 'cover'],
-      ['pote-de-acai-2-litros', 'pote-acai-2l-480.webp', 'cover'],
+      ['pote-de-acai-1-litro', 'pote-1-litro-acai-montado-480.webp', 'cover'],
+      ['barca-de-acai', 'barca-de-acai-480.webp', 'cover'],
+      ['kit-completo-casquinha', 'kit-completo-casquinha-duo-480.webp', 'cover'],
+      ['pote-de-acai-2-litros', 'pote-acai-2-litros-480.webp', 'cover'],
       ['combo-1-litro', 'combo-1-litro-480.webp', 'cover'],
-      ['pote-de-sorvete-2-litros-especiais', 'pote-sorvete-2l-especiais-480.webp', 'cover'],
+      ['pote-de-sorvete-2-litros-especiais', 'pote-2l-sensacao-480.webp', 'cover'],
       ['acai-oca', 'acai-oca-480.webp', 'contain'],
       ['acai-batido', 'acai-batido-480.webp', 'contain'],
       ['picole-gourmet', 'picole-gourmet-480.webp', 'cover'],

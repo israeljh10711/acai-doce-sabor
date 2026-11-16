@@ -4,7 +4,7 @@ import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppin
 import { ingredientPhoto } from '../catalog/photos.ts'
 import { toppingLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
-import { quantityOf } from '../catalog/selection.ts'
+import { quantityOf, selectedByGroup } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { blockerText, toppingLabel } from './messages.ts'
 import { QuantityStepper } from './QuantityStepper.tsx'
@@ -37,7 +37,14 @@ function hintFor(product: Product, group: ToppingGroupId, cfg: ConfiguratorApi):
   }
   if (rule === 'included') {
     const priced = toppingsOf(product, group).some((topping) => topping.priceCents > 0)
-    if (group === 'fruit') return { text: 'Uma de cada, sem custo', full: false }
+    if (group === 'fruit') {
+      // Na barca, até 2 frutas (pedido de 2026-11-16).
+      const limit = product.groupLimits?.fruit
+      if (limit === undefined) return { text: 'Uma de cada, sem custo', full: false }
+      const count = selectedByGroup(product, cfg.selection, 'fruit').length
+      const full = count >= limit
+      return { text: `${count} de ${limit} frutas, sem custo${full ? ' · limite atingido' : ''}`, full }
+    }
     return { text: priced ? 'Uma de cada · cremes à parte' : 'Uma de cada, sem custo', full: false }
   }
   return { text: optional ? 'Opcional, cobrado por unidade' : 'Cobrado por unidade', full: false }

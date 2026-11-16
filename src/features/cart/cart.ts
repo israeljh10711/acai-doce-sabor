@@ -13,7 +13,7 @@
  * o personalizador e a finalização mostram sempre o mesmo valor. Na Fase 6 o servidor repete a
  * conta.
  */
-import { choiceRows, getExtraItem, isOrderableExtra, normalizeChoices } from '../catalog/extras.ts'
+import { choiceRows, extraPriceCents, getExtraItem, isOrderableExtra, normalizeChoices } from '../catalog/extras.ts'
 import {
   type Product,
   type ProductSlug,
@@ -189,7 +189,11 @@ const productOf = (item: ProductCartItem): Product => PRODUCTS[item.slug]
 
 /** Preço de uma unidade do item: pelas regras do personalizador ou pela tabela das gavetas. */
 export function unitPriceCents(item: CartItem): number {
-  if (item.kind === 'extra') return getExtraItem(item.itemId)?.priceCents ?? 0
+  if (item.kind === 'extra') {
+    const extra = getExtraItem(item.itemId)
+    // O preço é sempre o do cardápio, pela opção escolhida (o tamanho do Açaí do Oca).
+    return extra ? extraPriceCents(extra, item.choices) : 0
+  }
   return priceOf(productOf(item), item.selection)?.totalCents ?? 0
 }
 

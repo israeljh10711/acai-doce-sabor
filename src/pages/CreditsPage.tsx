@@ -1,7 +1,8 @@
 import { Container } from '../components/layout/Container.tsx'
-import { getExtraItem } from '../features/catalog/extras.ts'
+import { EXTRA_ITEMS, getExtraItem } from '../features/catalog/extras.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import catalog from '../../scripts/fotos/catalogo.json'
+import whatsapp from '../../scripts/fotos/whatsapp.json'
 import sources from '../../scripts/fotos/fontes.json'
 
 /** Uma foto do cardápio (gavetas) em `catalogo.json`: de banco, ou montagem com peças. */
@@ -58,6 +59,12 @@ const STORE_PHOTOS = [
 
 const label = (key: string) => key.replaceAll('-', ' ')
 
+/** Itens com foto do catálogo da loja no WhatsApp (whatsapp.json), na ordem do cardápio. */
+const WHATSAPP_ITEMS = (() => {
+  const ids = new Set(Object.values(whatsapp.fotos as unknown as Record<string, { item: string }>).map((entry) => entry.item))
+  return EXTRA_ITEMS.filter((item) => ids.has(item.id)).map((item) => item.name)
+})()
+
 const linkClass = 'text-acai-700 underline underline-offset-2'
 
 function LicenseLink({ license }: { license: string }) {
@@ -78,7 +85,7 @@ function LicenseLink({ license }: { license: string }) {
 export function CreditsPage() {
   usePageTitle('Créditos das fotos', {
     description:
-      'Autores, licenças e origem das fotos de ingredientes e do cardápio usadas no site do Açaí Doce Sabor, em Teixeira, Paraíba.',
+      'Origem das fotos do site do Açaí Doce Sabor, em Teixeira, Paraíba: as da loja e as de banco, com autor e licença.',
   })
 
   return (
@@ -86,10 +93,10 @@ export function CreditsPage() {
       <h1 className="font-display text-4xl font-black tracking-tight text-acai-800 uppercase">Créditos das fotos</h1>
       <div className="mt-4 max-w-3xl space-y-3 text-ink-soft">
         <p>
-          As fotos dos produtos e da maior parte dos ingredientes foram enviadas pela loja. As demais fotos de
-          ingredientes e as fotos dos itens de “Mais opções do cardápio” são de bancos com licença de uso comercial
-          (Pexels, Wikimedia Commons e Open Food Facts) e não são da loja: são ilustrativas. Foram recortadas em
-          quadrado; as imagens feitas a partir de fotos CC BY-SA seguem a mesma licença.
+          As fotos dos produtos, da maior parte dos ingredientes e dos itens de “Mais opções do cardápio” são da
+          loja: enviadas por ela ou tiradas do catálogo dela no WhatsApp. As demais são de bancos com licença de uso
+          comercial (Wikimedia Commons e Pexels) e não são da loja: são ilustrativas. As imagens feitas a partir de
+          fotos CC BY-SA seguem a mesma licença.
         </p>
       </div>
 
@@ -104,16 +111,26 @@ export function CreditsPage() {
       </ul>
 
       <h2 className="mt-10 font-display text-2xl font-black tracking-tight text-acai-800 uppercase">
-        Fotos do cardápio
+        Fotos do catálogo da loja no WhatsApp
       </h2>
       <p className="mt-2 max-w-3xl text-ink-soft">
-        Uma foto para cada item das gavetas (combos, potes, picolés, bebidas e doces). Os dois kits e o Combo 1 Litro
-        são montagens feitas para o site com fotos recortadas.
+        Fotos dos itens das gavetas (combos, potes, picolés, bebidas e doces), recortadas das capturas do catálogo da
+        loja no WhatsApp em 16/11/2026. As marcas pertencem aos seus donos.
       </p>
+      <ul className="mt-3 grid max-w-3xl list-disc gap-1 pl-5 text-acai-950 sm:grid-cols-2">
+        {WHATSAPP_ITEMS.map((name) => (
+          <li key={name}>{name}</li>
+        ))}
+      </ul>
+
+      <h2 className="mt-10 font-display text-2xl font-black tracking-tight text-acai-800 uppercase">
+        Fotos de banco do cardápio
+      </h2>
+      <p className="mt-2 max-w-3xl text-ink-soft">Itens que ainda não têm foto da loja.</p>
 
       <div className="mt-4 overflow-x-auto rounded-2xl ring-1 ring-line">
         <table className="w-full min-w-[40rem] text-left text-sm">
-          <caption className="sr-only">Fotos do cardápio, autores e licenças</caption>
+          <caption className="sr-only">Fotos de banco do cardápio, autores e licenças</caption>
           <thead className="bg-acai-50 text-acai-800">
             <tr>
               <th scope="col" className="px-4 py-3 font-bold">Item</th>

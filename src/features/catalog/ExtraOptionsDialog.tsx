@@ -2,8 +2,15 @@ import { m } from 'motion/react'
 import { type FormEvent, type RefObject, useEffect, useRef, useState } from 'react'
 import { ArrowRight, Check, Info } from '../../components/ui/icons.tsx'
 import { formatBRL } from '../../utils/money.ts'
-import { type ChoiceDraft, OTHER_OPTION } from './choiceDraft.ts'
-import { type ExtraItem, OTHER_MAX_LENGTH, choiceGroupsOf, cleanOtherText } from './extras.ts'
+import { type ChoiceDraft, OTHER_OPTION, draftChoices } from './choiceDraft.ts'
+import {
+  type ExtraItem,
+  OTHER_MAX_LENGTH,
+  choiceGroupsOf,
+  cleanOtherText,
+  extraPriceCents,
+  hasPricedChoices,
+} from './extras.ts'
 import { ExtraVisual } from './ItemVisual.tsx'
 import { FLAVOR_AVAILABILITY_NOTICE } from './notices.ts'
 
@@ -25,12 +32,17 @@ const action =
 /**
  * Escolha do sabor de um item das gavetas (pedido de 2026-11-15). Cada grupo é obrigatório;
  * alguns aceitam "Outro sabor", escrito pelo cliente (até 40 caracteres). "Continuar" leva à
- * confirmação; a escolha fica guardada se o cliente voltar para editar.
+ * confirmação; a escolha fica guardada se o cliente voltar para editar. Desde 2026-11-16: com o
+ * sabor marcado, a foto do pote daquele sabor (quando a loja mandou); no Açaí do Oca, a escolha
+ * é o tamanho, cada um com o seu preço.
  */
 export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, onCancel, opener }: ExtraOptionsDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({})
   const groups = choiceGroupsOf(item)
+  const choices = draftChoices(item, draft)
+  const priced = hasPricedChoices(item)
+  const pricedPicked = groups.some((group) => group.prices?.[choices[group.id]] !== undefined)
 
   useEffect(() => {
     const element = dialog.current
@@ -105,15 +117,18 @@ export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, on
             id="opcoes-item-titulo"
             className="bg-acai-800 px-5 py-4 font-display text-xl leading-tight font-black tracking-tight text-white uppercase"
           >
-            {groups.length > 1 ? 'Escolha os sabores' : 'Escolha o sabor'}
+            {groups.length > 1 ? 'Escolha os sabores' : groups[0]?.prices ? 'Escolha o tamanho' : 'Escolha o sabor'}
           </h2>
 
           <div className="overflow-y-auto px-5 pt-5 pb-4">
             <div className="flex items-center gap-4">
-              <ExtraVisual item={item} zoom />
+              <ExtraVisual item={item} zoom choices={choices} />
               <div className="min-w-0">
                 <p className="font-display text-lg leading-snug font-black text-acai-800">{item.name}</p>
-                <p className="nums font-bold text-acai-950">{formatBRL(item.priceCents)}</p>
+                <p className="nums font-bold text-acai-950" aria-live="polite">
+                  {priced && !pricedPicked && <span className="font-semibold text-ink-soft">a partir de </span>}
+                  {formatBRL(extraPriceCents(item, choices))}
+                </p>
               </div>
             </div>
 
@@ -144,7 +159,14 @@ export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, on
                           onChange={() => pick(group.id, option)}
                           className="sr-only"
                         />
-                        <span className="min-w-0 flex-1">{option === OTHER_OPTION ? 'Outro sabor' : option}</span>
+                        <span className={`min-w-0 flex-1 ${group.prices ? 'whitespace-nowrap' : ''}`}>
+                          {option === OTHER_OPTION ? 'Outro sabor' : option}
+                        </span>
+                        {group.prices?.[option] !== undefined && (
+                          <span className="nums shrink-0 font-extrabold whitespace-nowrap text-acai-800">
+                            {formatBRL(group.prices[option])}
+                          </span>
+                        )}
                         <span
                           aria-hidden="true"
                           className="hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 group-has-checked:grid"
@@ -184,10 +206,13 @@ export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, on
               )
             })}
 
-            <p className="mt-5 flex gap-2.5 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400">
-              <Info className="mt-0.5 size-4 text-acai-700" />
-              {FLAVOR_AVAILABILITY_NOTICE}
-            </p>
+            {/* O aviso é sobre sabores: não aparece na escolha só de tamanho. */}
+            {!groups.every((group) => group.prices) && (
+              <p className="mt-5 flex gap-2.5 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400">
+                <Info className="mt-0.5 size-4 text-acai-700" />
+                {FLAVOR_AVAILABILITY_NOTICE}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2.5 border-t border-line px-5 pt-4 pb-5">

@@ -151,7 +151,7 @@ function ExtraLine({ item, onRemove }: { item: ExtraCartItem; onRemove: () => vo
   const extra = getExtraItem(item.itemId)
 
   return (
-    <LineFrame item={item} title={name} visual={extra && <ExtraVisual item={extra} size="fill" zoom />} onRemove={onRemove}>
+    <LineFrame item={item} title={name} visual={extra && <ExtraVisual item={extra} size="fill" zoom choices={item.choices} />} onRemove={onRemove}>
       <h2 className="font-display text-lg leading-tight font-black tracking-tight text-acai-800 uppercase">{name}</h2>
       {rows.map((row) => (
         <p key={row.label} className="mt-0.5 text-sm text-ink-soft">

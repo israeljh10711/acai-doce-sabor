@@ -265,7 +265,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
       <ConfirmItemDialog
         open={flow?.step === 'confirm'}
         summary={flow ? extraSummary(flow.item, flowChoices) : { eyebrow: '', title: '', rows: [], unitCents: 0 }}
-        visual={flow && <ExtraVisual item={flow.item} size="fill" zoom />}
+        visual={flow && <ExtraVisual item={flow.item} size="fill" zoom choices={flowChoices} />}
         backLabel={hasChoices ? 'Voltar e editar' : 'Voltar'}
         onAddAndGoToCart={() => add(true)}
         onAddAndContinue={() => add(false)}

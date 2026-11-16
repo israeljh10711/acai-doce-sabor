@@ -2,7 +2,7 @@
  * O que a janela de confirmação mostra: título, escolhas e valor de uma unidade do item.
  */
 import { choiceText, summarizeSelection } from '../cart/cart.ts'
-import { type ExtraItem, choiceRows } from '../catalog/extras.ts'
+import { type ExtraItem, choiceRows, extraPriceCents } from '../catalog/extras.ts'
 import type { ProductSlug } from '../catalog/menu.ts'
 import type { Selection } from '../catalog/selection.ts'
 
@@ -36,5 +36,5 @@ export function productSummary(slug: ProductSlug, selection: Selection): Confirm
 
 /** Resumo de um item das gavetas, com as escolhas feitas. */
 export function extraSummary(item: ExtraItem, choices: Readonly<Record<string, string>>): ConfirmSummary {
-  return { eyebrow: 'Produto', title: item.name, rows: choiceRows(item, choices), unitCents: item.priceCents }
+  return { eyebrow: 'Produto', title: item.name, rows: choiceRows(item, choices), unitCents: extraPriceCents(item, choices) }
 }

@@ -157,7 +157,8 @@ try {
     // --- Janela aberta para tudo ---
     await open('/monte-seu-pedido', viewport, withOffer('cremosinho'))
     await waitFor(`__offer()`, 9000)
-    await click(`__q('[data-item="combo-de-sorvete"] button:not([data-zoom])')`)
+    await click(`__q('#barcas-e-potes-gaveta')`)
+    await click(`__q('[data-item="pote-de-acai-2-litros"] button:not([data-zoom])')`)
     check(`${at} janela de confirmação aberta some com a oferta`, await run(`[__q('dialog[open]') !== null, __offer() === null]`), [true, true])
     await sleep(1500)
     check(`${at} com janela aberta, nada aparece`, await run(`__offer() === null`), true)
@@ -205,7 +206,7 @@ try {
       check(
         `${at} ${id}: miniatura certa (${fit})`,
         await run(`(async () => { const img = __offer().querySelector('img[data-offer-photo]'); await img.decode().catch(() => null); return [img.naturalWidth > 0, getComputedStyle(img).objectFit, new URL(img.currentSrc).pathname.split('/').pop()] })()`),
-        [true, fit, `${{ 'pote-de-acai-1-litro': 'pote-acai-1l-montado', 'barca-de-acai': 'barca-acai', 'acai-oca': 'acai-oca', 'acai-batido': 'acai-batido' }[id]}-480.webp`],
+        [true, fit, `${{ 'pote-de-acai-1-litro': 'pote-1-litro-acai-montado', 'barca-de-acai': 'barca-de-acai', 'acai-oca': 'acai-oca', 'acai-batido': 'acai-batido' }[id]}-480.webp`],
       )
       await click(toastBody)
       check(`${at} ${id}: abre a montagem`, await waitFor(`location.pathname === '${path}' && __q('h1')`, 5000), true)

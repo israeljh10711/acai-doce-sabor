@@ -121,22 +121,32 @@ try {
       check(`${at} vitrine ${slug}: o X fecha e o foco volta para a lupa`, await run(`[__isOpen(), document.activeElement?.dataset.zoom]`), [false, `produto:${slug}`])
     }
 
-    // --- Gavetas: 43 lupas, uma por item; abrir não escolhe sabor nem põe no carrinho ---
+    // --- Gavetas: 44 lupas, uma por item; abrir não escolhe sabor nem põe no carrinho ---
     for (const id of ['barcas-e-potes', 'picoles-e-sorvetes', 'bebidas', 'doces-e-bomboniere']) await click(`__q('#${id}-gaveta')`, 400)
-    check(`${at} uma lupa em cada um dos 43 itens das gavetas`, await run(`document.querySelectorAll('[data-item] [data-zoom]').length`), 43)
+    check(`${at} uma lupa em cada um dos 44 itens das gavetas`, await run(`document.querySelectorAll('[data-item] [data-zoom]').length`), 44)
     await realClick(`__zoomOf('[data-item="kit-completo-casquinha"]')`)
     check(
       `${at} kit: foto, nome e preço, sem abrir a escolha de sabor`,
       [await run(`__info()`), await run(`!!__q('dialog[aria-labelledby="opcoes-item-titulo"]')?.open`), await run(`__cartCount()`)],
-      [{ id: 'item:kit-completo-casquinha', title: 'Kit Completo Casquinha', price: 'R$ 41,00', loaded: true, fit: 'contain', alt: true }, false, 0],
+      [{ id: 'item:kit-completo-casquinha', title: 'Kit Completo Casquinha DUO', price: 'R$ 41,00', loaded: true, fit: 'contain', alt: true }, false, 0],
     )
-    check(`${at} kit: descrição e aviso de imagem ilustrativa`, await run(`['Pote de sorvete 2 litros + 1 cobertura + 10 casquinhas', 'Imagens meramente ilustrativas'].map((t) => __box().textContent.includes(t))`), [true, true])
+    check(`${at} kit: descrição e aviso de imagem ilustrativa`, await run(`['Pote 2 litros + cobertura 300g da sua preferência e 10 und de casquinha DUO', 'Imagens meramente ilustrativas'].map((t) => __box().textContent.includes(t))`), [true, true])
     // Ampliar e reduzir: botão e toque duplo.
     const fit = await run(`__size()`)
     await click(`__zoomBtn()`)
     const big = await run(`__size()`)
     check(`${at} "Ampliar": a foto dobra de tamanho e o botão vira "Reduzir"`, [big[0] === fit[0] * 2, big[1] === fit[1] * 2, (await run(`__zoomBtn().textContent`)).trim()], [true, true, 'Reduzir'])
-    check(`${at} ampliada: dá para rolar pela foto`, await run(`(() => { const v = __box().querySelector('[data-lightbox-view]'); return v.scrollWidth > v.clientWidth && v.scrollHeight > v.clientHeight })()`), true)
+    // A foto da loja é em pé: no computador, ampliada, ela passa da tela só na altura.
+    check(
+      `${at} ampliada: dá para rolar pela foto nos lados em que ela passa da tela`,
+      await run(`(() => {
+        const v = __box().querySelector('[data-lightbox-view]');
+        const r = __img().getBoundingClientRect();
+        const wide = r.width > v.clientWidth, tall = r.height > v.clientHeight;
+        return (wide || tall) && (!wide || v.scrollWidth > v.clientWidth) && (!tall || v.scrollHeight > v.clientHeight);
+      })()`),
+      true,
+    )
     await realClick(`__img()`, 2)
     check(`${at} toque duplo reduz de volta`, [await run(`__size()`), (await run(`__zoomBtn().textContent`)).trim()], [fit, 'Ampliar'])
     await realClick(`__img()`, 2)
@@ -152,7 +162,7 @@ try {
     await sleep(500)
     check(`${at} toque no fundo escuro fecha`, await run(`__isOpen()`), false)
     // Tocar no resto do cartão continua funcionando.
-    await click(`__q('[data-item="combo-de-sorvete"] button:not([data-zoom])')`)
+    await click(`__q('[data-item="pote-de-acai-2-litros"] button:not([data-zoom])')`)
     check(`${at} o botão do cartão continua abrindo a confirmação`, await waitFor(`__q('dialog[role="alertdialog"]')?.open`, 3000), true)
     // Foto dentro da confirmação: abre por cima; o Esc fecha só a foto.
     await realClick(`__q('dialog[role="alertdialog"] [data-zoom]')`)
@@ -200,7 +210,7 @@ try {
     // --- Carrinho ---
     await page('/carrinho', viewport)
     await realClick(`__q('[aria-label="Itens do carrinho"] [data-zoom]')`)
-    check(`${at} carrinho: a foto do item amplia`, (await run(`__info()`))?.id, 'item:combo-de-sorvete')
+    check(`${at} carrinho: a foto do item amplia`, (await run(`__info()`))?.id, 'item:pote-de-acai-2-litros')
     await key('Escape')
 
     // --- Notificação de oferta: a miniatura amplia, a oferta espera na tela ---

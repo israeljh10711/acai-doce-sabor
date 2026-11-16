@@ -23,6 +23,8 @@ export function blockerText(blocker: AddBlocker, limit: number): string {
       return `Limite de ${limit} adicionais grátis atingido`
     case 'item-max':
       return 'Quantidade máxima atingida'
+    case 'group-limit':
+      return 'Limite do grupo atingido'
     case 'not-in-product':
       return 'Indisponível neste produto'
   }

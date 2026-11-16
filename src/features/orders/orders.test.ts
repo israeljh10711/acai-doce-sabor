@@ -100,7 +100,7 @@ describe('mensagem com os itens das gavetas e os produtos novos (pedido de 2026-
       '*2x Picolé Gourmet* — R$ 6,00 (R$ 3,00 cada)',
       '• Sabor: Nutella',
       '',
-      '*1x Kit Completo Casquinha* — R$ 41,00',
+      '*1x Kit Completo Casquinha DUO* — R$ 41,00',
       '• Sabor do sorvete (2 litros): Ninho com morango (outro sabor)',
       '• Sabor da cobertura: Caramelo',
       '',
@@ -111,6 +111,13 @@ describe('mensagem com os itens das gavetas e os produtos novos (pedido de 2026-
       '*FORMA DE PAGAMENTO:* Dinheiro',
       '*TROCO PARA:* R$ 150,00 *(Levar troco de R$ 37,00)*',
     ])
+  })
+
+  it('Açaí do Oca: o tamanho e o preço dele na mensagem (pedido de 2026-11-16)', () => {
+    const cart = addExtraItem(EMPTY_CART, 'acai-do-oca-pronto', { tamanho: '1 Litro' }, 'oca').cart
+    const lines = buildOrderMessage(cart, { method: 'pix' }).split(String.fromCharCode(10))
+    expect(lines.slice(3, 5)).toEqual(['*1x Açaí do Oca (Pote Pronto)* — R$ 33,00', '• Tamanho: 1 Litro'])
+    expect(lines).toContain('*TOTAL DO PEDIDO: R$ 33,00*')
   })
 
   it('o link do WhatsApp leva a mesma mensagem, com Pix', () => {

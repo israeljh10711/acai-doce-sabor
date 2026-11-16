@@ -77,9 +77,10 @@ export function freeUsed(selection: Selection): number {
  * - `not-in-product`: o produto não aceita esse ingrediente;
  * - `free-limit`: o limite de adicionais gratuitos está cheio;
  * - `item-max`: o item já está na quantidade máxima (uma vez nas frutas, caldas e cremes; 10 nos
- *   adicionais pagos e nos adicionais grátis).
+ *   adicionais pagos e nos adicionais grátis);
+ * - `group-limit`: o grupo já tem o número de ingredientes que o produto aceita (na barca, 2 frutas).
  */
-export type AddBlocker = 'not-in-product' | 'free-limit' | 'item-max'
+export type AddBlocker = 'not-in-product' | 'free-limit' | 'item-max' | 'group-limit'
 
 export function addBlocker(
   product: Product,
@@ -94,8 +95,11 @@ export function addBlocker(
     case 'limited':
       if (quantity >= MAX_PAID_UNITS) return 'item-max'
       return freeUsed(selection) >= freeCap(product, selection) ? 'free-limit' : null
-    case 'included':
-      return quantity >= 1 ? 'item-max' : null
+    case 'included': {
+      if (quantity >= 1) return 'item-max'
+      const limit = product.groupLimits?.[topping.group]
+      return limit !== undefined && selectedByGroup(product, selection, topping.group).length >= limit ? 'group-limit' : null
+    }
     case 'paid':
       return quantity >= MAX_PAID_UNITS ? 'item-max' : null
   }

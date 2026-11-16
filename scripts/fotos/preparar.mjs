@@ -27,6 +27,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
+import { writeCatalogPhotoInfo } from './tamanhos-catalogo.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const SOURCES = JSON.parse(readFileSync(join(ROOT, 'scripts/fotos/fontes.json'), 'utf8'))
@@ -639,6 +640,7 @@ async function catalog(only = []) {
     console.log(`${name}: ${size.width}x${size.height}`)
   }
   console.log('catálogo ok:', names.length)
+  await writeCatalogPhotoInfo(ROOT)
 }
 
 /* ---------- Execução ---------- */

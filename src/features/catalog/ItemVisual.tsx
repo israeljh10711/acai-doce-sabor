@@ -2,9 +2,9 @@ import type { ComponentType } from 'react'
 import { Candy, CupSoda, Gift, IceCreamBowl, IceCreamCone, Popsicle } from '../../components/ui/icons.tsx'
 import { findCategoryBySlug } from './categories.ts'
 import type { Emblem } from './emblems.ts'
-import { type EmblemIcon, type ExtraItem, extraForProduct } from './extras.ts'
+import { type EmblemIcon, type ExtraItem, extraForProduct, extraPhoto } from './extras.ts'
 import type { ExtraProductSlug, ProductSlug } from './menu.ts'
-import { catalogPhotoSrc, catalogPhotoSrcSet } from './photos.ts'
+import { catalogPhotoFit, catalogPhotoSrc, catalogPhotoSrcSet } from './photos.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
 import { extraLightbox, productLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
@@ -76,6 +76,8 @@ type ExtraVisualProps = {
   priority?: boolean
   /** Tocar na foto abre a foto ampliada (com a lupa no canto). */
   zoom?: boolean
+  /** Escolhas feitas: com o sabor escolhido, a foto daquele sabor (quando a loja mandou). */
+  choices?: Readonly<Record<string, string>>
 }
 
 /** Quadro em volta da foto com a lupa, do mesmo tamanho dela. */
@@ -86,33 +88,44 @@ const ZOOM_FRAME: Record<VisualSize, string> = {
 }
 
 /**
- * Foto do item das gavetas (pedido de 2026-11-15): quadrada, preenchendo o quadro, na cópia leve
- * (WebP de 480 ou 960 px) que serve ao tamanho em que aparece.
+ * Foto do item das gavetas num quadro quadrado: a foto da loja (catálogo do WhatsApp, desde
+ * 2026-11-16) preenche o quadro, ou aparece inteira quando é uma tabela de sabores. Com o sabor
+ * escolhido, a foto do pote daquele sabor.
  */
-export function ExtraVisual({ item, size = 'md', sizes, decorative = true, priority = false, zoom = false }: ExtraVisualProps) {
-  const photo = <ExtraPhoto item={item} size={size} sizes={sizes} decorative={decorative} priority={priority} />
+export function ExtraVisual({ item, size = 'md', sizes, decorative = true, priority = false, zoom = false, choices }: ExtraVisualProps) {
+  const photo = (
+    <ExtraPhoto item={item} size={size} sizes={sizes} decorative={decorative} priority={priority} choices={choices} />
+  )
   if (!zoom) return photo
   return (
     <span className={ZOOM_FRAME[size]}>
       {photo}
-      <ZoomButton image={extraLightbox(item)} />
+      <ZoomButton image={extraLightbox(item, {}, choices)} />
     </span>
   )
 }
 
-function ExtraPhoto({ item, size, sizes, decorative, priority }: Required<Omit<ExtraVisualProps, 'zoom' | 'sizes'>> & { sizes?: string }) {
+type ExtraPhotoProps = Required<Pick<ExtraVisualProps, 'item' | 'size' | 'decorative' | 'priority'>> &
+  Pick<ExtraVisualProps, 'sizes' | 'choices'>
+
+function ExtraPhoto({ item, size, sizes, decorative, priority, choices }: ExtraPhotoProps) {
+  const { image, alt } = extraPhoto(item, choices)
+  const contain = catalogPhotoFit(image) === 'contain'
   return (
     <img
-      src={catalogPhotoSrc(item.image, 480)}
-      srcSet={catalogPhotoSrcSet(item.image)}
+      // A chave troca a imagem inteira ao mudar de sabor: nada da foto anterior fica na tela.
+      key={image}
+      src={catalogPhotoSrc(image, 480)}
+      srcSet={catalogPhotoSrcSet(image)}
       sizes={sizes ?? PHOTO_SIZES[size]}
-      alt={decorative ? '' : item.imageAlt}
+      alt={decorative ? '' : alt}
       width={480}
       height={480}
       loading={priority ? 'eager' : 'lazy'}
       decoding="async"
       data-item-photo={item.id}
-      className={`shrink-0 bg-white object-cover ring-1 ring-line ${BOX[size]}`}
+      data-photo={image.split('/').pop()}
+      className={`shrink-0 bg-white ring-1 ring-line ${contain ? 'object-contain' : 'object-cover'} ${BOX[size]}`}
     />
   )
 }

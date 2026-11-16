@@ -1,6 +1,6 @@
 /**
- * Fotos reais do site: a de cada ingrediente (cartões do personalizador) e a foto fixa de cada
- * produto (personalizador, cardápio, página inicial e carrinho).
+ * Fotos reais do site: a de cada ingrediente (cartões do personalizador), a foto fixa de cada
+ * produto (personalizador, cardápio, página inicial e carrinho) e as fotos dos itens das gavetas.
  *
  * - Ingredientes: `public/images/ingredientes/`. As embalagens (Ninho, Farinha Láctea, Italac e
  *   as coberturas Du Porto) aparecem inteiras (`contain`); as fotos de textura preenchem o
@@ -9,7 +9,11 @@
  *   que não muda com os ingredientes nem com o recipiente. Aparece inteira (`contain`). A do
  *   milk-shake tem o fundo removido (PNG transparente): recortada sobre o roxo na página inicial,
  *   igual às outras nos quadros brancos. Originais em `assets/fotos-loja/produtos/`.
+ * - Itens das gavetas: `public/images/catalogo/`. Desde 2026-11-16, as fotos da loja recortadas do
+ *   catálogo do WhatsApp (originais em `assets/fotos-loja/whatsapp/`); o tamanho de cada cópia está
+ *   em `catalogPhotos.json`.
  */
+import catalogPhotos from './catalogPhotos.json'
 import type { CategorySlug } from './categories.ts'
 import type { Topping } from './menu.ts'
 
@@ -134,11 +138,38 @@ export const productPhotoSrc = (name: string, width?: 480 | 960) =>
   width ? `${base}produtos/${name}-${width}.webp` : `${base}produtos/${name}.png`
 
 /**
- * Foto de um item das gavetas (`image`, ex.: `images/catalogo/sundae.jpg`): a cópia WebP quadrada
- * de 480 ou 960 px que fica ao lado do arquivo de referência (`sundae-480.webp`).
+ * Tamanho real das cópias de cada foto do cardápio e o enquadramento no cartão. Feito pelos
+ * scripts de fotos (`tamanhos-catalogo.mjs`). As fotos da loja tiradas do WhatsApp são pequenas:
+ * as duas cópias ficam no tamanho da foto, sem ampliar.
+ */
+type CatalogPhotoInfo = { 480: [number, number]; 960: [number, number]; fit: PhotoFit; loja: boolean }
+const CATALOG_PHOTOS = catalogPhotos as unknown as Readonly<Record<string, CatalogPhotoInfo>>
+
+const catalogInfo = (image: string): CatalogPhotoInfo | undefined => CATALOG_PHOTOS[image.split('/').pop() ?? '']
+
+/**
+ * Foto de um item das gavetas (`image`, ex.: `images/catalogo/sundae.jpg`): a cópia WebP de até
+ * 480 ou 960 px de largura que fica ao lado do arquivo de referência (`sundae-480.webp`).
  */
 export const catalogPhotoSrc = (image: string, width: 480 | 960) =>
   `${import.meta.env.BASE_URL}${image.replace(/\.(jpg|png)$/, `-${width}.webp`)}`
 
-/** As duas cópias, para o navegador escolher pelo tamanho em que a foto aparece. */
-export const catalogPhotoSrcSet = (image: string) => `${catalogPhotoSrc(image, 480)} 480w, ${catalogPhotoSrc(image, 960)} 960w`
+/** As cópias com a largura de verdade, para o navegador escolher pelo tamanho em que a foto aparece. */
+export function catalogPhotoSrcSet(image: string): string | undefined {
+  const info = catalogInfo(image)
+  if (!info) return undefined
+  if (info[480][0] === info[960][0]) return `${catalogPhotoSrc(image, 960)} ${info[960][0]}w`
+  return `${catalogPhotoSrc(image, 480)} ${info[480][0]}w, ${catalogPhotoSrc(image, 960)} ${info[960][0]}w`
+}
+
+/** Largura e altura da maior cópia (a da foto ampliada). */
+export function catalogPhotoSize(image: string): { width: number; height: number } | undefined {
+  const info = catalogInfo(image)
+  return info && { width: info[960][0], height: info[960][1] }
+}
+
+/** Enquadramento no cartão: a foto preenche o quadro, ou aparece inteira (tabela de sabores). */
+export const catalogPhotoFit = (image: string): PhotoFit => catalogInfo(image)?.fit ?? 'cover'
+
+/** A foto é da loja (catálogo do WhatsApp), não de banco. */
+export const isStorePhoto = (image: string): boolean => catalogInfo(image)?.loja ?? false

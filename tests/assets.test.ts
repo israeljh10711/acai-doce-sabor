@@ -6,11 +6,13 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { EXTRA_ITEMS } from '../src/features/catalog/extras.ts'
+import { EXTRA_ITEMS, choiceGroupsOf } from '../src/features/catalog/extras.ts'
 import { TOPPINGS } from '../src/features/catalog/menu.ts'
 import { ALL_PRODUCT_PHOTOS, catalogPhotoSrc, ingredientFile, ingredientZoomFile } from '../src/features/catalog/photos.ts'
 import { FEATURED_OFFER_NOTIFICATIONS } from '../src/features/offers/offerNotifications.ts'
+import catalogPhotos from '../src/features/catalog/catalogPhotos.json'
 import catalog from '../scripts/fotos/catalogo.json'
+import whatsapp from '../scripts/fotos/whatsapp.json'
 import { imageInfo } from './imageHeader.ts'
 
 const ROOT = join(import.meta.dirname, '..')
@@ -20,9 +22,20 @@ const CATALOG = join(IMAGES, 'catalogo')
 /** Licenças que permitem uso comercial e recorte (sem NC nem ND). */
 const COMMERCIAL_LICENSES = ['Licença Pexels', 'CC0', 'Domínio público', 'CC BY 2.0', 'CC BY 4.0', 'CC BY-SA 3.0', 'CC BY-SA 4.0']
 
-type CatalogSource = { item: string; autor?: string; licenca?: string; pagina?: string; download?: string; pecas?: string[] }
+type CatalogSource = { item: string; autor?: string; licenca?: string; pagina?: string; download?: string }
 const SOURCES = catalog.fotos as unknown as Record<string, CatalogSource>
-const PIECES = catalog._pecas as unknown as Record<string, { autor: string; licenca: string; pagina?: string; arquivoLoja?: string }>
+
+type StoreSource = { captura: string; item: string; sabor?: string; principal?: boolean; pedido: boolean; fit?: string }
+const STORE = whatsapp.fotos as unknown as Record<string, StoreSource>
+const WHATSAPP = whatsapp as unknown as { naoUsadas: Record<string, string> }
+const PHOTO_INFO = catalogPhotos as unknown as Record<string, { 480: [number, number]; 960: [number, number]; fit: string; loja: boolean }>
+
+/** Arquivos do cardápio em uso: a foto de cada item e as fotos dos sabores. */
+const USED_CATALOG_FILES = new Set(
+  EXTRA_ITEMS.flatMap((item) => [item.image, ...choiceGroupsOf(item).flatMap((group) => Object.values(group.photos ?? {}))]).map(
+    (image) => image.split('/').pop()!,
+  ),
+)
 
 /** Arquivo em public/ de um endereço do site ("/images/catalogo/x-480.webp"). */
 const publicFile = (src: string) => join(ROOT, 'public', src.replace(/^\//, ''))
@@ -74,22 +87,41 @@ describe('arquivos de imagem', () => {
     }
   })
 
-  it('fotos do cardápio: a de cada item e as cópias de 480 e 960 px existem, são imagens válidas e quadradas', () => {
-    expect(EXTRA_ITEMS).toHaveLength(43)
-    for (const item of EXTRA_ITEMS) {
-      const master = join(ROOT, 'public', item.image)
-      expect(existsSync(master), item.image).toBe(true)
+  it('fotos do cardápio: a de cada item e de cada sabor, e as duas cópias, existem e são imagens válidas', () => {
+    expect(EXTRA_ITEMS).toHaveLength(44)
+    for (const file of USED_CATALOG_FILES) {
+      const master = join(CATALOG, file)
+      expect(existsSync(master), file).toBe(true)
       const info = imageInfo(readFileSync(master))
-      expect(info?.format, item.image).toBe(item.image.endsWith('.png') ? 'png' : 'jpeg')
-      expect(info!.width, `${item.image}: quadrada`).toBe(info!.height)
-      expect(info!.width, `${item.image}: resolução`).toBeGreaterThanOrEqual(600)
+      expect(info?.format, file).toBe(file.endsWith('.png') ? 'png' : 'jpeg')
       // Pedido: arquivo maior que 15 KB (foto de verdade, não página de erro nem imagem vazia).
-      expect(statSync(master).size, `${item.image}: tamanho`).toBeGreaterThan(15 * 1024)
-      for (const width of [480, 960] as const) {
-        const file = publicFile(catalogPhotoSrc(item.image, width))
-        expect(existsSync(file), file).toBe(true)
-        expect(imageInfo(readFileSync(file)), file).toEqual({ format: 'webp', width, height: width })
+      expect(statSync(master).size, `${file}: tamanho`).toBeGreaterThan(15 * 1024)
+      if (STORE[file]) {
+        // Foto da loja (WhatsApp): o recorte da captura, até 900 px de largura, nunca ampliado.
+        expect(info!.width, `${file}: largura`).toBeLessThanOrEqual(900)
+        expect(Math.min(info!.width, info!.height), `${file}: resolução`).toBeGreaterThanOrEqual(280)
+      } else {
+        // Foto de banco: quadrada, de pelo menos 600 px.
+        expect(info!.width, `${file}: quadrada`).toBe(info!.height)
+        expect(info!.width, `${file}: resolução`).toBeGreaterThanOrEqual(600)
       }
+      // As cópias têm o tamanho que o site pensa que têm (catalogPhotos.json).
+      for (const width of [480, 960] as const) {
+        const copy = publicFile(catalogPhotoSrc(`images/catalogo/${file}`, width))
+        expect(existsSync(copy), copy).toBe(true)
+        const size = imageInfo(readFileSync(copy))
+        expect([size?.format, size?.width, size?.height], `${file} ${width}`).toEqual(['webp', ...PHOTO_INFO[file][width]])
+        if (STORE[file]) expect(size!.width, `${file} ${width}`).toBe(Math.min(width, info!.width))
+        else expect(size!.width, `${file} ${width}`).toBe(width)
+      }
+    }
+  })
+
+  it('catalogPhotos.json descreve exatamente as fotos em uso, com o enquadramento e a origem certos', () => {
+    expect(Object.keys(PHOTO_INFO).sort()).toEqual([...USED_CATALOG_FILES].sort())
+    for (const [file, info] of Object.entries(PHOTO_INFO)) {
+      expect(info.loja, file).toBe(Boolean(STORE[file]))
+      expect(info.fit, file).toBe(STORE[file]?.fit ?? 'cover')
     }
   })
 
@@ -103,33 +135,53 @@ describe('arquivos de imagem', () => {
   })
 
   it('fotos do cardápio: não sobra arquivo sem uso em public/images/catalogo', () => {
-    const expected = EXTRA_ITEMS.flatMap((item) => {
-      const name = item.image.split('/').pop()!
+    const expected = [...USED_CATALOG_FILES].flatMap((name) => {
       const base = name.replace(/\.(jpg|png)$/, '')
       return [name, `${base}-480.webp`, `${base}-960.webp`]
-    }).sort()
-    expect(readdirSync(CATALOG).sort()).toEqual(expected)
+    })
+    expect(readdirSync(CATALOG).sort()).toEqual(expected.sort())
   })
 
-  it('fotos do cardápio: cada uma tem fonte, autor e licença de uso comercial (créditos em /creditos)', () => {
-    const files = EXTRA_ITEMS.map((item) => item.image.split('/').pop()).sort()
-    expect(Object.keys(SOURCES).sort()).toEqual(files)
+  it('fotos do cardápio da loja: cada uma vem de uma captura guardada em assets/fotos-loja/whatsapp', () => {
+    const captures = readdirSync(join(ROOT, 'assets', 'fotos-loja', 'whatsapp'))
+    // As 73 capturas do pedido de 2026-11-16, todas guardadas no projeto.
+    expect(captures.filter((file) => file.startsWith('Captura de tela 2026-11-16'))).toHaveLength(73)
+    const used = new Set<string>()
+    for (const [file, entry] of Object.entries(STORE)) {
+      expect(USED_CATALOG_FILES.has(file), `${file} sem uso`).toBe(true)
+      expect(captures.some((name) => name.includes(` ${entry.captura}.`)), `${file}: captura ${entry.captura}`).toBe(true)
+      expect(used.has(entry.captura), `captura ${entry.captura} usada duas vezes`).toBe(false)
+      used.add(entry.captura)
+      const item = EXTRA_ITEMS.find((candidate) => candidate.id === entry.item)
+      expect(item, `${file}: item ${entry.item}`).toBeDefined()
+      const image = `images/catalogo/${file}`
+      if (entry.sabor) {
+        const group = choiceGroupsOf(item!).find((candidate) => candidate.photos?.[entry.sabor!] === image)
+        expect(group, `${file}: foto do sabor ${entry.sabor}`).toBeDefined()
+        if (entry.principal) expect(item!.image, file).toBe(image)
+      } else {
+        expect(item!.image, file).toBe(image)
+      }
+    }
+    // As que ficaram de fora estão anotadas, com o motivo: 60 em uso + 13 de fora = 73.
+    expect(used.size + Object.keys(WHATSAPP.naoUsadas).length).toBe(73)
+  })
+
+  it('fotos de banco que sobraram: fonte, autor e licença de uso comercial (créditos em /creditos)', () => {
+    const bank = [...USED_CATALOG_FILES].filter((file) => !STORE[file]).sort()
+    expect(Object.keys(SOURCES).sort()).toEqual(bank)
     for (const [file, source] of Object.entries(SOURCES)) {
       expect(EXTRA_ITEMS.find((item) => item.id === source.item)?.image, file).toBe(`images/catalogo/${file}`)
-      if (source.pecas) {
-        for (const key of source.pecas) {
-          const piece = PIECES[key]
-          expect(piece, `${file}: peça ${key}`).toBeDefined()
-          if (piece.arquivoLoja) expect(existsSync(join(ROOT, piece.arquivoLoja)), piece.arquivoLoja).toBe(true)
-          else expect([piece.autor, piece.pagina?.startsWith('https://'), COMMERCIAL_LICENSES.includes(piece.licenca)], `${file}: ${key}`).toEqual([piece.autor, true, true])
-        }
-        continue
-      }
       expect(source.autor?.trim(), `${file}: autor`).toBeTruthy()
       expect(COMMERCIAL_LICENSES, `${file}: ${source.licenca}`).toContain(source.licenca)
       expect(source.pagina, `${file}: página`).toMatch(/^https:\/\//)
       expect(source.download, `${file}: download`).toMatch(/^https:\/\//)
     }
+  })
+
+  it('as fotos de banco que saíram ficaram guardadas em assets/catalogo-banco-anteriores', () => {
+    const archived = readdirSync(join(ROOT, 'assets', 'catalogo-banco-anteriores'))
+    for (const file of Object.keys(catalog._anteriores)) expect(archived, file).toContain(file)
   })
 
   it('as 4 fotos de produto enviadas pela loja estão em uso, e só elas', () => {

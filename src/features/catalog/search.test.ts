@@ -33,18 +33,24 @@ describe('normalização', () => {
 })
 
 describe('busca do cardápio', () => {
-  it('sem busca, mostra tudo: 4 produtos e 43 itens', () => {
+  it('sem busca, mostra tudo: 4 produtos e 44 itens', () => {
     const all = found('')
     expect(all.main).toEqual(['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'])
-    expect(all.extras).toHaveLength(43)
-    expect(all.total).toBe(47)
+    expect(all.extras).toHaveLength(44)
+    expect(all.total).toBe(48)
   })
 
   it('"acai" (sem acento) acha os açaís principais e os das gavetas', () => {
     const result = found('acai')
     expect(result.main).toEqual(expect.arrayContaining(['acai-oca', 'acai-tradicional', 'acai-batido']))
     expect(result.extras).toEqual(
-      expect.arrayContaining(['Pote de Açaí 1 Litro Montado', 'Barca de Açaí', 'Açaí Mix 150 ml', 'Açaí de 1 Litro (Açaímix)']),
+      expect.arrayContaining([
+        'Pote de Açaí 1 Litro Montado',
+        'Barca de Açaí',
+        'Açaí Mix 150 ml',
+        'Açaí de 1 Litro (Açaímix Brazil)',
+        'Açaí do Oca (Pote Pronto)',
+      ]),
     )
   })
 
@@ -73,36 +79,38 @@ describe('busca do cardápio', () => {
   })
 
   it('"casquinha" e "cascao" acham os cinco itens com casquinha', () => {
-    const five = ['Kit Completo Casquinha', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha']
+    const five = ['Kit Completo Casquinha DUO', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha']
     expect(found('cascão').extras).toEqual(five)
     // O Kit Completo também leva casquinhas (está na descrição).
-    expect(found('casquinha').extras).toEqual(['Kit Completo Casquinha', 'Kit Completo', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha'])
+    expect(found('casquinha').extras).toEqual(['Kit Completo Casquinha DUO', 'Kit Completo', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha'])
   })
 
   it('"barca" acha a Barca de Açaí', () => {
     expect(found('barca')).toMatchObject({ main: [], extras: ['Barca de Açaí'] })
   })
 
-  it('"1 litro" e "1l" acham os potes de 1 litro, sem o de 1,5', () => {
+  it('"1 litro" e "1l" acham os potes e combos de 1 litro, sem o de 1,5', () => {
     const potes = [
       'Pote de Açaí 1 Litro Montado',
       'Combo 1 Litro',
-      'Açaí de 1 Litro (Açaímix)',
-      'Pote de Sorvete 1 Litro (Sabores Especiais)',
+      'Combo de Sorvete',
+      'Açaí de 1 Litro (Açaímix Brazil)',
+      'Açaí do Oca (Pote Pronto)',
+      'Pote de Sorvete 1 Litro (Qbombom Premium)',
       'Pote de Sorvete 1 Litro (Tradicional)',
     ]
     expect(found('1 litro').extras).toEqual(potes)
     expect(found('1l').extras).toEqual(potes)
-    expect(found('1,5').extras).toEqual(['Pote de Sorvete 1,5 Litro'])
+    expect(found('1,5').extras).toEqual(['Pote de Sorvete 1,5 Litro (Qbombom)'])
   })
 
   it('"2 litros" e "2l" acham os potes e kits de 2 litros', () => {
     const doisLitros = [
-      'Kit Completo Casquinha',
+      'Kit Completo Casquinha DUO',
       'Kit Completo',
-      'Pote de Açaí 2 Litros (Açaímix)',
-      'Pote de Sorvete 2 Litros (Sabores Especiais)',
-      'Pote de Sorvete 2 Litros (Tradicional)',
+      'Pote de Açaí 2 Litros (Açaímix Brazil)',
+      'Pote de Sorvete 2 Litros (Qbombom Premium)',
+      'Pote de Sorvete 2 Litros (Ster Bom Clássicos 4 em 1)',
     ]
     expect(found('2 litros').extras).toEqual(doisLitros)
     expect(found('2l').extras).toEqual(doisLitros)
@@ -121,6 +129,18 @@ describe('busca do cardápio', () => {
     expect(found('nutella').extras).toEqual(['Picolé Trufado', 'Picolé Gourmet'])
     expect(found('kit kat').main).toEqual(['acai-oca', 'acai-tradicional', 'milk-shake'])
     expect(found('sprite').extras).toEqual(['Refrigerante 350 ml'])
+  })
+
+  it('acha pelas marcas e sabores do catálogo da loja: "qbombom", "dueto", "unicórnio", "oca"', () => {
+    expect(found('qbombom').extras).toEqual([
+      'Combo 1 Litro',
+      'Pote de Sorvete 1,5 Litro (Qbombom)',
+      'Pote de Sorvete 2 Litros (Qbombom Premium)',
+      'Pote de Sorvete 1 Litro (Qbombom Premium)',
+    ])
+    expect(found('dueto').extras).toEqual(['Combo de Sorvete'])
+    expect(found('unicórnio').extras).toEqual(['Kit Completo Casquinha DUO', 'Kit Completo', 'Pote de Sorvete 2 Litros (Qbombom Premium)'])
+    expect(found('oca')).toMatchObject({ main: ['acai-oca'], extras: ['Açaí do Oca (Pote Pronto)'] })
   })
 
   it('nada encontrado: zero resultados', () => {

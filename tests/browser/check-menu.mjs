@@ -116,13 +116,13 @@ try {
     check(`${at} "Mais opções do cardápio"`, await browser.evaluate(`__q('#mais-opcoes-titulo')?.textContent`), 'Mais opções do cardápio')
     check(`${at} 5 gavetas, na ordem`, await browser.evaluate(`__drawers()`), DRAWER_IDS)
     check(`${at} só a primeira gaveta começa aberta`, await browser.evaluate(`__expanded()`), ['true', 'false', 'false', 'false', 'false'])
-    check(`${at} contagem de itens de cada gaveta`, await browser.evaluate(`__badges()`), ['5 itens', '10 itens', '12 itens', '2 itens', '14 itens'])
+    check(`${at} contagem de itens de cada gaveta`, await browser.evaluate(`__badges()`), ['5 itens', '11 itens', '12 itens', '2 itens', '14 itens'])
     check(
       `${at} gaveta 1 com os 5 combos, cada um com a sua foto; emblema só no botão da gaveta`,
       await browser.evaluate(`[__items('combos-e-ofertas').length, document.querySelectorAll('#combos-e-ofertas [data-emblem]').length, document.querySelectorAll('#combos-e-ofertas img[data-item-photo]').length]`),
       [5, 1, 5],
     )
-    // As 43 fotos das gavetas (pedido de 2026-11-15): abre as gavetas, rola até cada foto e espera
+    // As 44 fotos das gavetas (desde 2026-11-16, as da loja): abre as gavetas, rola até cada foto e espera
     // carregar. Nenhuma quebrada; todas quadradas, com 96 px, preenchendo o quadro, sem texto
     // alternativo (o nome está ao lado) e servidas da pasta local images/catalogo.
     for (const id of DRAWER_IDS.slice(1)) await click(`__q('#${id}-gaveta')`)
@@ -145,9 +145,12 @@ try {
       }
       return results;
     })()`)
-    check(`${at} as 43 fotos das gavetas carregam (nenhuma quebrada)`, [photos.length, photos.filter((p) => p.ok).map((p) => p.id).length], [43, 43])
-    check(`${at} fotos das gavetas: quadradas, locais, sem texto alternativo`, photos.filter((p) => !p.square || !p.local || p.alt !== '').map((p) => p.id), [])
-    check(`${at} fotos das gavetas: 96 px, preenchendo o quadro`, [...new Set(photos.map((p) => p.size + ' ' + p.fit))], ['96x96 cover'])
+    check(`${at} as 44 fotos das gavetas carregam (nenhuma quebrada)`, [photos.length, photos.filter((p) => p.ok).map((p) => p.id).length], [44, 44])
+    // As fotos da loja são em pé (o recorte da captura); o quadro do cartão é que é quadrado (96 px).
+    check(`${at} fotos das gavetas: locais, sem texto alternativo`, photos.filter((p) => !p.local || p.alt !== '').map((p) => p.id), [])
+    // Todas preenchem o quadro, menos a tabela dos picolés gourmet, que aparece inteira.
+    check(`${at} fotos das gavetas: 96 px, preenchendo o quadro`, [...new Set(photos.map((p) => p.size + ' ' + p.fit))], ['96x96 cover', '96x96 contain'])
+    check(`${at} fotos das gavetas: só a dos picolés gourmet inteira`, photos.filter((p) => p.fit === 'contain').map((p) => p.id), ['picole-gourmet'])
     await browser.evaluate(`window.scrollTo(0, 0); true`)
     for (const id of DRAWER_IDS.slice(1)) await click(`__q('#${id}-gaveta')`)
     check(
@@ -158,10 +161,15 @@ try {
     check(
       `${at} botões certos para cada tipo de item`,
       await browser.evaluate(`['combo-de-sorvete', 'combo-1-litro', 'kit-completo', 'pote-de-acai-1-litro'].map((id) => __itemButton(id).textContent.trim().split(':')[0])`),
-      ['Adicionar', 'Escolher sabor', 'Escolher sabores', 'Montar pote'],
+      ['Escolher sabor', 'Escolher sabor', 'Escolher sabores', 'Montar pote'],
     )
     await click(`__q('#barcas-e-potes-gaveta')`)
-    check(`${at} abrir a gaveta 2: 10 itens à vista`, await browser.evaluate(`[__q('#barcas-e-potes-gaveta').getAttribute('aria-expanded'), __items('barcas-e-potes').length]`), ['true', 10])
+    check(`${at} abrir a gaveta 2: 11 itens à vista`, await browser.evaluate(`[__q('#barcas-e-potes-gaveta').getAttribute('aria-expanded'), __items('barcas-e-potes').length]`), ['true', 11])
+    check(
+      `${at} Açaí do Oca: "a partir de R$ 17,00" e "Escolher tamanho"; potes prontos: "Adicionar"`,
+      await browser.evaluate(`[__q('[data-item="acai-do-oca-pronto"]').textContent.includes('a partir deR$ 17,00'), ...['acai-do-oca-pronto', 'pote-de-acai-2-litros'].map((id) => __itemButton(id).textContent.trim().split(':')[0])]`),
+      [true, 'Escolher tamanho', 'Adicionar'],
+    )
     await click(`__q('#barcas-e-potes-gaveta')`)
     await sleep(400)
     check(`${at} fechar a gaveta 2`, await browser.evaluate(`[__q('#barcas-e-potes-gaveta').getAttribute('aria-expanded'), __items('barcas-e-potes').length]`), ['false', 0])
@@ -192,7 +200,7 @@ try {
     check(
       `${at} "casquinha": os itens com casquinha`,
       await browser.evaluate(`[...__items('combos-e-ofertas'), ...__items('picoles-e-sorvetes')]`),
-      ['Kit Completo Casquinha', 'Kit Completo', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha'],
+      ['Kit Completo Casquinha DUO', 'Kit Completo', 'Combo 1 Litro', 'Combo de Sorvete', 'Cascão DUO', 'Moreninha'],
     )
     await search('ACAI')
     check(`${at} "ACAI" (sem acento): os açaís`, await browser.evaluate(`__mains().slice(0, 3)`), ['acai-oca', 'acai-tradicional', 'acai-batido'])
@@ -200,7 +208,13 @@ try {
     check(
       `${at} "2l": os potes e kits de 2 litros`,
       await browser.evaluate(`[...__items('combos-e-ofertas'), ...__items('barcas-e-potes')]`),
-      ['Kit Completo Casquinha', 'Kit Completo', 'Pote de Açaí 2 Litros (Açaímix)', 'Pote de Sorvete 2 Litros (Sabores Especiais)', 'Pote de Sorvete 2 Litros (Tradicional)'],
+      [
+        'Kit Completo Casquinha DUO',
+        'Kit Completo',
+        'Pote de Açaí 2 Litros (Açaímix Brazil)',
+        'Pote de Sorvete 2 Litros (Qbombom Premium)',
+        'Pote de Sorvete 2 Litros (Ster Bom Clássicos 4 em 1)',
+      ],
     )
     await search('xyz123')
     check(`${at} sem resultado: mensagem`, await browser.evaluate(`document.body.textContent.includes('Nenhum produto encontrado para “xyz123”')`), true)
@@ -265,7 +279,7 @@ try {
     )
     await click(`__in(__confirm(), 'ir para o carrinho')`)
     await waitFor(`location.pathname === '/carrinho' && __q('[aria-label="Itens do carrinho"]')`)
-    check(`${at} kit: vai para o carrinho`, await browser.evaluate(`__lines()`), ['Água Mineral 500 ml', 'Picolé Gourmet', 'Kit Completo Casquinha'])
+    check(`${at} kit: vai para o carrinho`, await browser.evaluate(`__lines()`), ['Água Mineral 500 ml', 'Picolé Gourmet', 'Kit Completo Casquinha DUO'])
     check(`${at} carrinho: total R$ 48,00 (2 + 2 + 3 + 41)`, await browser.evaluate(`__total().includes('R$ 48,00')`), true)
     check(`${at} carrinho: o sabor de cada item`, await browser.evaluate(`[document.body.textContent.includes('Sabor: Nutella'), document.body.textContent.includes('Sabor do sorvete (2 litros): Ninho com morango (outro sabor)')]`), [true, true])
     check(`${at} carrinho: itens das gavetas sem "Editar"`, await browser.evaluate(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] > li')].map((li) => !!li.querySelector('a[href*="/monte-seu-pedido/"]'))`), [false, false, false])
@@ -306,11 +320,20 @@ try {
     await waitFor(`location.pathname === '/monte-seu-pedido/barca-de-acai'`)
     check(`${at} barca: pede a cobertura antes de adicionar`, await browser.evaluate(`[__q('#resumo').innerText.includes('Falta escolher a cobertura.'), [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Adicionar ao carrinho')).getAttribute('aria-disabled')]`), [true, 'true'])
     check(`${at} barca: as 6 coberturas, com foto`, await browser.evaluate(`[document.querySelectorAll('input[name="barca-de-acai-sabor"]').length, document.querySelectorAll('input[name="barca-de-acai-sabor"] ~ span img').length]`), [6, 6])
+    check(`${at} barca: 7 adicionais grátis`, await browser.evaluate(`document.body.textContent.includes('0 de 7 adicionais grátis')`), true)
     await click(`__q('input[value="calda-chocolate"]')`)
+    // 2 frutas: depois da segunda, a terceira fica bloqueada.
+    await click(`__q('[aria-label="Kiwi"]')`)
+    await click(`__q('[aria-label="Morango"]')`)
+    check(
+      `${at} barca: 2 frutas, a terceira bloqueada`,
+      await browser.evaluate(`[__q('[aria-label="Kiwi"]').getAttribute('aria-pressed'), __q('[aria-label="Morango"]').getAttribute('aria-pressed'), __q('[aria-label="Banana"]').disabled, document.body.textContent.includes('2 de 2 frutas, sem custo · limite atingido')]`),
+      ['true', 'true', true, true],
+    )
     await click(`__q('[aria-label="Adicionar Kit Kat"]')`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Adicionar ao carrinho'))`)
     const barcaText = await browser.evaluate(`__confirmText()`)
-    check(`${at} barca: confirmação`, ['Barca de Açaí', 'CoberturaChocolate', 'Kit Kat (+ R$ 4,00)', 'Valor do item:R$ 34,00'].map((t) => barcaText.includes(t)), [true, true, true, true])
+    check(`${at} barca: confirmação`, ['Barca de Açaí', 'CoberturaChocolate', 'FrutasKiwi e Morango', 'Kit Kat (+ R$ 4,00)', 'Valor do item:R$ 34,00'].map((t) => barcaText.includes(t)), [true, true, true, true, true])
     await click(`__in(__confirm(), 'ir para o carrinho')`)
     await waitFor(`location.pathname === '/carrinho' && __q('[aria-label="Itens do carrinho"]')`)
     check(`${at} carrinho completo: total R$ 111,00 (6 + 41 + 30 + 34)`, await browser.evaluate(`[__lines().length, __total().includes('R$ 111,00')]`), [4, true])
@@ -327,7 +350,7 @@ try {
       [
         '*2x Picolé Gourmet* — R$ 6,00 (R$ 3,00 cada)',
         '• Sabor: Nutella',
-        '*1x Kit Completo Casquinha* — R$ 41,00',
+        '*1x Kit Completo Casquinha DUO* — R$ 41,00',
         '• Sabor do sorvete (2 litros): Ninho com morango (outro sabor)',
         '• Sabor da cobertura: Caramelo',
         '*1x Pote de Açaí 1 Litro Montado* — R$ 30,00',
@@ -335,11 +358,12 @@ try {
         '• Frutas: Kiwi',
         '*1x Barca de Açaí* — R$ 34,00',
         '• Cobertura: Chocolate',
+        '• Frutas: Kiwi, Morango',
         '• Adicionais pagos: Kit Kat (+ R$ 4,00)',
         '*TOTAL DO PEDIDO: R$ 111,00*',
         '*TROCO PARA:* R$ 150,00 *(Levar troco de R$ 39,00)*',
       ].map((line) => message?.split('\n').includes(line)),
-      Array(13).fill(true),
+      Array(14).fill(true),
     )
     await click(`__q('input[value="pix"]')`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`)

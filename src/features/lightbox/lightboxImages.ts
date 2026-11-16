@@ -5,9 +5,16 @@
  */
 import { formatBRL } from '../../utils/money.ts'
 import { type CategorySlug, findCategoryBySlug } from '../catalog/categories.ts'
-import { type ExtraItem, extraForProduct } from '../catalog/extras.ts'
+import { type ExtraItem, extraForProduct, extraPhoto, extraPriceCents, hasPricedChoices } from '../catalog/extras.ts'
 import { type ExtraProductSlug, type ProductSlug, TOPPING_GROUPS, type Topping } from '../catalog/menu.ts'
-import { catalogPhotoSrc, catalogPhotoSrcSet, ingredientZoomSrc, productPhoto, productPhotoSrc } from '../catalog/photos.ts'
+import {
+  catalogPhotoSize,
+  catalogPhotoSrc,
+  catalogPhotoSrcSet,
+  ingredientZoomSrc,
+  productPhoto,
+  productPhotoSrc,
+} from '../catalog/photos.ts'
 import { startingPriceCents } from '../catalog/showcase.ts'
 import type { OfferNotification } from '../offers/offerNotifications.ts'
 
@@ -30,16 +37,26 @@ export type LightboxImage = {
 
 type Overrides = Partial<Pick<LightboxImage, 'price' | 'description' | 'title'>>
 
-/** Item das gavetas (e o Pote 1 L Montado e a Barca): a cópia de 960 px. */
-export function extraLightbox(item: ExtraItem, overrides: Overrides = {}): LightboxImage {
+/**
+ * Item das gavetas (e o Pote 1 L Montado e a Barca): a maior cópia da foto. Com as escolhas feitas,
+ * a foto do sabor escolhido e o preço daquela opção (o tamanho do Açaí do Oca).
+ */
+export function extraLightbox(
+  item: ExtraItem,
+  overrides: Overrides = {},
+  choices: Readonly<Record<string, string>> = {},
+): LightboxImage {
+  const { image, alt } = extraPhoto(item, choices)
+  // Sem o tamanho escolhido, o "a partir de" (o menor preço).
+  const fromPrice = hasPricedChoices(item) && Object.keys(choices).length === 0
   return {
     id: `item:${item.id}`,
-    src: catalogPhotoSrc(item.image, 960),
-    srcSet: catalogPhotoSrcSet(item.image),
-    width: 960,
-    alt: item.imageAlt,
+    src: catalogPhotoSrc(image, 960),
+    srcSet: catalogPhotoSrcSet(image),
+    width: catalogPhotoSize(image)?.width,
+    alt,
     title: item.name,
-    price: formatBRL(item.priceCents),
+    price: fromPrice ? `A partir de ${formatBRL(item.priceCents)}` : formatBRL(extraPriceCents(item, choices)),
     description: item.description,
     ...overrides,
   }

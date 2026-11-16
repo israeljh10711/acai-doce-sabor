@@ -44,16 +44,21 @@ export function ImageLightboxModal({ image, onClose }: { image: LightboxImage | 
     setFit(null)
   }
 
+  // Tamanho da foto, medido só na primeira carga. As cópias do srcset têm a mesma proporção, mas o
+  // tamanho que o navegador informa muda com o `sizes` (que muda ao ampliar) e vem arredondado:
+  // medir de novo a cada troca de cópia deixava a foto em pé 1 ou 2 px fora do dobro.
+  const natural = useRef<{ src: string; size: Size } | null>(null)
+
   const measure = () => {
     const element = photo.current
     if (!element?.naturalWidth || !image) return
-    setFit(
-      fitSize(
-        { width: element.naturalWidth, height: element.naturalHeight },
-        { width: window.innerWidth, height: window.innerHeight },
-        image.width ?? element.naturalWidth,
-      ),
-    )
+    if (natural.current?.src !== image.src) {
+      natural.current = { src: image.src, size: { width: element.naturalWidth, height: element.naturalHeight } }
+    }
+    const { size } = natural.current
+    const next = fitSize(size, { width: window.innerWidth, height: window.innerHeight }, image.width ?? size.width)
+    // Mesmo tamanho: nada muda (assim a troca de cópia não tira do lugar a foto já ampliada).
+    setFit((current) => (current?.width === next.width && current.height === next.height ? current : next))
   }
 
   // Girar o celular ou mudar o tamanho da janela recalcula o tamanho da foto.

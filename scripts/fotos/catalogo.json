@@ -1,5 +1,5 @@
 {
-  "_sobre": "Fotos dos 43 itens das gavetas (pedido de 2026-11-15). Todas com licença de uso comercial: Licença Pexels, CC0, domínio público, CC BY ou CC BY-SA (as derivadas de CC BY-SA seguem a mesma licença). recorte = quadrado (cx, cy: centro em frações; s: lado em fração do menor lado). inteira = embalagem inteira sobre fundo branco (girar em graus). composicao = montagem feita por preparar.mjs com as peças de _pecas. Os créditos aparecem em /creditos.",
+  "_sobre": "Fotos de banco do cardápio (licença de uso comercial). Desde 2026-11-16 quase todos os itens usam as fotos da loja, tiradas do catálogo do WhatsApp (whatsapp.json); as fotos de banco que saíram estão em assets/catalogo-banco-anteriores/, com as fontes em _anteriores. recorte = quadrado (cx, cy: centro em frações; s: lado em fração do menor lado). inteira = embalagem inteira sobre fundo branco. composicao = montagem feita por preparar.mjs com as peças de _pecas.",
   "_pecas": {
     "pote": {
       "origem": "Pexels",
@@ -33,6 +33,22 @@
     }
   },
   "fotos": {
+    "pote-sorvete-1l-tradicional.jpg": {
+      "item": "pote-de-sorvete-1-litro-tradicional",
+      "origem": "Pexels",
+      "titulo": "Scoop of Chocolate Chip Ice Cream",
+      "autor": "Saher Suthriwala",
+      "licenca": "Licença Pexels",
+      "pagina": "https://www.pexels.com/photo/scoop-of-chocolate-chip-ice-cream-8589559/",
+      "download": "https://images.pexels.com/photos/8589559/pexels-photo-8589559.jpeg?auto=compress&cs=tinysrgb&w=2000",
+      "recorte": {
+        "cx": 0.5,
+        "cy": 0.4,
+        "s": 1
+      }
+    }
+  },
+  "_anteriores": {
     "kit-completo-casquinha.png": {
       "item": "kit-completo-casquinha",
       "composicao": "kit-casquinha",
@@ -183,20 +199,6 @@
         "cx": 0.5,
         "cy": 0.5,
         "s": 0.95
-      }
-    },
-    "pote-sorvete-1l-tradicional.jpg": {
-      "item": "pote-de-sorvete-1-litro-tradicional",
-      "origem": "Pexels",
-      "titulo": "Scoop of Chocolate Chip Ice Cream",
-      "autor": "Saher Suthriwala",
-      "licenca": "Licença Pexels",
-      "pagina": "https://www.pexels.com/photo/scoop-of-chocolate-chip-ice-cream-8589559/",
-      "download": "https://images.pexels.com/photos/8589559/pexels-photo-8589559.jpeg?auto=compress&cs=tinysrgb&w=2000",
-      "recorte": {
-        "cx": 0.5,
-        "cy": 0.4,
-        "s": 1
       }
     },
     "acai-creme-ninho-pronto.jpg": {

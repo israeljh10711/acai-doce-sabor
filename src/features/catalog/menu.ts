@@ -89,6 +89,11 @@ export type Product = {
   flavorTerm?: FlavorTerm
   /** Texto curto ao lado do título da escolha obrigatória. */
   flavorHint?: string
+  /**
+   * Quantos ingredientes diferentes de um grupo "um de cada" cabem no produto (na barca, 2 frutas).
+   * Sem limite, todos os do grupo.
+   */
+  groupLimits?: Partial<Readonly<Record<ToppingGroupId, number>>>
 }
 
 /**
@@ -267,18 +272,20 @@ export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
     sizes: [size('pote-1-litro', 'Pote 1 litro', 'pote', 3000, 7)],
   },
 
-  // Gaveta "Barcas e Potes" (pedido de 2026-11-15): R$ 30,00 com 1 cobertura à escolha, entre as
-  // coberturas do cardápio. Opcionais: só os adicionais pagos, os únicos com preço no cardápio.
+  // Gaveta "Barcas e Potes": R$ 30,00 com 1 cobertura (entre as coberturas do cardápio), 2 frutas e
+  // 7 adicionais à escolha (catálogo do WhatsApp da loja, pedido de 2026-11-16). Os adicionais
+  // pagos continuam à parte, como antes.
   'barca-de-acai': {
     slug: 'barca-de-acai',
     name: 'Barca de Açaí',
-    groups: ['paid'],
+    groups: ['dry', 'fruit', 'paid'],
+    groupLimits: { fruit: 2 },
     flavorTerm: { label: 'Cobertura', missing: 'a cobertura' },
     flavorHint: '1 inclusa no preço',
     flavors: TOPPINGS.filter((topping) => topping.group === 'syrup' && topping.priceCents === 0 && !topping.onlyIn).map(
       (topping) => ({ id: topping.id, name: topping.name }),
     ),
-    sizes: [size('barca', 'Barca', 'barca', 3000, 0)],
+    sizes: [size('barca', 'Barca', 'barca', 3000, 7)],
   },
 }
 

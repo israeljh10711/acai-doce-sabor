@@ -1,25 +1,28 @@
 /**
- * Confere as fotos do site (pedido de 2026-11-15): `npm run check:images`.
+ * Confere as fotos do site: `npm run check:images` (pedidos de 2026-11-15 e 2026-11-16).
  *
- * - Cada um dos 43 itens das gavetas tem `image` com um caminho local em `public/images/catalogo/`.
+ * - Cada um dos 44 itens das gavetas tem `image` com um caminho local em `public/images/catalogo/`,
+ *   e cada foto de sabor (`photos` nas escolhas) também.
  * - Cada arquivo de `public/images/catalogo/` existe, começa com o cabeçalho de JPEG, PNG ou WebP e
  *   decodifica por inteiro (o sharp lê todos os pixels): nada de página de erro salva como foto.
- * - As fotos de referência (as baixadas ou montadas, uma por item) têm mais de 15 KB, são
- *   quadradas e têm pelo menos 600 px. As cópias leves têm exatamente 480 ou 960 px.
+ * - As fotos de referência têm mais de 15 KB. As da loja (catálogo do WhatsApp) têm até 900 px de
+ *   largura e pelo menos 280 px no lado menor; as de banco são quadradas, com pelo menos 600 px.
+ * - As cópias leves (`-480.webp` e `-960.webp`) têm o tamanho escrito em `catalogPhotos.json`.
  * - As outras pastas de fotos (ingredientes, produtos e logo) também decodificam por inteiro.
  *
- * As cópias WebP de fotos com muito fundo branco (picolé, água) ficam com menos de 15 KB: são
- * válidas (decodificam e têm o tamanho certo), só leves. A lista delas sai no fim, para conferência.
+ * Cópias WebP de fotos com muito fundo liso ficam com menos de 15 KB: são válidas (decodificam e
+ * têm o tamanho certo), só leves. A lista delas sai no fim, para conferência.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import { EXTRA_ITEMS } from '../../src/features/catalog/extras.ts'
+import { EXTRA_ITEMS, choiceGroupsOf } from '../../src/features/catalog/extras.ts'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const PUBLIC = join(ROOT, 'public')
 const CATALOG = join(PUBLIC, 'images', 'catalogo')
+const INFO = JSON.parse(readFileSync(join(ROOT, 'src', 'features', 'catalog', 'catalogPhotos.json'), 'utf8'))
 const MIN_BYTES = 15 * 1024
 
 const failures = []
@@ -49,41 +52,56 @@ async function decode(file) {
   }
 }
 
-// 1. Cada item tem foto local e as duas cópias.
+// 1. A foto de cada item e de cada sabor: local, com as duas cópias.
+const images = EXTRA_ITEMS.flatMap((item) => [
+  [item.id, item.image],
+  ...choiceGroupsOf(item).flatMap((group) => Object.entries(group.photos ?? {}).map(([option, image]) => [`${item.id} (${option})`, image])),
+])
 const expected = new Set()
-for (const item of EXTRA_ITEMS) {
-  if (typeof item.image !== 'string' || !item.image.startsWith('images/catalogo/')) {
-    fail(`${item.id}: image fora de images/catalogo (${item.image})`)
+for (const [owner, image] of images) {
+  if (typeof image !== 'string' || !image.startsWith('images/catalogo/')) {
+    fail(`${owner}: foto fora de images/catalogo (${image})`)
     continue
   }
-  const name = item.image.slice('images/catalogo/'.length)
+  const name = image.slice('images/catalogo/'.length)
   const base = name.replace(/\.(jpg|png)$/, '')
   for (const file of [name, `${base}-480.webp`, `${base}-960.webp`]) {
     expected.add(file)
-    if (!existsSync(join(CATALOG, file))) fail(`${item.id}: falta ${file}`)
+    if (!existsSync(join(CATALOG, file))) fail(`${owner}: falta ${file}`)
   }
+  if (!INFO[name]) fail(`${owner}: ${name} fora de catalogPhotos.json`)
 }
 
 // 2. Cada arquivo da pasta do cardápio.
 const light = []
 let masters = 0
+let store = 0
 const files = readdirSync(CATALOG).sort()
 for (const file of files) {
   if (!expected.has(file)) fail(`${file}: sobrando (nenhum item usa)`)
   const info = await decode(join(CATALOG, file))
   if (!info) continue
-  const variant = file.match(/-(480|960)\.webp$/)
+  const variant = file.match(/^(.+)-(480|960)\.webp$/)
   if (variant) {
-    const width = Number(variant[1])
-    if (info.format !== 'webp' || info.width !== width || info.height !== width) fail(`${file}: esperado WebP ${width}x${width}, veio ${info.format} ${info.width}x${info.height}`)
+    const master = readdirSync(CATALOG).find((name) => name === `${variant[1]}.jpg` || name === `${variant[1]}.png`)
+    const size = master && INFO[master]?.[variant[2]]
+    if (info.format !== 'webp' || !size || info.width !== size[0] || info.height !== size[1]) {
+      fail(`${file}: esperado WebP ${size?.join('x')}, veio ${info.format} ${info.width}x${info.height}`)
+    }
     if (info.bytes < MIN_BYTES) light.push(`${file} (${(info.bytes / 1024).toFixed(1)} KB)`)
+    continue
+  }
+  masters++
+  const wanted = file.endsWith('.png') ? 'png' : 'jpeg'
+  if (info.format !== wanted) fail(`${file}: extensão de ${wanted}, conteúdo ${info.format}`)
+  if (info.bytes <= MIN_BYTES) fail(`${file}: ${info.bytes} bytes (mínimo 15 KB)`)
+  if (INFO[file]?.loja) {
+    store++
+    if (info.width > 900) fail(`${file}: ${info.width} px de largura (máximo 900)`)
+    if (Math.min(info.width, info.height) < 280) fail(`${file}: só ${info.width}x${info.height}`)
   } else {
-    masters++
-    const wanted = file.endsWith('.png') ? 'png' : 'jpeg'
-    if (info.format !== wanted) fail(`${file}: extensão de ${wanted}, conteúdo ${info.format}`)
     if (info.width !== info.height) fail(`${file}: não é quadrada (${info.width}x${info.height})`)
     if (info.width < 600) fail(`${file}: só ${info.width} px`)
-    if (info.bytes <= MIN_BYTES) fail(`${file}: ${info.bytes} bytes (mínimo 15 KB)`)
   }
 }
 
@@ -97,10 +115,10 @@ for (const folder of ['ingredientes', 'produtos', 'branding']) {
   }
 }
 
-console.log(`Itens das gavetas: ${EXTRA_ITEMS.length}, todos com foto local: ${EXTRA_ITEMS.every((item) => item.image?.startsWith('images/catalogo/'))}`)
-console.log(`Cardápio: ${files.length} arquivos (${masters} fotos de referência + ${files.length - masters} cópias), todos decodificados por inteiro`)
+console.log(`Itens das gavetas: ${EXTRA_ITEMS.length}; fotos de item e de sabor: ${images.length}, todas locais: ${images.every(([, image]) => image?.startsWith('images/catalogo/'))}`)
+console.log(`Cardápio: ${files.length} arquivos (${masters} fotos: ${store} da loja e ${masters - store} de banco, + ${files.length - masters} cópias), todos decodificados por inteiro`)
 console.log(`Ingredientes, produtos e logo: ${others} arquivos decodificados`)
-if (light.length) console.log(`Cópias WebP válidas com menos de 15 KB (fundo branco): ${light.join(', ')}`)
+if (light.length) console.log(`Cópias WebP válidas com menos de 15 KB (fundo liso): ${light.join(', ')}`)
 if (failures.length) {
   console.log(`\nFALHAS (${failures.length}):\n- ${failures.join('\n- ')}`)
   process.exit(1)
