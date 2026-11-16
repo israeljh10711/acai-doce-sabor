@@ -102,7 +102,7 @@ function CatalogSection({
       data-section={drawer.id}
       aria-labelledby={titleId}
       tabIndex={-1}
-      className="scroll-mt-40 focus:outline-none lg:scroll-mt-6"
+      className="scroll-mt-34 focus:outline-none lg:scroll-mt-6"
     >
       <div
         data-flash-target=""

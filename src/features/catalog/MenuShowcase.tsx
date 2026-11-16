@@ -46,7 +46,7 @@ export function MenuShowcase({
               id={MAIN_ANCHORS[category.slug]}
               tabIndex={-1}
               data-flash-target=""
-              className="scroll-mt-40 rounded-[1.75rem] focus:outline-none lg:scroll-mt-6"
+              className="scroll-mt-34 rounded-[1.75rem] focus:outline-none lg:scroll-mt-6"
               {...reveal}
             >
               <ProductCard category={category} Heading={headingLevel} />
@@ -87,7 +87,7 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
       tabIndex={-1}
       data-flash-target=""
       aria-labelledby={`${category.slug}-titulo`}
-      className="relative grid scroll-mt-40 overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift focus:outline-none lg:scroll-mt-6 lg:grid-cols-[1.05fr_1fr]"
+      className="relative grid scroll-mt-34 overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift focus:outline-none lg:scroll-mt-6 lg:grid-cols-[1.05fr_1fr]"
       {...reveal}
     >
       <div className="relative bg-white">

@@ -4,6 +4,7 @@ import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { Depth, TiltStage } from '../components/ui/TiltStage.tsx'
 import { ArrowRight, Camera, Chat, Clock, Crown, Pin } from '../components/ui/icons.tsx'
+import { LEGACY_ANCHORS } from '../features/catalog/catalogNav.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { HOURS_TEXT } from '../features/store-hours/hours.ts'
@@ -23,18 +24,18 @@ const rise = (delay: number) => ({
 
 export function HomePage() {
   usePageTitle()
-  useHashScroll()
+  useHashScroll(LEGACY_ANCHORS)
 
   return (
     <>
       <Hero />
 
-      {/* Busca, atalhos, vitrine e as 5 gavetas de "Mais opções", iguais aos da página Cardápio. */}
+      {/* O cardápio inteiro (navegação, busca, destaques, os 4 produtos e as 5 seções), igual ao da página Cardápio. */}
       <MenuBrowser
         headingLevel={3}
         sectionId="cardapio"
         labelledBy="cardapio-titulo"
-        className="py-14 sm:py-20"
+        className="pt-14 pb-14 sm:pt-20 sm:pb-20"
         intro={
           <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:mb-12 sm:flex-row sm:items-end">
             <div>
@@ -90,7 +91,7 @@ function Hero() {
               <ArrowRight className="size-5" />
             </a>
             <a
-              href="#acai-oca"
+              href="#secao-acai-oca"
               className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border-2 border-white/60 px-7 font-bold whitespace-nowrap text-white transition hover:border-white hover:bg-white hover:text-acai-800 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white"
             >
               <Crown className="size-5 text-gold-400" />

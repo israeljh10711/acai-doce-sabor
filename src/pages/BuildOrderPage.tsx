@@ -1,19 +1,20 @@
 import { Container } from '../components/layout/Container.tsx'
+import { LEGACY_ANCHORS } from '../features/catalog/catalogNav.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
 import { useHashScroll } from '../hooks/useHashScroll.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 
 /**
- * Cardápio completo: os 4 produtos do personalizador e as 5 gavetas de "Mais opções" (combos,
- * potes família, picolés, bebidas e doces), com busca e atalhos. Abre mesmo com a loja fechada.
+ * Cardápio completo: os 4 produtos do personalizador e as 5 seções do catálogo (combos, potes
+ * família, picolés, bebidas e doces), com busca, destaques e a navegação. Abre mesmo com a loja fechada.
  */
 export function BuildOrderPage() {
   usePageTitle('Cardápio', {
     description:
       'Cardápio do Açaí Doce Sabor: Açaí Oca, Tradicional, Batido e Milk-shake montados do seu jeito, combos, barcas, potes de 1 e 2 litros, picolés, sorvetes, bebidas e doces. Teixeira, PB.',
   })
-  useHashScroll()
+  useHashScroll(LEGACY_ANCHORS)
 
   return (
     <>
