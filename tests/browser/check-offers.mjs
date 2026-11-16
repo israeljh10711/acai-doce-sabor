@@ -154,10 +154,20 @@ try {
     await sleep(2500)
     check(`${at} ao limpar a busca, não volta na hora`, await run(`__offer() === null`), true)
 
+    // --- Menu das categorias aberto (celular, desde 2026-11-16) também para ---
+    if (viewport.width < 1024) {
+      await open('/monte-seu-pedido', viewport, withOffer('cremosinho'))
+      await waitFor(`__offer()`, 9000)
+      await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Categorias')`)
+      check(`${at} menu das categorias aberto some com a oferta`, await run(`[__q('dialog[aria-labelledby="menu-categorias-titulo"]').open, __offer() === null]`), [true, true])
+      await sleep(1500)
+      check(`${at} com o menu aberto, nada aparece`, await run(`__offer() === null`), true)
+      await click(`__q('dialog[aria-labelledby="menu-categorias-titulo"] button[aria-label="Fechar categorias"]')`)
+    }
+
     // --- Janela aberta para tudo ---
     await open('/monte-seu-pedido', viewport, withOffer('cremosinho'))
     await waitFor(`__offer()`, 9000)
-    await click(`__q('#barcas-e-potes-gaveta')`)
     await click(`__q('[data-item="pote-de-acai-2-litros"] button:not([data-zoom])')`)
     check(`${at} janela de confirmação aberta some com a oferta`, await run(`[__q('dialog[open]') !== null, __offer() === null]`), [true, true])
     await sleep(1500)
@@ -201,7 +211,7 @@ try {
       await open('/monte-seu-pedido', viewport, withOffer(id))
       await waitFor(`__offer()`, 9000)
       check(`${at} oferta ${id} na tela`, await run(`__offerId()`), id)
-      // Foto da gaveta preenchendo o quadro; a dos produtos principais (foto da loja), inteira.
+      // Foto do item do catálogo preenchendo o quadro; a dos produtos principais (foto da loja), inteira.
       const fit = id === 'acai-oca' || id === 'acai-batido' ? 'contain' : 'cover'
       check(
         `${at} ${id}: miniatura certa (${fit})`,

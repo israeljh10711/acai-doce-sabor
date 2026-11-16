@@ -24,7 +24,7 @@ export function CatalogSidebar({ entries, current, onGo }: NavProps) {
       <p className="mb-2 px-2 text-[11px] font-extrabold tracking-wider text-ink-soft uppercase">Navegação rápida</p>
       <OffersShortcut onGo={onGo} />
       <nav aria-label="Categorias do cardápio" className="mt-4">
-        <CategoryList entries={entries} current={current} onGo={onGo} />
+        <CategoryList entries={entries} current={current} onGo={onGo} idPrefix="lateral" />
       </nav>
     </div>
   )
@@ -39,7 +39,7 @@ export function OffersShortcut({ onGo }: { onGo: (anchor: string) => void }) {
         event.preventDefault()
         onGo(OFFERS_ANCHOR)
       }}
-      className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-linear-to-r from-acai-800 to-acai-600 p-3 text-white shadow-sm transition hover:brightness-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+      className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-acai-800 bg-linear-to-r from-acai-800 to-acai-600 p-3 text-white shadow-sm transition hover:brightness-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
     >
       <span className="flex items-center gap-2.5">
         <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold-400 text-acai-950">
@@ -57,13 +57,14 @@ export function OffersShortcut({ onGo }: { onGo: (anchor: string) => void }) {
  * dos 4 produtos e a contagem das 5 seções. A seção à vista fica roxa, com ícone e contagem
  * dourados. Na busca, as seções sem resultado ficam apagadas (escolher uma limpa a busca).
  */
-export function CategoryList({ entries, current, onGo }: NavProps) {
+export function CategoryList({ entries, current, onGo, idPrefix }: NavProps & { idPrefix: string }) {
+  // A barra lateral e o menu do celular estão na mesma página: cada lista tem os seus ids.
   return GROUPS.map((group, index) => (
     <div key={group.id} className={index > 0 ? 'mt-3 border-t border-line pt-3' : ''}>
-      <p id={`grupo-${group.id}`} className="mb-1.5 px-2 text-[11px] font-extrabold tracking-wider text-ink-soft uppercase">
+      <p id={`${idPrefix}-grupo-${group.id}`} className="mb-1.5 px-2 text-[11px] font-extrabold tracking-wider text-ink-soft uppercase">
         {group.title}
       </p>
-      <ul aria-labelledby={`grupo-${group.id}`} className="flex flex-col gap-1">
+      <ul aria-labelledby={`${idPrefix}-grupo-${group.id}`} className="flex flex-col gap-1">
         {entries
           .filter((entry) => entry.group === group.id)
           .map((entry) => (

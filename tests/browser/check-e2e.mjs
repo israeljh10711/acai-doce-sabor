@@ -2,8 +2,9 @@
 // (390 px) e no computador (1280 px), complementando check:menu, check:configurator e check:offers:
 // - vitrine: os 4 produtos principais com as fotos da loja;
 // - busca com e sem acento e os sinônimos do pedido (batida, dindin, refri, agua, casquinha, barca);
-// - cada uma das 5 gavetas abre e fecha; cada um dos 9 atalhos leva ao lugar certo;
-// - TODOS os 44 itens das gavetas: os 42 que vão direto ao carrinho (com sabor, tamanho ou sem) passam pela
+// - cada uma das 5 seções recolhe e abre de novo; cada uma das 9 entradas da navegação (barra lateral no
+//   computador, botões da barra fixa no celular) leva ao lugar certo;
+// - TODOS os 44 itens do catálogo: os 42 que vão direto ao carrinho (com sabor, tamanho ou sem) passam pela
 //   confirmação e entram no carrinho; os 2 de montagem abrem o personalizador;
 // - carrinho com os 41 itens, total certo, mensagem do WhatsApp com cada um, no crédito e no débito;
 // - o exemplo do pedido: pedido de R$ 48,00 com troco para R$ 50,00 leva R$ 2,00 de troco;
@@ -31,11 +32,12 @@ const helpers = `
     return true;
   };
   window.__button = (text) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(text));
-  window.__pill = (label) => [...document.querySelectorAll('nav[aria-label="Atalhos do cardápio"] a')].find((a) => a.textContent.trim() === label);
-  window.__drawerButton = (id) => __q('#' + id + '-gaveta');
-  window.__itemsIn = (id) => [...document.querySelectorAll('#' + id + ' [data-item] [id$="-nome"]')].map((h) => h.textContent);
+  window.__go = (anchor) => [...document.querySelectorAll('nav[aria-label="Categorias do cardápio"] a[data-nav], nav[aria-label="Atalhos do cardápio"] a[data-target]')].find((a) => a.getBoundingClientRect().width > 0 && (a.dataset.nav ?? a.dataset.target) === anchor);
+  window.__barBottom = () => { const bar = __q('[data-menu-bar]'); return getComputedStyle(bar).position === 'sticky' ? bar.getBoundingClientRect().bottom : 0 };
+  window.__drawerButton = (id) => __q('[data-toggle="' + id + '"]');
+  window.__itemsIn = (id) => [...document.querySelectorAll('[data-section="' + id + '"] [data-item] [id$="-nome"]')].map((h) => h.textContent);
   window.__shownItems = () => [...document.querySelectorAll('[data-item] [id$="-nome"]')].map((h) => h.textContent);
-  window.__mains = () => ['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'].filter((id) => document.getElementById(id));
+  window.__mains = () => [['acai-oca', 'secao-acai-oca'], ['acai-tradicional', 'secao-acai-tradicional'], ['acai-batido', 'secao-acai-batido'], ['milk-shake', 'secao-milkshake']].filter(([, anchor]) => document.getElementById(anchor)).map(([slug]) => slug);
   window.__itemButton = (id) => __q('[data-item="' + id + '"] button:not([data-zoom]), [data-item="' + id + '"] a');
   window.__confirm = () => __q('dialog[role="alertdialog"]');
   window.__options = () => __q('dialog[aria-labelledby="opcoes-item-titulo"]');
@@ -91,16 +93,17 @@ const DRAWERS = [
   ['bebidas', 2],
   ['doces-e-bomboniere', 14],
 ]
-const PILLS = [
-  ['Açaí Oca', 'acai-oca', null],
-  ['Açaí Tradicional', 'acai-tradicional', null],
-  ['Açaí Batido', 'acai-batido', null],
-  ['Milk-shake', 'milk-shake', null],
-  ['Combos e Ofertas', 'combos-e-ofertas', 'combos-e-ofertas'],
-  ['Barcas e Potes 1L/2L', 'barcas-e-potes', 'barcas-e-potes'],
-  ['Picolés e Sorvetes', 'picoles-e-sorvetes', 'picoles-e-sorvetes'],
-  ['Bebidas', 'bebidas', 'bebidas'],
-  ['Doces e Bomboniere', 'doces-e-bomboniere', 'doces-e-bomboniere'],
+// Âncora de cada entrada da navegação e a seção do catálogo que ela abre (os 4 produtos não recolhem).
+const NAV = [
+  ['secao-acai-oca', null],
+  ['secao-acai-tradicional', null],
+  ['secao-acai-batido', null],
+  ['secao-milkshake', null],
+  ['secao-combos', 'combos-e-ofertas'],
+  ['secao-barcas-potes', 'barcas-e-potes'],
+  ['secao-picoles-sorvetes', 'picoles-e-sorvetes'],
+  ['secao-bebidas', 'bebidas'],
+  ['secao-doces-bomboniere', 'doces-e-bomboniere'],
 ]
 const ACAI_ITEMS = [
   'Pote de Açaí 1 Litro Montado',
@@ -125,7 +128,7 @@ const SEARCHES = [
   ['picole', [], ['Picolé Trufado', 'Picolé Gourmet', 'Picolé Comum']],
 ]
 
-/** Coloca um item das gavetas no carrinho pela tela: sabor (a primeira opção de cada grupo) e confirmação. */
+/** Coloca um item do catálogo no carrinho pela tela: sabor (a primeira opção de cada grupo) e confirmação. */
 async function addExtra(at, item) {
   const open = await run(`__drawerButton('${item.drawer}').getAttribute('aria-expanded')`)
   if (open !== 'true') await click(`__drawerButton('${item.drawer}')`, 500)
@@ -163,7 +166,7 @@ try {
 
     // --- Vitrine: os 4 carros-chefes com as fotos enviadas pela loja ---
     const mains = await run(`(async () => Promise.all(['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'].map(async (id) => {
-      const card = document.getElementById(id);
+      const card = document.getElementById({ 'acai-oca': 'secao-acai-oca', 'acai-tradicional': 'secao-acai-tradicional', 'acai-batido': 'secao-acai-batido', 'milk-shake': 'secao-milkshake' }[id]);
       const img = card?.querySelector('[data-product-photo]');
       if (!img) return [id, null];
       img.scrollIntoView({ block: 'center' });
@@ -186,30 +189,31 @@ try {
     }
     await run(`__type('#busca-cardapio', '')`)
     await sleep(400)
-    check(`${at} busca limpa: cardápio inteiro de volta`, await run(`[__mains().length, document.querySelectorAll('[data-drawer]').length]`), [4, 5])
+    check(`${at} busca limpa: cardápio inteiro de volta`, await run(`[__mains().length, document.querySelectorAll('[data-section]').length]`), [4, 5])
 
-    // --- As 5 gavetas abrem e fecham ---
+    // --- As 5 seções começam abertas, recolhem e abrem de novo ---
     for (const [id, count] of DRAWERS) {
-      const states = []
+      const states = [await run(`[__drawerButton('${id}').getAttribute('aria-expanded'), __itemsIn('${id}').length]`)]
       for (let toggle = 0; toggle < 2; toggle++) {
         await click(`__drawerButton('${id}')`, 600)
         states.push(await run(`[__drawerButton('${id}').getAttribute('aria-expanded'), __itemsIn('${id}').length]`))
       }
-      states.sort((a, b) => (a[0] === 'true' ? -1 : 1) - (b[0] === 'true' ? -1 : 1))
-      check(`${at} gaveta ${id}: abre com ${count} itens e fecha`, states, [['true', count], ['false', 0]])
+      check(`${at} seção ${id}: aberta com ${count} itens, recolhe e abre de novo`, states, [['true', count], ['false', 0], ['true', count]])
     }
 
-    // --- Os 9 atalhos da barra fixa ---
-    for (const [label, target, drawer] of PILLS) {
+    // --- As 9 entradas da navegação (barra lateral ou botões da barra fixa) ---
+    for (const [anchor, drawer] of NAV) {
       await run(`window.scrollTo(0, 0); true`)
       await sleep(200)
-      await click(`__pill(${JSON.stringify(label)})`, 1000)
-      const where = await run(`(() => { const top = Math.round(document.getElementById('${target}').getBoundingClientRect().top); return top > 40 && top < 230 })()`)
+      if (drawer) await click(`__drawerButton('${drawer}')`, 500)
+      await click(`__go('${anchor}')`, 1100)
+      const where = await run(`(() => { const gap = Math.round(document.getElementById('${anchor}').getBoundingClientRect().top - __barBottom()); return gap > 0 && gap < 60 })()`)
       const opened = drawer ? await run(`__drawerButton('${drawer}').getAttribute('aria-expanded')`) : 'true'
-      check(`${at} atalho "${label}" leva ao lugar certo${drawer ? ' e abre a gaveta' : ''}`, [where, opened], [true, 'true'])
+      const marked = await run(`__go('${anchor}').getAttribute('aria-current')`)
+      check(`${at} navegação "${anchor}" leva ao lugar certo e marca a seção${drawer ? ' (recolhida antes: abre)' : ''}`, [where, opened, marked], [true, 'true', 'true'])
     }
 
-    // --- Os 44 itens das gavetas ---
+    // --- Os 44 itens do catálogo ---
     await page('/monte-seu-pedido', viewport)
     const orderable = EXTRA_ITEMS.filter((item) => item.action.type !== 'customizer')
     const problems = []
@@ -217,7 +221,7 @@ try {
       const problem = await addExtra(at, item)
       if (problem) problems.push(problem)
     }
-    check(`${at} os ${orderable.length} itens das gavetas sem montagem entram no carrinho pela confirmação`, problems, [])
+    check(`${at} os ${orderable.length} itens do catálogo sem montagem entram no carrinho pela confirmação`, problems, [])
     check(`${at} contador do carrinho: ${orderable.length}`, await run(`__cartCount()`), orderable.length)
     for (const item of EXTRA_ITEMS.filter((candidate) => candidate.action.type === 'customizer')) {
       await page('/monte-seu-pedido', viewport)

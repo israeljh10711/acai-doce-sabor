@@ -35,9 +35,9 @@ const prepare = `
     document.querySelector('input[value="' + method + '"]').click();
     await __wait(400);
   };
-  // Cardápio completo (2026-11-15): abre todas as gavetas fechadas.
+  // Cardápio completo (2026-11-16): as seções começam abertas; abre alguma que esteja recolhida.
   window.__openDrawers = async () => {
-    for (const button of document.querySelectorAll('[data-drawer] > :first-child button[aria-expanded="false"]')) {
+    for (const button of document.querySelectorAll('[data-section] [data-toggle][aria-expanded="false"]')) {
       button.click();
       await __wait(80);
     }
@@ -74,8 +74,23 @@ const routes = [
     label: 'carrinho: sem forma de pagamento escolhida',
     setup: `(async () => { __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
   },
-  // Cardápio completo: gavetas, busca, escolha de sabor, aviso e os produtos das gavetas.
-  { path: '/monte-seu-pedido', label: 'todas as gavetas abertas', setup: `__openDrawers()` },
+  // Cardápio completo: seções, navegação, busca, escolha de sabor, aviso e os produtos do catálogo.
+  { path: '/monte-seu-pedido', label: 'as 5 seções abertas', setup: `__openDrawers()` },
+  {
+    path: '/monte-seu-pedido',
+    label: 'seção marcada na navegação e o contorno dourado',
+    setup: `(async () => { const link = [...document.querySelectorAll('a[data-nav="secao-bebidas"], a[data-target="secao-bebidas"]')].find((a) => a.getBoundingClientRect().width > 0); link.click(); await __wait(700); return true })()`,
+  },
+  {
+    path: '/monte-seu-pedido',
+    label: 'menu das categorias aberto (celular) ou barra lateral (computador)',
+    setup: `(async () => { const button = [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Categorias'); if (button && button.getBoundingClientRect().width > 0) { button.click(); await __wait(600) } return true })()`,
+  },
+  {
+    path: '/monte-seu-pedido',
+    label: 'busca com resultado: contagens e seções sem resultado apagadas na navegação',
+    setup: `(async () => { __type('#busca-cardapio', 'refri'); await __wait(600); return true })()`,
+  },
   {
     path: '/monte-seu-pedido',
     label: 'busca com resultado',
@@ -94,9 +109,9 @@ const routes = [
   {
     path: '/monte-seu-pedido',
     label: 'aviso de item adicionado',
-    setup: `(async () => { document.getElementById('barcas-e-potes-gaveta').click(); await __wait(500); document.querySelector('[data-item="pote-de-acai-2-litros"] button:not([data-zoom])').click(); await __wait(600); __clickText('dialog[open] button', 'continuar comprando'); await __wait(600) })()`,
+    setup: `(async () => { document.querySelector('[data-item="pote-de-acai-2-litros"] button:not([data-zoom])').click(); await __wait(600); __clickText('dialog[open] button', 'continuar comprando'); await __wait(600) })()`,
   },
-  { path: '/carrinho', label: 'carrinho com item das gavetas', setup: `__wait(300)` },
+  { path: '/carrinho', label: 'carrinho com item do catálogo', setup: `__wait(300)` },
   // Foto ampliada (pedido de 2026-11-16): nome, preço, botão e descrição sobre o fundo escuro.
   {
     path: '/monte-seu-pedido',

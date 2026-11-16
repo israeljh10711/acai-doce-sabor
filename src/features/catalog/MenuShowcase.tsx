@@ -41,16 +41,19 @@ export function MenuShowcase({
       {others.length > 0 && (
         <ul className="grid gap-6 md:grid-cols-3">
           {others.map((category) => (
-            <m.li
+            // A âncora (e o contorno da navegação) fica no <li>, sem o deslocamento da animação de
+            // entrada: assim a rolagem até o cartão para no lugar certo.
+            <li
               key={category.slug}
               id={MAIN_ANCHORS[category.slug]}
               tabIndex={-1}
               data-flash-target=""
               className="scroll-mt-34 rounded-[1.75rem] focus:outline-none lg:scroll-mt-6"
-              {...reveal}
             >
-              <ProductCard category={category} Heading={headingLevel} />
-            </m.li>
+              <m.div className="h-full" {...reveal}>
+                <ProductCard category={category} Heading={headingLevel} />
+              </m.div>
+            </li>
           ))}
         </ul>
       )}
@@ -82,16 +85,20 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
   const product = PRODUCTS[category.slug]
   const kinds = [...new Set(product.sizes.map((size) => size.container))].length
   return (
-    <m.article
+    // A âncora fica no <article>, sem o deslocamento da animação de entrada (que fica por dentro).
+    <article
       id={MAIN_ANCHORS[category.slug]}
       tabIndex={-1}
       data-flash-target=""
       aria-labelledby={`${category.slug}-titulo`}
-      className="relative grid scroll-mt-34 overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift focus:outline-none lg:scroll-mt-6 lg:grid-cols-[1.05fr_1fr]"
-      {...reveal}
+      className="scroll-mt-34 rounded-[2rem] focus:outline-none lg:scroll-mt-6"
     >
+      <m.div
+        className="relative grid overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift xl:grid-cols-[1.05fr_1fr]"
+        {...reveal}
+      >
       <div className="relative bg-white">
-        <ProductPhoto slug={category.slug} sizes="(min-width: 64rem) 560px, 100vw" className="size-full min-h-72" />
+        <ProductPhoto slug={category.slug} sizes="(min-width: 80rem) 480px, (min-width: 64rem) 680px, 100vw" className="size-full min-h-72" />
         <ZoomButton image={productLightbox(category.slug)} />
       </div>
       <div className="flex flex-col justify-center gap-5 p-6 sm:p-10">
@@ -113,7 +120,8 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
           <ArrowRight className="size-5" />
         </Link>
       </div>
-    </m.article>
+      </m.div>
+    </article>
   )
 }
 

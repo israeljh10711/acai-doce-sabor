@@ -236,3 +236,16 @@ O botão do carrinho fica no cabeçalho, que não é fixo, e nada flutua sobre a
 - **Busca no computador:** fica no alto da coluna da direita, sem ficar fixa, como no pedido (rolagem `scroll-mt-6`).
 - **Âncoras antigas:** continuam funcionando.
 - **Rótulos curtos das pílulas:** Açaí Oca, Tradicional, Batido, Milk-shake, Combos, Barcas e Potes, Picolés e Sorvetes, Bebidas e Doces.
+
+## Decisões tomadas na execução
+
+- **Cartão no celular:** deitado, com a foto quadrada de 112 px ao lado do texto. A partir de 640 px fica em pé, com a foto em cima. Com 44 fotos de largura inteira, o celular teria uns 24 mil px de rolagem.
+- **Botão de compra e preço:** ficam em `ItemActions.tsx`, usados pela faixa e pelas seções.
+- **Selos do cartão:** a lista se chama "Selos", para não repetir o nome "Destaques" da faixa.
+- **Contorno dourado:** 3 px, porque o de 2 px quase some no fundo claro.
+- **Foco:** a seção escolhida recebe o foco (sem contorno de foco), para teclado e leitor de tela continuarem dali.
+- **Seção à vista:** é a que cruza a linha a 35% da altura da tela, medida a cada quadro de rolagem. O observador anterior só via as seções que mudavam e deixava a marca presa ao rolar para cima.
+- **Marca na navegação:** troca com transição de cor, sem deslizar, porque o pacote de animação carregado não tem animação de layout.
+- **Destaque do Açaí Oca:** em duas colunas só a partir de 1280 px. Com a barra lateral, em 1024 px o texto ficava apertado.
+- **Âncoras dos 4 produtos:** ficam fora do elemento com a animação de entrada, que deslocava a parada da rolagem.
+- **Botões da barra do celular:** a lista ganhou `relative`. Os textos só para leitor de tela escapavam do corte e alargavam a página.

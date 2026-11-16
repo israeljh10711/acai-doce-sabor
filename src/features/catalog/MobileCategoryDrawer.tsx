@@ -77,7 +77,7 @@ export function MobileCategoryDrawer({ open, onClose, entries, current, onGo, op
         </div>
         <OffersShortcut onGo={choose} />
         <nav aria-label="Categorias do cardápio" className="mt-4">
-          <CategoryList entries={entries} current={current} onGo={choose} />
+          <CategoryList entries={entries} current={current} onGo={choose} idPrefix="menu" />
         </nav>
       </div>
     </dialog>

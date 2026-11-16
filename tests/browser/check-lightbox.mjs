@@ -111,7 +111,7 @@ try {
       ['acai-batido', 'Açaí Batido', 'A partir de R$ 10,00'],
       ['milk-shake', 'Milk-shake', 'A partir de R$ 10,00'],
     ]) {
-      await realClick(`__zoomOf('#${slug}')`)
+      await realClick(`__zoomOf('#${{ 'acai-oca': 'secao-acai-oca', 'acai-tradicional': 'secao-acai-tradicional', 'acai-batido': 'secao-acai-batido', 'milk-shake': 'secao-milkshake' }[slug]}')`)
       check(
         `${at} vitrine ${slug}: abre a foto da loja, sem sair do cardápio`,
         [await run(`__info()`), await run(`location.pathname`)],
@@ -121,9 +121,9 @@ try {
       check(`${at} vitrine ${slug}: o X fecha e o foco volta para a lupa`, await run(`[__isOpen(), document.activeElement?.dataset.zoom]`), [false, `produto:${slug}`])
     }
 
-    // --- Gavetas: 44 lupas, uma por item; abrir não escolhe sabor nem põe no carrinho ---
-    for (const id of ['barcas-e-potes', 'picoles-e-sorvetes', 'bebidas', 'doces-e-bomboniere']) await click(`__q('#${id}-gaveta')`, 400)
-    check(`${at} uma lupa em cada um dos 44 itens das gavetas`, await run(`document.querySelectorAll('[data-item] [data-zoom]').length`), 44)
+    // --- Seções do catálogo (abertas): 44 lupas, uma por item; abrir não escolhe sabor nem põe no carrinho ---
+    check(`${at} uma lupa em cada um dos 44 itens das seções`, await run(`document.querySelectorAll('[data-item] [data-zoom]').length`), 44)
+    check(`${at} uma lupa em cada um dos 5 destaques`, await run(`document.querySelectorAll('[data-highlight] [data-zoom]').length`), 5)
     await realClick(`__zoomOf('[data-item="kit-completo-casquinha"]')`)
     check(
       `${at} kit: foto, nome e preço, sem abrir a escolha de sabor`,
