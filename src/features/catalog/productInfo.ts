@@ -6,7 +6,7 @@
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { findCategoryBySlug } from './categories.ts'
-import { extraForProduct } from './extras.ts'
+import { drawerById, extraForProduct } from './extras.ts'
 import type { ExtraProductSlug, ProductSlug } from './menu.ts'
 
 export type ProductInfo = {
@@ -32,7 +32,7 @@ export function productInfo(slug: ProductSlug): ProductInfo {
     }
   }
   const extra = extraForProduct(slug as ExtraProductSlug)
-  const menuPath = `${paths.buildOrder}#${extra.drawer}`
+  const menuPath = `${paths.buildOrder}#${drawerById(extra.drawer).anchor}`
   return {
     summary: extra.description,
     badges: extra.badge ? [extra.badge] : [],

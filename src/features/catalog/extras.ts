@@ -19,68 +19,89 @@ import type { ExtraProductSlug } from './menu.ts'
 
 export type DrawerId = 'combos-e-ofertas' | 'barcas-e-potes' | 'picoles-e-sorvetes' | 'bebidas' | 'doces-e-bomboniere'
 
-/** Ícones das gavetas (desenhos do Lucide, em `components/ui/icons.tsx`). */
-export type EmblemIcon = 'gift' | 'iceCreamBowl' | 'iceCreamCone' | 'popsicle' | 'cupSoda' | 'candy'
+/**
+ * Ícones das seções do cardápio (desenhos do Lucide, em `components/ui/icons.tsx`): os 4 produtos
+ * principais e as 5 seções do catálogo.
+ */
+export type EmblemIcon =
+  | 'crown'
+  | 'iceCreamBowl'
+  | 'cupSoda'
+  | 'iceCreamCone'
+  | 'gift'
+  | 'sailboat'
+  | 'popsicle'
+  | 'glassWater'
+  | 'candy'
 
+/** Seção do catálogo (até 2026-11-16, uma gaveta de "Mais opções do cardápio"). */
 export type Drawer = {
   id: DrawerId
+  /** Título da seção. */
   title: string
-  /** Texto do atalho na barra fixa. */
-  shortcut: string
+  /** Nome na barra lateral e no menu do celular. */
+  navLabel: string
+  /** Nome curto, nos botões da barra do celular. */
+  pillLabel: string
+  /** Frase abaixo do título: o que a seção tem (só fatos do cardápio). */
+  subtitle: string
+  /** Âncora da seção no cardápio (`#secao-combos`...). */
+  anchor: string
   icon: EmblemIcon
-  /** Selo curto do emblema da gaveta. */
-  seal: string
-  /** Palavras que acham todos os itens da gaveta na busca ("bebida", "doce"...). */
+  /** Palavras que acham todos os itens da seção na busca ("bebida", "doce"...). */
   keywords: readonly string[]
-  /** A primeira gaveta começa aberta; as outras, fechadas. */
-  defaultOpen: boolean
 }
 
 export const DRAWERS: readonly Drawer[] = [
   {
     id: 'combos-e-ofertas',
     title: 'Combos e Ofertas',
-    shortcut: 'Combos e Ofertas',
+    navLabel: 'Combos e Ofertas',
+    pillLabel: 'Combos',
+    subtitle: 'Kits com casquinhas, combos de sorvete e o pote de 1 litro montado.',
+    anchor: 'secao-combos',
     icon: 'gift',
-    seal: 'Combo',
     keywords: ['combo', 'combos', 'oferta', 'ofertas', 'promocao'],
-    defaultOpen: true,
   },
   {
     id: 'barcas-e-potes',
     title: 'Barcas e Potes Família (1L, 1,5L e 2L)',
-    shortcut: 'Barcas e Potes 1L/2L',
-    icon: 'iceCreamBowl',
-    seal: 'Pote',
+    navLabel: 'Barcas e Potes Família',
+    pillLabel: 'Barcas e Potes',
+    subtitle: 'Barca, potes de açaí e potes de sorvete de 1, 1,5 e 2 litros.',
+    anchor: 'secao-barcas-potes',
+    icon: 'sailboat',
     keywords: ['familia', 'potes familia'],
-    defaultOpen: false,
   },
   {
     id: 'picoles-e-sorvetes',
     title: 'Picolés e Sorvetes',
-    shortcut: 'Picolés e Sorvetes',
+    navLabel: 'Picolés e Sorvetes',
+    pillLabel: 'Picolés e Sorvetes',
+    subtitle: 'Picolés, copos de sorvete, sundae, cascão, cremosinho e coberturas.',
+    anchor: 'secao-picoles-sorvetes',
     icon: 'popsicle',
-    seal: 'Gelado',
     keywords: ['gelado', 'gelados'],
-    defaultOpen: false,
   },
   {
     id: 'bebidas',
     title: 'Bebidas',
-    shortcut: 'Bebidas',
-    icon: 'cupSoda',
-    seal: 'Bebida',
+    navLabel: 'Bebidas',
+    pillLabel: 'Bebidas',
+    subtitle: 'Refrigerante em lata e água mineral.',
+    anchor: 'secao-bebidas',
+    icon: 'glassWater',
     keywords: ['bebida', 'bebidas'],
-    defaultOpen: false,
   },
   {
     id: 'doces-e-bomboniere',
     title: 'Doces e Bomboniere',
-    shortcut: 'Doces e Bomboniere',
+    navLabel: 'Doces e Bomboniere',
+    pillLabel: 'Doces',
+    subtitle: 'Brownie, trufas, balas, chicletes, pipocas, salgadinho e chocolates.',
+    anchor: 'secao-doces-bomboniere',
     icon: 'candy',
-    seal: 'Doce',
     keywords: ['doce', 'doces', 'bomboniere'],
-    defaultOpen: false,
   },
 ]
 
@@ -785,6 +806,15 @@ export function choiceRows(item: ExtraItem, choices: Readonly<Record<string, str
 }
 
 /** O item tem opção que muda o preço (o tamanho do Açaí do Oca): o cartão mostra "a partir de". */
+/**
+ * Número do selo "N sabores" do cartão: as opções do primeiro grupo de escolha que não é de
+ * tamanho (sem contar "Outro sabor", que não é uma opção da lista). 0 quando não há sabor a escolher.
+ */
+export function flavorCount(item: ExtraItem): number {
+  const group = choiceGroupsOf(item).find((candidate) => !candidate.prices)
+  return group?.options.length ?? 0
+}
+
 export function hasPricedChoices(item: ExtraItem): boolean {
   return choiceGroupsOf(item).some((group) => group.prices !== undefined)
 }

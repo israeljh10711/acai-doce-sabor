@@ -4,9 +4,9 @@ import { Link } from 'react-router'
 import { ArrowRight, ChevronDown, Plus } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
-import { drawerEmblem } from './emblems.ts'
 import { type Drawer, type DrawerId, type ExtraItem, choiceGroupsOf, hasPricedChoices } from './extras.ts'
-import { ExtraVisual, ItemEmblem } from './ItemVisual.tsx'
+import { ExtraVisual } from './ItemVisual.tsx'
+import { SectionIcon } from './SectionIcon.tsx'
 
 type Level = 2 | 3 | 4 | 5
 
@@ -112,7 +112,9 @@ function DrawerPanel({
           onClick={onToggle}
           className="flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-left shadow-card ring-1 ring-line transition hover:ring-acai-600/40 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 sm:gap-4 sm:px-4"
         >
-          <ItemEmblem emblem={drawerEmblem(drawer)} size="sm" />
+          <span aria-hidden="true" className="grid size-11 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400">
+            <SectionIcon icon={drawer.icon} className="size-6" />
+          </span>
           <span className="min-w-0 flex-1 font-display text-lg leading-tight font-black tracking-tight text-acai-800 sm:text-xl">
             {drawer.title}
           </span>

@@ -25,7 +25,7 @@ import { searchMenu } from './search.ts'
 
 const NAV_TARGETS: readonly NavTarget[] = [
   ...CATEGORIES.map((category) => ({ id: category.slug, label: category.name, group: 'produtos' as const })),
-  ...DRAWERS.map((drawer) => ({ id: drawer.id, label: drawer.shortcut, group: 'gavetas' as const })),
+  ...DRAWERS.map((drawer) => ({ id: drawer.id, label: drawer.pillLabel, group: 'gavetas' as const })),
 ]
 
 const isDrawerId = (id: string): id is DrawerId => DRAWERS.some((drawer) => drawer.id === id)
@@ -65,7 +65,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
 
   /* Gavetas: a primeira começa aberta; a do endereço (#bebidas...) também. */
   const [openDrawers, setOpenDrawers] = useState<ReadonlySet<DrawerId>>(() => {
-    const open = new Set(DRAWERS.filter((drawer) => drawer.defaultOpen).map((drawer) => drawer.id))
+    const open = new Set(DRAWERS.map((drawer) => drawer.id))
     const fromHash = decodeURIComponent(location.hash.slice(1))
     if (isDrawerId(fromHash)) open.add(fromHash)
     return open

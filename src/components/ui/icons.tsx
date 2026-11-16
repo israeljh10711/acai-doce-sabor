@@ -261,6 +261,29 @@ export const Candy = (props: IconProps) => (
   </Icon>
 )
 
+export const Sailboat = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M22 18H2a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4Z" />
+    <path d="M21 14 10 2 3 14h18Z" />
+    <path d="M10 2v16" />
+  </Icon>
+)
+
+export const GlassWater = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M15.2 22H8.8a2 2 0 0 1-2-1.79L5 3h14l-1.81 17.21A2 2 0 0 1 15.2 22Z" />
+    <path d="M6 12a5 5 0 0 1 6 0 5 5 0 0 0 6 0" />
+  </Icon>
+)
+
+export const Menu = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4 12h16" />
+    <path d="M4 6h16" />
+    <path d="M4 18h16" />
+  </Icon>
+)
+
 export const Tag = (props: IconProps) => (
   <Icon {...props}>
     <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />

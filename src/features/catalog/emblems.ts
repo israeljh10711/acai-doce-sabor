@@ -1,9 +1,13 @@
 /**
- * Emblema de cada gaveta (ícone e selo), no botão que abre a gaveta. Os itens têm foto desde
- * 2026-11-15; o emblema ficou só nas gavetas.
+ * Ícone de cada um dos 4 produtos principais na navegação do cardápio (barra lateral, menu do
+ * celular e botões da barra fixa). As 5 seções do catálogo têm o ícone em `DRAWERS` (`extras.ts`).
  */
-import type { Drawer, EmblemIcon } from './extras.ts'
+import type { CategorySlug } from './categories.ts'
+import type { EmblemIcon } from './extras.ts'
 
-export type Emblem = { icon: EmblemIcon; seal: string; tone: 'acai' | 'gold' }
-
-export const drawerEmblem = (drawer: Drawer): Emblem => ({ icon: drawer.icon, seal: drawer.seal, tone: 'acai' })
+export const CATEGORY_ICONS: Readonly<Record<CategorySlug, EmblemIcon>> = {
+  'acai-oca': 'crown',
+  'acai-tradicional': 'iceCreamBowl',
+  'acai-batido': 'cupSoda',
+  'milk-shake': 'iceCreamCone',
+}

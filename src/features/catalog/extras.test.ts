@@ -6,7 +6,9 @@ import {
   choiceRows,
   choiceValueText,
   cleanOtherText,
+  drawerById,
   extraForProduct,
+  flavorCount,
   extraPhoto,
   extraPriceCents,
   getExtraItem,
@@ -83,15 +85,40 @@ const PEDIDO: Record<string, [name: string, cents: number, original?: number][]>
   ],
 }
 
-describe('gavetas de "Mais opções do cardápio"', () => {
-  it('são 5, na ordem e com os atalhos pedidos; só a primeira começa aberta', () => {
-    expect(DRAWERS.map((drawer) => [drawer.title, drawer.shortcut, drawer.defaultOpen])).toEqual([
-      ['Combos e Ofertas', 'Combos e Ofertas', true],
-      ['Barcas e Potes Família (1L, 1,5L e 2L)', 'Barcas e Potes 1L/2L', false],
-      ['Picolés e Sorvetes', 'Picolés e Sorvetes', false],
-      ['Bebidas', 'Bebidas', false],
-      ['Doces e Bomboniere', 'Doces e Bomboniere', false],
+describe('seções do catálogo (as antigas gavetas de "Mais opções do cardápio")', () => {
+  it('são 5, na ordem, com o título, o nome na navegação, o nome curto, a âncora e o ícone (pedido de 2026-11-16)', () => {
+    expect(DRAWERS.map((drawer) => [drawer.id, drawer.navLabel, drawer.pillLabel, drawer.anchor, drawer.icon])).toEqual([
+      ['combos-e-ofertas', 'Combos e Ofertas', 'Combos', 'secao-combos', 'gift'],
+      ['barcas-e-potes', 'Barcas e Potes Família', 'Barcas e Potes', 'secao-barcas-potes', 'sailboat'],
+      ['picoles-e-sorvetes', 'Picolés e Sorvetes', 'Picolés e Sorvetes', 'secao-picoles-sorvetes', 'popsicle'],
+      ['bebidas', 'Bebidas', 'Bebidas', 'secao-bebidas', 'glassWater'],
+      ['doces-e-bomboniere', 'Doces e Bomboniere', 'Doces', 'secao-doces-bomboniere', 'candy'],
     ])
+    expect(DRAWERS.map((drawer) => drawer.title)).toEqual([
+      'Combos e Ofertas',
+      'Barcas e Potes Família (1L, 1,5L e 2L)',
+      'Picolés e Sorvetes',
+      'Bebidas',
+      'Doces e Bomboniere',
+    ])
+    expect(DRAWERS.every((drawer) => drawer.subtitle.length > 10)).toBe(true)
+    expect(DRAWERS.map((drawer) => drawerById(drawer.id))).toEqual(DRAWERS)
+  })
+
+  it('selo "N sabores": as opções do primeiro grupo de sabor, sem contar "Outro sabor" nem o tamanho', () => {
+    const count = (id: string) => flavorCount(EXTRA_ITEMS.find((item) => item.id === id)!)
+    expect(
+      [
+        'kit-completo-casquinha',
+        'pote-de-sorvete-2-litros-especiais',
+        'pote-de-sorvete-1-5-litro',
+        'combo-de-sorvete',
+        'refrigerante-350-ml',
+        'acai-do-oca-pronto',
+        'agua-mineral-500-ml',
+        'pote-de-acai-1-litro',
+      ].map(count),
+    ).toEqual([12, 12, 6, 6, 5, 0, 0, 0])
   })
 
   it('têm os 44 itens (5 + 11 + 12 + 2 + 14), com nomes, preços e preços riscados', () => {
