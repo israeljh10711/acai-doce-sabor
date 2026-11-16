@@ -14,21 +14,24 @@ import { CATEGORIES } from './categories.ts'
 import { CategoryNav, type NavTarget } from './CategoryNav.tsx'
 import { type ChoiceDraft, EMPTY_DRAFT, draftChoices } from './choiceDraft.ts'
 import { ExtraOptionsDialog } from './ExtraOptionsDialog.tsx'
-import { DRAWERS, type DrawerId, EXTRA_ITEMS, type ExtraItem, choiceGroupsOf, normalizeChoices } from './extras.ts'
+import { DRAWERS, type DrawerId, EXTRA_ITEMS, type ExtraItem, choiceGroupsOf, drawerById, normalizeChoices } from './extras.ts'
 import { ExtraVisual } from './ItemVisual.tsx'
 import { useLightbox } from '../lightbox/lightboxContext.ts'
 import { MenuShowcase } from './MenuShowcase.tsx'
-import { type DrawerView, MoreOptions } from './MoreOptions.tsx'
+import { CatalogSections, type SectionView } from './CatalogSections.tsx'
+import { MAIN_ANCHORS } from './catalogNav.ts'
+import { highlightItems } from './highlights.ts'
+import { TopHighlightsStrip } from './TopHighlightsStrip.tsx'
 import { ILLUSTRATIVE_NOTICE } from './notices.ts'
 import { SearchBar } from './SearchBar.tsx'
 import { searchMenu } from './search.ts'
 
 const NAV_TARGETS: readonly NavTarget[] = [
-  ...CATEGORIES.map((category) => ({ id: category.slug, label: category.name, group: 'produtos' as const })),
-  ...DRAWERS.map((drawer) => ({ id: drawer.id, label: drawer.pillLabel, group: 'gavetas' as const })),
+  ...CATEGORIES.map((category) => ({ id: MAIN_ANCHORS[category.slug], label: category.name, group: 'produtos' as const })),
+  ...DRAWERS.map((drawer) => ({ id: drawer.anchor, label: drawer.pillLabel, group: 'gavetas' as const })),
 ]
 
-const isDrawerId = (id: string): id is DrawerId => DRAWERS.some((drawer) => drawer.id === id)
+const drawerOfAnchor = (anchor: string): DrawerId | null => DRAWERS.find((drawer) => drawer.anchor === anchor)?.id ?? null
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -63,13 +66,8 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
   const result = useMemo(() => searchMenu(query), [query])
   const searching = result.query !== ''
 
-  /* Gavetas: a primeira começa aberta; a do endereço (#bebidas...) também. */
-  const [openDrawers, setOpenDrawers] = useState<ReadonlySet<DrawerId>>(() => {
-    const open = new Set(DRAWERS.map((drawer) => drawer.id))
-    const fromHash = decodeURIComponent(location.hash.slice(1))
-    if (isDrawerId(fromHash)) open.add(fromHash)
-    return open
-  })
+  /* Seções: todas começam abertas; aqui ficam as que o cliente recolheu. */
+  const [collapsed, setCollapsed] = useState<ReadonlySet<DrawerId>>(new Set())
   // Na busca, as gavetas com resultado abrem sozinhas; estas o cliente fechou nesta busca.
   const [closedInSearch, setClosedInSearch] = useState<{ query: string; ids: ReadonlySet<DrawerId> }>({
     query: '',
@@ -77,7 +75,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
   })
   const closedNow = closedInSearch.query === result.query ? closedInSearch.ids : new Set<DrawerId>()
 
-  const isOpen = (id: DrawerId) => (searching ? result.drawers.has(id) && !closedNow.has(id) : openDrawers.has(id))
+  const isOpen = (id: DrawerId) => (searching ? result.drawers.has(id) && !closedNow.has(id) : !collapsed.has(id))
 
   // Gavetas abertas pelo atalho: aparecem já abertas, sem animar a altura (ver `DrawerView`).
   const [instantIds, setInstantIds] = useState<ReadonlySet<DrawerId>>(new Set())
@@ -95,7 +93,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
       setClosedInSearch({ query: result.query, ids })
       return
     }
-    setOpenDrawers((current) => {
+    setCollapsed((current) => {
       const next = new Set(current)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -108,12 +106,16 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
   const scrollCount = useRef(0)
 
   const goTo = (id: string) => {
-    const drawer = isDrawerId(id) ? id : null
-    const hidden = searching && (drawer ? !result.drawers.has(drawer) : !result.main.some((slug) => slug === id))
+    const drawer = drawerOfAnchor(id)
+    const hidden = searching && (drawer ? !result.drawers.has(drawer) : !result.main.some((slug) => MAIN_ANCHORS[slug] === id))
     if (hidden) setQuery('')
     if (drawer) {
       if (!isOpen(drawer)) setInstantIds((current) => new Set(current).add(drawer))
-      setOpenDrawers((current) => new Set(current).add(drawer))
+      setCollapsed((current) => {
+        const next = new Set(current)
+        next.delete(drawer)
+        return next
+      })
       if (searching && closedNow.has(drawer)) {
         const ids = new Set(closedNow)
         ids.delete(drawer)
@@ -196,14 +198,19 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
   }
 
   /* O que aparece */
-  const views: DrawerView[] = DRAWERS.flatMap((drawer) => {
+  const views: SectionView[] = DRAWERS.flatMap((drawer) => {
     const items = searching ? result.drawers.get(drawer.id) : EXTRA_ITEMS.filter((item) => item.drawer === drawer.id)
     return items ? [{ drawer, items, open: isOpen(drawer.id), instant: instantIds.has(drawer.id) }] : []
   })
-  const observeKey = `${result.query}|${[...openDrawers].join(',')}|${[...closedNow].join(',')}`
+  const observeKey = `${result.query}|${[...collapsed].join(',')}|${[...closedNow].join(',')}`
   const available = new Set<string>(
-    searching && result.total === 0 ? [] : searching ? [...result.main, ...result.drawers.keys()] : NAV_TARGETS.map((target) => target.id),
+    searching && result.total === 0
+      ? []
+      : searching
+        ? [...result.main.map((slug) => MAIN_ANCHORS[slug]), ...[...result.drawers.keys()].map((id) => drawerById(id).anchor)]
+        : NAV_TARGETS.map((target) => target.id),
   )
+  const highlights = highlightItems(result)
   const Wrapper = labelledBy ? 'section' : 'div'
 
   return (
@@ -229,21 +236,15 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
               </button>
             </div>
           ) : (
-            <>
+            <div className="flex flex-col gap-12 sm:gap-16">
+              <TopHighlightsStrip items={highlights} level={headingLevel} onChoose={choose} />
               {result.main.length > 0 && (
                 <MenuShowcase headingLevel={`h${headingLevel}`} visible={searching ? result.main : undefined} />
               )}
               {views.length > 0 && (
-                <MoreOptions
-                  level={headingLevel}
-                  afterShowcase={result.main.length > 0}
-                  views={views}
-                  searching={searching}
-                  onToggle={toggle}
-                  onChoose={choose}
-                />
+                <CatalogSections level={headingLevel} views={views} searching={searching} onToggle={toggle} onChoose={choose} />
               )}
-            </>
+            </div>
           )}
 
           <p className="mt-10 text-center text-sm text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>

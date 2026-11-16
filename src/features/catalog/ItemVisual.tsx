@@ -14,6 +14,13 @@ const BOX: Record<VisualSize, string> = {
   fill: 'aspect-square w-full rounded-2xl',
 }
 
+/** Respiro em volta da foto inteira (artes com texto e embalagens), no fundo claro. */
+const CONTAIN_PAD: Record<VisualSize, string> = {
+  sm: 'p-0.5',
+  md: 'p-1.5',
+  fill: 'p-2',
+}
+
 /** Largura em que a foto aparece em cada tamanho (atributo `sizes`): o navegador escolhe a cópia. */
 const PHOTO_SIZES: Record<VisualSize, string> = {
   sm: '44px',
@@ -81,7 +88,7 @@ function ExtraPhoto({ item, size, sizes, decorative, priority, choices }: ExtraP
       decoding="async"
       data-item-photo={item.id}
       data-photo={image.split('/').pop()}
-      className={`shrink-0 bg-white ring-1 ring-line ${contain ? 'object-contain' : 'object-cover'} ${BOX[size]}`}
+      className={`shrink-0 ring-1 ring-line ${contain ? `bg-neutral-50 object-contain ${CONTAIN_PAD[size]}` : 'bg-white object-cover'} ${BOX[size]}`}
     />
   )
 }

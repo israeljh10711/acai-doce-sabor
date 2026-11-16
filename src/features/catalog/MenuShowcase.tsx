@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { ArrowRight, Crown, Flame } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
+import { MAIN_ANCHORS } from './catalogNav.ts'
 import { CATEGORIES, type Category, type CategorySlug } from './categories.ts'
 import { PRODUCTS } from './menu.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
@@ -21,7 +22,7 @@ const reveal = {
 
 /**
  * Cardápio em vitrine: o Açaí Oca em destaque e as outras três categorias em cartões.
- * Cada cartão tem âncora própria (#acai-oca, #acai-tradicional...) para a navegação por categoria.
+ * Cada cartão tem âncora própria (#secao-acai-oca, #secao-acai-tradicional...) para a navegação do cardápio.
  * Com `visible` (resultado da busca), mostra só essas categorias.
  */
 export function MenuShowcase({
@@ -40,7 +41,14 @@ export function MenuShowcase({
       {others.length > 0 && (
         <ul className="grid gap-6 md:grid-cols-3">
           {others.map((category) => (
-            <m.li key={category.slug} id={category.slug} className="scroll-mt-28" {...reveal}>
+            <m.li
+              key={category.slug}
+              id={MAIN_ANCHORS[category.slug]}
+              tabIndex={-1}
+              data-flash-target=""
+              className="scroll-mt-40 rounded-[1.75rem] focus:outline-none lg:scroll-mt-6"
+              {...reveal}
+            >
               <ProductCard category={category} Heading={headingLevel} />
             </m.li>
           ))}
@@ -75,9 +83,11 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
   const kinds = [...new Set(product.sizes.map((size) => size.container))].length
   return (
     <m.article
-      id={category.slug}
+      id={MAIN_ANCHORS[category.slug]}
+      tabIndex={-1}
+      data-flash-target=""
       aria-labelledby={`${category.slug}-titulo`}
-      className="relative grid scroll-mt-28 overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift lg:grid-cols-[1.05fr_1fr]"
+      className="relative grid scroll-mt-40 overflow-hidden rounded-[2rem] bg-acai-800 text-white shadow-lift focus:outline-none lg:scroll-mt-6 lg:grid-cols-[1.05fr_1fr]"
       {...reveal}
     >
       <div className="relative bg-white">
