@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { EXTRA_ITEMS } from '../src/features/catalog/extras.ts'
 import { TOPPINGS } from '../src/features/catalog/menu.ts'
-import { ALL_PRODUCT_PHOTOS, catalogPhotoSrc, ingredientFile } from '../src/features/catalog/photos.ts'
+import { ALL_PRODUCT_PHOTOS, catalogPhotoSrc, ingredientFile, ingredientZoomFile } from '../src/features/catalog/photos.ts'
 import { FEATURED_OFFER_NOTIFICATIONS } from '../src/features/offers/offerNotifications.ts'
 import catalog from '../scripts/fotos/catalogo.json'
 import { imageInfo } from './imageHeader.ts'
@@ -45,9 +45,18 @@ describe('arquivos de imagem', () => {
     }
   })
 
-  it('não sobra foto de ingrediente sem uso', () => {
-    const used = [...new Set(TOPPINGS.map((topping) => ingredientFile(topping)))].sort()
+  it('não sobra foto de ingrediente sem uso (contando as cópias grandes da foto ampliada)', () => {
+    const used = [...new Set(TOPPINGS.flatMap((topping) => [ingredientFile(topping), ingredientZoomFile(topping)]))].sort()
     expect(readdirSync(join(IMAGES, 'ingredientes')).sort()).toEqual(used)
+  })
+
+  it('a foto ampliada de cada ingrediente existe; as de banco têm a cópia grande, maior que a miniatura', () => {
+    for (const topping of TOPPINGS) {
+      const file = ingredientZoomFile(topping)!
+      const info = imageInfo(readFileSync(join(IMAGES, 'ingredientes', file)))
+      expect(info, `${topping.id}: ${file}`).not.toBeNull()
+      if (file.endsWith('-grande.webp')) expect(info!.width, file).toBeGreaterThan(256)
+    }
   })
 
   it('a foto de cada produto existe: o PNG enviado, com o tamanho do código, e as cópias de 480 e 960 px', () => {

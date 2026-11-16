@@ -194,21 +194,33 @@ const BARS = {
   'kit-kat': { region: { x: 0.55, y: 0, w: 0.45, h: 1 } },
 }
 
+/**
+ * Cada miniatura sai em dois tamanhos: `<id>.webp` (256 px, o cartão) e `<id>-grande.webp` (até
+ * 800 px, sem ampliar o recorte), para a foto ampliada (pedido de 2026-11-16).
+ */
 async function thumbnails() {
   for (const [key, crop] of Object.entries(THUMBS)) {
-    await sharp(await square(await original(key), crop))
-      .resize(256, 256)
-      .webp({ quality: 82, effort: 6 })
-      .toFile(join(OUT, 'ingredientes', `${key}.webp`))
+    const cropped = await square(await original(key), crop)
+    await sharp(cropped).resize(256, 256).webp({ quality: 82, effort: 6 }).toFile(join(OUT, 'ingredientes', `${key}.webp`))
+    await sharp(cropped)
+      .resize(800, 800, { withoutEnlargement: true })
+      .webp({ quality: 84, effort: 6 })
+      .toFile(join(OUT, 'ingredientes', `${key}-grande.webp`))
   }
   for (const [key, { region }] of Object.entries(BARS)) {
     const piece = await cutPiece(await original(key), { background: [255, 255, 255], from: 22, to: 60, region })
-    const fitted = await sharp(piece).resize(200, 200, { fit: 'inside' }).toBuffer()
-    const meta = await sharp(fitted).metadata()
-    await sharp({ create: { width: 256, height: 256, channels: 3, background: '#f6f1f5' } })
-      .composite([{ input: fitted, left: Math.round((256 - meta.width) / 2), top: Math.round((256 - meta.height) / 2) }])
-      .webp({ quality: 82, effort: 6 })
-      .toFile(join(OUT, 'ingredientes', `${key}.webp`))
+    for (const [side, suffix] of [
+      [256, ''],
+      [800, '-grande'],
+    ]) {
+      const inner = Math.round(side * (200 / 256))
+      const fitted = await sharp(piece).resize(inner, inner, { fit: 'inside', withoutEnlargement: suffix !== '' }).toBuffer()
+      const meta = await sharp(fitted).metadata()
+      await sharp({ create: { width: side, height: side, channels: 3, background: '#f6f1f5' } })
+        .composite([{ input: fitted, left: Math.round((side - meta.width) / 2), top: Math.round((side - meta.height) / 2) }])
+        .webp({ quality: suffix ? 84 : 82, effort: 6 })
+        .toFile(join(OUT, 'ingredientes', `${key}${suffix}.webp`))
+    }
   }
   console.log('miniaturas ok:', Object.keys(THUMBS).length + Object.keys(BARS).length)
 }

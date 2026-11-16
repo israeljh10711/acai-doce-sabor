@@ -275,3 +275,19 @@ export const Bell = (props: IconProps) => (
     <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
   </Icon>
 )
+
+/** Lupa com "+" do Lucide (zoom-in, mesma licença acima): ampliar a foto. */
+export const ZoomIn = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.35-4.35M11 8v6M8 11h6" />
+  </Icon>
+)
+
+/** Lupa com "−" do Lucide (zoom-out, mesma licença acima): reduzir a foto. */
+export const ZoomOut = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.35-4.35M8 11h6" />
+  </Icon>
+)

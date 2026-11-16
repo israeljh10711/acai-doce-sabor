@@ -6,6 +6,8 @@ import { formatBRL } from '../../utils/money.ts'
 import { CATEGORIES, type Category, type CategorySlug } from './categories.ts'
 import { PRODUCTS } from './menu.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
+import { productLightbox } from '../lightbox/lightboxImages.ts'
+import { ZoomButton } from '../lightbox/ZoomButton.tsx'
 import { startingPriceCents } from './showcase.ts'
 
 const BADGE_ICONS = { 'Especialidade da casa': Crown, 'O mais pedido': Flame } as const
@@ -80,6 +82,7 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
     >
       <div className="relative bg-white">
         <ProductPhoto slug={category.slug} sizes="(min-width: 64rem) 560px, 100vw" className="size-full min-h-72" />
+        <ZoomButton image={productLightbox(category.slug)} />
       </div>
       <div className="flex flex-col justify-center gap-5 p-6 sm:p-10">
         <Badges category={category} />
@@ -122,6 +125,8 @@ function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' 
       <div className="relative border-b border-line bg-white">
         {/* Espaço no alto para o selo de preço não cobrir a tampa do copo nem a da garrafa. */}
         <ProductPhoto slug={category.slug} sizes="(min-width: 48rem) 360px, 100vw" className="w-full px-4 pt-14 pb-3" />
+        {/* Por cima do link que cobre o cartão: tocar na foto amplia, o resto abre o personalizador. */}
+        <ZoomButton image={productLightbox(category.slug)} />
         <p className="nums absolute top-4 right-4 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
           <span className="font-semibold">a partir de </span>
           {formatBRL(startingPriceCents(category.slug))}

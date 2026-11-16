@@ -67,6 +67,20 @@ export function ingredientPhoto(topping: Pick<Topping, 'id' | 'look'>): Ingredie
   return entry && { src: `${base}ingredientes/${entry[0]}`, fit: entry[1] }
 }
 
+/**
+ * Arquivo da foto ampliada do ingrediente: as de banco (WebP de 256 px) têm a cópia
+ * `<id>-grande.webp`; as enviadas pela loja já são o arquivo inteiro.
+ */
+export function ingredientZoomFile(topping: Pick<Topping, 'id' | 'look'>): string | undefined {
+  const file = ingredientFile(topping)
+  return file?.endsWith('.webp') ? file.replace(/\.webp$/, '-grande.webp') : file
+}
+
+export const ingredientZoomSrc = (topping: Pick<Topping, 'id' | 'look'>) => {
+  const file = ingredientZoomFile(topping)
+  return file && `${base}ingredientes/${file}`
+}
+
 export type ProductPhotoData = {
   /** Nome do arquivo: `produtos/<name>.png` e as cópias leves `<name>-480.webp` e `-960.webp`. */
   name: string

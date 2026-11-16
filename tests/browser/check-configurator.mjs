@@ -208,12 +208,19 @@ try {
     writeFileSync(join(outDir, `tradicional-isopor-${viewport.width}.png`), await browser.screenshot())
 
     if (!desktop) {
+      // "Ver foto" abre a foto ampliada do site (a mesma de um toque em qualquer foto).
+      const zoomDialog = `__q('dialog[aria-labelledby="foto-ampliada-titulo"]')`
       await click(`__button('Ver foto')`)
-      check(`${at} "Ver foto" abre a foto grande`, await browser.evaluate(`__q('dialog').open`), true)
-      check(`${at} foto grande do mesmo produto`, await browser.evaluate(`__photo('dialog')`), 'acai-tradicional')
-      check(`${at} foto grande carregada e inteira`, await browser.evaluate(`__photoShown('dialog')`), { loaded: true, fit: 'contain', folder: 'produtos' })
+      await sleep(400)
+      check(`${at} "Ver foto" abre a foto ampliada`, await browser.evaluate(`${zoomDialog}.open`), true)
+      check(`${at} foto ampliada do mesmo produto`, await browser.evaluate(`${zoomDialog}.dataset.lightbox`), 'produto:acai-tradicional')
+      check(
+        `${at} foto ampliada carregada e inteira, da pasta das fotos da loja`,
+        await browser.evaluate(`(async () => { const img = ${zoomDialog}.querySelector('img'); await img.decode().catch(() => null); return { loaded: img.naturalWidth > 0, fit: getComputedStyle(img).objectFit, folder: new URL(img.currentSrc).pathname.split('/').slice(-2, -1)[0] } })()`),
+        { loaded: true, fit: 'contain', folder: 'produtos' },
+      )
       await key('Escape', 'Escape')
-      check(`${at} Esc fecha a foto grande`, await browser.evaluate(`__q('dialog').open`), false)
+      check(`${at} Esc fecha a foto ampliada`, await browser.evaluate(`${zoomDialog}.open`), false)
       check(`${at} foco volta para "Ver foto"`, await browser.evaluate(`document.activeElement.textContent.trim()`), 'Ver foto')
     }
 
@@ -237,7 +244,7 @@ try {
     check(`${at} confirmação: foco no botão principal`, await browser.evaluate(`document.activeElement.textContent.trim()`), 'Adicionar e ir para o carrinho')
     check(
       `${at} confirmação: os três botões, sem "Cancelar pedido"`,
-      await browser.evaluate(`[...__confirm().querySelectorAll('button')].map((b) => b.textContent.trim())`),
+      await browser.evaluate(`[...__confirm().querySelectorAll('button:not([data-zoom])')].map((b) => b.textContent.trim())`),
       ['Adicionar e ir para o carrinho', 'Adicionar e continuar comprando', 'Voltar e editar'],
     )
     writeFileSync(join(outDir, `confirmacao-${viewport.width}.png`), await browser.screenshot())

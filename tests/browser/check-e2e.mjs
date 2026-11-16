@@ -36,7 +36,7 @@ const helpers = `
   window.__itemsIn = (id) => [...document.querySelectorAll('#' + id + ' [data-item] [id$="-nome"]')].map((h) => h.textContent);
   window.__shownItems = () => [...document.querySelectorAll('[data-item] [id$="-nome"]')].map((h) => h.textContent);
   window.__mains = () => ['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'].filter((id) => document.getElementById(id));
-  window.__itemButton = (id) => __q('[data-item="' + id + '"] button, [data-item="' + id + '"] a');
+  window.__itemButton = (id) => __q('[data-item="' + id + '"] button:not([data-zoom]), [data-item="' + id + '"] a');
   window.__confirm = () => __q('dialog[role="alertdialog"]');
   window.__options = () => __q('dialog[aria-labelledby="opcoes-item-titulo"]');
   window.__in = (dialog, text) => [...dialog.querySelectorAll('button')].find((b) => b.textContent.includes(text));

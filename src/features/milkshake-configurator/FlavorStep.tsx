@@ -3,6 +3,8 @@ import { type Product, getTopping } from '../catalog/menu.ts'
 import { StepHeading } from '../configurator-core/StepHeading.tsx'
 import type { ConfiguratorApi } from '../configurator-core/useConfigurator.ts'
 import { ingredientPhoto } from '../catalog/photos.ts'
+import { toppingLightbox } from '../lightbox/lightboxImages.ts'
+import { ZoomButton } from '../lightbox/ZoomButton.tsx'
 
 /** Cor de cada sabor de milk-shake, na amostra ao lado do nome. */
 const SHAKE_COLORS: Readonly<Record<string, string>> = {
@@ -68,27 +70,37 @@ export function FlavorStep({
 
       <div className={`mt-4 grid gap-2.5 ${longNames ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-2'}`}>
         {product.flavors.map((flavor) => (
-          <label
-            key={flavor.id}
-            className="group relative flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800"
-          >
-            <input
-              type="radio"
-              name={`${product.slug}-sabor`}
-              value={flavor.id}
-              checked={cfg.selection.flavorId === flavor.id}
-              onChange={() => cfg.chooseFlavor(flavor.id)}
-              className="sr-only"
-            />
-            <Swatch slug={product.slug} flavorId={flavor.id} />
-            <span className="font-semibold text-acai-950">{flavor.name}</span>
-            <span
-              aria-hidden="true"
-              className="ml-auto hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 group-has-checked:grid"
+          // A barca mostra a foto da cobertura: a lupa fica por cima da foto, fora do rótulo (um
+          // botão não pode ficar dentro do rótulo da opção).
+          <div key={flavor.id} className="relative">
+            <label
+              className="group relative flex h-full min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800"
             >
-              <Check className="size-3.5" />
-            </span>
-          </label>
+              <input
+                type="radio"
+                name={`${product.slug}-sabor`}
+                value={flavor.id}
+                checked={cfg.selection.flavorId === flavor.id}
+                onChange={() => cfg.chooseFlavor(flavor.id)}
+                className="sr-only"
+              />
+              <Swatch slug={product.slug} flavorId={flavor.id} />
+              <span className="font-semibold text-acai-950">{flavor.name}</span>
+              <span
+                aria-hidden="true"
+                className="ml-auto hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 group-has-checked:grid"
+              >
+                <Check className="size-3.5" />
+              </span>
+            </label>
+            {product.slug === 'barca-de-acai' && getTopping(flavor.id) && (
+              <ZoomButton
+                image={toppingLightbox(getTopping(flavor.id)!, { price: 'Inclusa' })}
+                className="absolute top-1/2 left-3 size-11 -translate-y-1/2 rounded-full"
+                badge="sm"
+              />
+            )}
+          </div>
         ))}
       </div>
     </fieldset>

@@ -157,7 +157,7 @@ try {
     // --- Janela aberta para tudo ---
     await open('/monte-seu-pedido', viewport, withOffer('cremosinho'))
     await waitFor(`__offer()`, 9000)
-    await click(`__q('[data-item="combo-de-sorvete"] button')`)
+    await click(`__q('[data-item="combo-de-sorvete"] button:not([data-zoom])')`)
     check(`${at} janela de confirmação aberta some com a oferta`, await run(`[__q('dialog[open]') !== null, __offer() === null]`), [true, true])
     await sleep(1500)
     check(`${at} com janela aberta, nada aparece`, await run(`__offer() === null`), true)

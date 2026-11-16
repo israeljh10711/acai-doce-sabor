@@ -150,7 +150,7 @@ function CartButton({ product, cfg, editingItemId }: OrderSummaryProps) {
         <ConfirmItemDialog
           open={confirming}
           summary={productSummary(product.slug, cfg.selection)}
-          visual={<ProductVisual slug={product.slug} sizes="80px" className="size-full" decorative />}
+          visual={<ProductVisual slug={product.slug} sizes="80px" className="size-full" decorative zoom />}
           opener={button}
           onAddAndGoToCart={() => addAndGo(paths.cart)}
           onAddAndContinue={() => addAndGo(productInfo(product.slug).continuePath, { added: product.name })}

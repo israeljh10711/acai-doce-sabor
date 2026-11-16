@@ -2,6 +2,8 @@ import { m } from 'motion/react'
 import { Check } from '../../components/ui/icons.tsx'
 import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppingsOf } from '../catalog/menu.ts'
 import { ingredientPhoto } from '../catalog/photos.ts'
+import { toppingLightbox } from '../lightbox/lightboxImages.ts'
+import { ZoomButton } from '../lightbox/ZoomButton.tsx'
 import { quantityOf } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { blockerText, toppingLabel } from './messages.ts'
@@ -17,7 +19,7 @@ type ToppingStepProps = {
 }
 
 const cardBase =
-  'relative flex h-full w-full flex-col items-center gap-1.5 rounded-2xl border-2 bg-white px-2 pt-3 pb-2.5 text-center transition duration-200 hover:border-acai-600/40'
+  'relative flex h-full w-full flex-col items-center gap-1.5 rounded-2xl border-2 bg-white px-2 pt-3 pb-2.5 text-center transition duration-200'
 
 /** Texto da dica ao lado do título do grupo. */
 function hintFor(product: Product, group: ToppingGroupId, cfg: ConfiguratorApi): { text: string; full: boolean } {
@@ -78,13 +80,14 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
 
 /**
  * Foto real do ingrediente num quadro de cantos arredondados. Embalagens aparecem inteiras
- * (`contain`); texturas preenchem o quadro (`cover`). Decorativa: o nome está logo abaixo.
+ * (`contain`); texturas preenchem o quadro (`cover`). Decorativa: o nome está logo abaixo. Tocar
+ * na foto abre a foto ampliada (a lupa fica por cima de tudo no cartão, `z-10`).
  */
 function Thumb({ topping }: { topping: Topping }) {
   const photo = ingredientPhoto(topping)
   return (
     // A foto ocupa o quadro inteiro (posição absoluta): assim a embalagem alta cabe inteira.
-    <span className="relative block size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+    <span className="relative z-10 block size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line">
       {photo && (
         <img
           src={photo.src}
@@ -97,6 +100,7 @@ function Thumb({ topping }: { topping: Topping }) {
           className={`absolute inset-0 size-full ${photo.fit === 'contain' ? 'object-contain p-1.5' : 'object-cover'}`}
         />
       )}
+      {photo && <ZoomButton image={toppingLightbox(topping)} />}
     </span>
   )
 }
@@ -118,24 +122,31 @@ function PriceBadge({ cents, each = false }: { cents: number; each?: boolean }) 
   )
 }
 
-/** Fruta, calda ou creme: entra uma vez; o cartão inteiro marca e desmarca. */
+/**
+ * Fruta, calda ou creme: entra uma vez; o cartão inteiro marca e desmarca, menos a foto, que
+ * amplia. O botão de marcar cobre o cartão por baixo da foto (não pode ficar um botão dentro do
+ * outro).
+ */
 function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: ConfiguratorApi; hintId: string }) {
   const on = quantityOf(cfg.selection, topping.id) > 0
   const blocked = !on && cfg.blockerFor(topping.id) !== null
 
   return (
-    <button
-      type="button"
-      // "Morango" existe como fruta e como cobertura: o nome acessível diferencia os dois.
-      aria-label={toppingLabel(topping)}
-      aria-pressed={on}
-      disabled={blocked}
-      aria-describedby={blocked ? hintId : undefined}
-      onClick={() => (on ? cfg.remove(topping.id) : cfg.add(topping.id))}
-      className={`${cardBase} cursor-pointer active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:border-line focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${
+    <div
+      className={`${cardBase} has-[>button:active:enabled]:scale-[0.98] ${blocked ? 'opacity-55' : 'hover:border-acai-600/40'} ${
         on ? 'border-gold-400 bg-gold-100' : 'border-line'
       }`}
     >
+      <button
+        type="button"
+        // "Morango" existe como fruta e como cobertura: o nome acessível diferencia os dois.
+        aria-label={toppingLabel(topping)}
+        aria-pressed={on}
+        disabled={blocked}
+        aria-describedby={blocked ? hintId : undefined}
+        onClick={() => (on ? cfg.remove(topping.id) : cfg.add(topping.id))}
+        className="absolute inset-0 cursor-pointer rounded-[0.875rem] disabled:cursor-not-allowed focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-acai-800"
+      />
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {topping.priceCents > 0 ? <PriceBadge cents={topping.priceCents} /> : <FreeBadge />}
@@ -145,11 +156,11 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
         initial={false}
         animate={{ scale: on ? 1 : 0.4, opacity: on ? 1 : 0 }}
         transition={{ type: 'spring', stiffness: 600, damping: 28 }}
-        className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-acai-800 text-gold-400 shadow-sm"
+        className="pointer-events-none absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-acai-800 text-gold-400 shadow-sm"
       >
         <Check className="size-4" />
       </m.span>
-    </button>
+    </div>
   )
 }
 
@@ -169,7 +180,7 @@ function StepperCard({
   const blocker = cfg.blockerFor(topping.id)
 
   return (
-    <div className={`${cardBase} ${quantity > 0 ? 'border-gold-400 bg-gold-100' : 'border-line'}`}>
+    <div className={`${cardBase} hover:border-acai-600/40 ${quantity > 0 ? 'border-gold-400 bg-gold-100' : 'border-line'}`}>
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {paid ? <PriceBadge cents={topping.priceCents} each /> : <FreeBadge />}

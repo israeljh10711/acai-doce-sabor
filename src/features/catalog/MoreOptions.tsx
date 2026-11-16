@@ -172,7 +172,7 @@ function ExtraItemCard({ item, level, onChoose }: { item: ExtraItem; level: Leve
       data-item={item.id}
       className="flex h-full gap-3.5 rounded-2xl bg-white p-4 shadow-card ring-1 ring-line sm:gap-4"
     >
-      <ExtraVisual item={item} />
+      <ExtraVisual item={item} zoom />
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
           <Heading level={level} id={nameId} className="font-display text-base leading-snug font-black text-acai-800">

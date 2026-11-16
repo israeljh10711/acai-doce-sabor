@@ -110,7 +110,7 @@ export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, on
 
           <div className="overflow-y-auto px-5 pt-5 pb-4">
             <div className="flex items-center gap-4">
-              <ExtraVisual item={item} />
+              <ExtraVisual item={item} zoom />
               <div className="min-w-0">
                 <p className="font-display text-lg leading-snug font-black text-acai-800">{item.name}</p>
                 <p className="nums font-bold text-acai-950">{formatBRL(item.priceCents)}</p>

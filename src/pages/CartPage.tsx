@@ -110,7 +110,7 @@ function ProductLine({ item, onRemove }: { item: ProductCartItem; onRemove: () =
     <LineFrame
       item={item}
       title={title}
-      visual={<ProductVisual slug={item.slug} sizes="112px" className="size-full" decorative />}
+      visual={<ProductVisual slug={item.slug} sizes="112px" className="size-full" decorative zoom />}
       editTo={paths.configurator(item.slug, item.id)}
       onRemove={onRemove}
     >
@@ -151,7 +151,7 @@ function ExtraLine({ item, onRemove }: { item: ExtraCartItem; onRemove: () => vo
   const extra = getExtraItem(item.itemId)
 
   return (
-    <LineFrame item={item} title={name} visual={extra && <ExtraVisual item={extra} size="fill" />} onRemove={onRemove}>
+    <LineFrame item={item} title={name} visual={extra && <ExtraVisual item={extra} size="fill" zoom />} onRemove={onRemove}>
       <h2 className="font-display text-lg leading-tight font-black tracking-tight text-acai-800 uppercase">{name}</h2>
       {rows.map((row) => (
         <p key={row.label} className="mt-0.5 text-sm text-ink-soft">

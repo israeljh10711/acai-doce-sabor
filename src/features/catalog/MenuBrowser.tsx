@@ -16,6 +16,7 @@ import { type ChoiceDraft, EMPTY_DRAFT, draftChoices } from './choiceDraft.ts'
 import { ExtraOptionsDialog } from './ExtraOptionsDialog.tsx'
 import { DRAWERS, type DrawerId, EXTRA_ITEMS, type ExtraItem, choiceGroupsOf, normalizeChoices } from './extras.ts'
 import { ExtraVisual } from './ItemVisual.tsx'
+import { useLightbox } from '../lightbox/lightboxContext.ts'
 import { MenuShowcase } from './MenuShowcase.tsx'
 import { type DrawerView, MoreOptions } from './MoreOptions.tsx'
 import { ILLUSTRATIVE_NOTICE } from './notices.ts'
@@ -171,7 +172,10 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
   }
 
   /* Notificações de ofertas: param com janela aberta, busca digitada ou aviso do carrinho. */
-  const offers = useOfferScheduler(flow !== null || query.trim().length > 0 || notice !== null)
+  // A foto ampliada aberta pela própria oferta só segura a oferta; as outras escondem, como janela.
+  const lightbox = useLightbox()
+  const zoomOpen = lightbox.current !== null && lightbox.current.origin !== 'offer'
+  const offers = useOfferScheduler(flow !== null || query.trim().length > 0 || notice !== null || zoomOpen)
 
   const takeOffer = (offer: OfferNotification) => {
     offers.scheduler.accept()
@@ -187,7 +191,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
     }
     // A janela devolve o foco ao botão do item, quando ele está na tela, ou ao conteúdo.
     const button =
-      document.querySelector<HTMLElement>(`[data-item="${item.id}"] button`) ?? document.getElementById('conteudo')
+      document.querySelector<HTMLElement>(`[data-item="${item.id}"] button:not([data-zoom])`) ?? document.getElementById('conteudo')
     if (button) choose(item, button)
   }
 
@@ -261,7 +265,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
       <ConfirmItemDialog
         open={flow?.step === 'confirm'}
         summary={flow ? extraSummary(flow.item, flowChoices) : { eyebrow: '', title: '', rows: [], unitCents: 0 }}
-        visual={flow && <ExtraVisual item={flow.item} size="fill" />}
+        visual={flow && <ExtraVisual item={flow.item} size="fill" zoom />}
         backLabel={hasChoices ? 'Voltar e editar' : 'Voltar'}
         onAddAndGoToCart={() => add(true)}
         onAddAndContinue={() => add(false)}

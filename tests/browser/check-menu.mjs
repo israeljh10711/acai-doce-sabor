@@ -31,7 +31,7 @@ const helpers = `
   window.__badges = () => [...document.querySelectorAll('[data-drawer] > :first-child button .nums')].map((s) => s.textContent);
   window.__items = (drawer) => [...document.querySelectorAll('#' + drawer + ' [data-item] [id$="-nome"]')].map((h) => h.textContent);
   window.__mains = () => ['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'].filter((id) => document.getElementById(id));
-  window.__itemButton = (id) => __q('[data-item="' + id + '"] button, [data-item="' + id + '"] a');
+  window.__itemButton = (id) => __q('[data-item="' + id + '"] button:not([data-zoom]), [data-item="' + id + '"] a');
   window.__confirm = () => __q('dialog[role="alertdialog"]');
   window.__confirmText = () => (__confirm()?.open ? __confirm().textContent : null);
   window.__options = () => __q('dialog[aria-labelledby="opcoes-item-titulo"]');
@@ -219,7 +219,7 @@ try {
     check(`${at} água: produto e valor na confirmação`, ['Água Mineral 500 ml', 'Valor do item:R$ 2,00'].map((t) => aguaText.includes(t)), [true, true])
     check(
       `${at} água: os três botões (sem escolha, "Voltar")`,
-      await browser.evaluate(`[...__confirm().querySelectorAll('button')].map((b) => b.textContent.trim())`),
+      await browser.evaluate(`[...__confirm().querySelectorAll('button:not([data-zoom])')].map((b) => b.textContent.trim())`),
       ['Adicionar e ir para o carrinho', 'Adicionar e continuar comprando', 'Voltar'],
     )
     await click(`__in(__confirm(), 'Voltar')`)

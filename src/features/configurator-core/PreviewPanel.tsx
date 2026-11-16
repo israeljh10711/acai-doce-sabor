@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
-import { Close, Expand } from '../../components/ui/icons.tsx'
-import { useMediaQuery } from '../../hooks/useMediaQuery.ts'
+import { Expand } from '../../components/ui/icons.tsx'
 import { formatBRL } from '../../utils/money.ts'
 import type { Product } from '../catalog/menu.ts'
 import { ILLUSTRATIVE_NOTICE } from '../catalog/notices.ts'
 import { ProductVisual } from '../catalog/ItemVisual.tsx'
+import { useLightbox } from '../lightbox/lightboxContext.ts'
+import { productLightbox } from '../lightbox/lightboxImages.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import type { ConfiguratorApi } from './useConfigurator.ts'
 
@@ -15,15 +15,11 @@ const pill =
  * Prévia do pedido: a foto fixa do produto (a enviada pela loja; no Pote 1 L Montado e na Barca, a
  * foto da gaveta), o tamanho, os grátis e o total. A foto não muda com os ingredientes nem com o
  * recipiente escolhidos.
- * - Celular: fica fixa no topo, compacta; "Ver foto" abre a foto grande.
- * - Computador: acompanha a rolagem.
+ * - Celular: fica fixa no topo, compacta; "Ver foto" (ou um toque na foto) abre a foto ampliada.
+ * - Computador: acompanha a rolagem; um clique na foto abre a foto ampliada.
  */
 export function PreviewPanel({ product, cfg }: { product: Product; cfg: ConfiguratorApi }) {
-  const isDesktop = useMediaQuery('(min-width: 64rem)')
-  const dialog = useRef<HTMLDialogElement>(null)
-  const opener = useRef<HTMLButtonElement>(null)
-  // A foto grande só entra na página quando a janela abre: não baixa à toa.
-  const [viewerOpen, setViewerOpen] = useState(false)
+  const lightbox = useLightbox()
 
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
   const hasFreeLimit = product.groups.includes('dry')
@@ -38,7 +34,7 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
     >
       <div className="flex items-center gap-3 lg:flex-col lg:items-stretch lg:gap-4">
         <div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line min-[360px]:size-28 sm:size-32 lg:mx-auto lg:size-auto lg:w-full lg:max-w-sm">
-          <ProductVisual slug={product.slug} sizes="(min-width: 64rem) 384px, 128px" className="size-full" priority />
+          <ProductVisual slug={product.slug} sizes="(min-width: 64rem) 384px, 128px" className="size-full" priority zoom />
         </div>
 
         <div className="min-w-0 flex-1 lg:text-center">
@@ -58,12 +54,9 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
       {/* Celular: os dois botões numa linha só, para a prévia fixa ficar baixa. */}
       <div className="mt-2 flex gap-2 lg:hidden">
         <button
-          ref={opener}
           type="button"
-          onClick={() => {
-            setViewerOpen(true)
-            dialog.current?.showModal()
-          }}
+          aria-haspopup="dialog"
+          onClick={(event) => lightbox.show(productLightbox(product.slug), event.currentTarget)}
           className={`${pill} flex-1 justify-center bg-acai-800 text-white hover:bg-acai-700 active:scale-[0.97]`}
         >
           Ver foto
@@ -76,36 +69,6 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
 
       <p className="mt-2 text-xs leading-snug text-ink-soft lg:mt-4 lg:text-center lg:text-sm">{ILLUSTRATIVE_NOTICE}</p>
 
-      {!isDesktop && (
-        <dialog
-          ref={dialog}
-          aria-labelledby="foto-pedido-titulo"
-          onClick={(event) => event.target === dialog.current && dialog.current?.close()}
-          // Ao fechar (botão, Esc ou toque fora), o foco volta para "Ver foto".
-          onClose={() => {
-            setViewerOpen(false)
-            opener.current?.focus()
-          }}
-          className="m-auto w-[min(92vw,30rem)] overflow-hidden rounded-3xl bg-white p-0 shadow-lift backdrop:bg-acai-950/70"
-        >
-          <div className="flex items-center justify-between gap-3 bg-acai-800 px-4 py-3 text-white">
-            <h2 id="foto-pedido-titulo" className="font-display text-lg font-black tracking-tight uppercase">
-              {product.name}
-            </h2>
-            <button
-              type="button"
-              onClick={() => dialog.current?.close()}
-              className="btn-gold inline-flex min-h-11 items-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
-            >
-              <Close className="size-4" />
-              Fechar
-            </button>
-          </div>
-          {viewerOpen && <ProductVisual slug={product.slug} sizes="92vw" className="w-full" priority />}
-          <p className="px-4 pt-3 text-sm font-semibold text-acai-950">{caption}</p>
-          <p className="px-4 pt-1 pb-4 text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
-        </dialog>
-      )}
     </section>
   )
 }

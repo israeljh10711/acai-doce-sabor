@@ -6,6 +6,8 @@ import { type EmblemIcon, type ExtraItem, extraForProduct } from './extras.ts'
 import type { ExtraProductSlug, ProductSlug } from './menu.ts'
 import { catalogPhotoSrc, catalogPhotoSrcSet } from './photos.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
+import { extraLightbox, productLightbox } from '../lightbox/lightboxImages.ts'
+import { ZoomButton } from '../lightbox/ZoomButton.tsx'
 
 const ICONS: Record<EmblemIcon, ComponentType<{ className?: string }>> = {
   gift: Gift,
@@ -72,13 +74,33 @@ type ExtraVisualProps = {
   decorative?: boolean
   /** Foto da primeira dobra: carregar já. */
   priority?: boolean
+  /** Tocar na foto abre a foto ampliada (com a lupa no canto). */
+  zoom?: boolean
+}
+
+/** Quadro em volta da foto com a lupa, do mesmo tamanho dela. */
+const ZOOM_FRAME: Record<VisualSize, string> = {
+  sm: 'relative shrink-0 rounded-xl',
+  md: 'relative shrink-0 self-start rounded-2xl',
+  fill: 'relative block w-full rounded-2xl',
 }
 
 /**
  * Foto do item das gavetas (pedido de 2026-11-15): quadrada, preenchendo o quadro, na cópia leve
  * (WebP de 480 ou 960 px) que serve ao tamanho em que aparece.
  */
-export function ExtraVisual({ item, size = 'md', sizes, decorative = true, priority = false }: ExtraVisualProps) {
+export function ExtraVisual({ item, size = 'md', sizes, decorative = true, priority = false, zoom = false }: ExtraVisualProps) {
+  const photo = <ExtraPhoto item={item} size={size} sizes={sizes} decorative={decorative} priority={priority} />
+  if (!zoom) return photo
+  return (
+    <span className={ZOOM_FRAME[size]}>
+      {photo}
+      <ZoomButton image={extraLightbox(item)} />
+    </span>
+  )
+}
+
+function ExtraPhoto({ item, size, sizes, decorative, priority }: Required<Omit<ExtraVisualProps, 'zoom' | 'sizes'>> & { sizes?: string }) {
   return (
     <img
       src={catalogPhotoSrc(item.image, 480)}
@@ -101,17 +123,26 @@ type ProductVisualProps = {
   className?: string
   priority?: boolean
   decorative?: boolean
+  /** Tocar na foto abre a foto ampliada (com a lupa no canto). */
+  zoom?: boolean
 }
 
 /**
  * Foto fixa do produto do personalizador: a enviada pela loja (Açaí Oca, Tradicional, Batido e
  * Milk-shake) ou, nos que vêm das gavetas (Pote 1 L Montado, Barca), a foto do item da gaveta.
  */
-export function ProductVisual({ slug, sizes, className = '', priority, decorative }: ProductVisualProps) {
+export function ProductVisual({ slug, sizes, className = '', priority, decorative, zoom = false }: ProductVisualProps) {
   const category = findCategoryBySlug(slug)
-  if (category) {
-    return <ProductPhoto slug={category.slug} sizes={sizes} className={className} priority={priority} decorative={decorative} />
-  }
-  const extra = extraForProduct(slug as ExtraProductSlug)
-  return <ExtraVisual item={extra} size="fill" sizes={sizes} decorative={decorative ?? false} priority={priority} />
+  const photo = category ? (
+    <ProductPhoto slug={category.slug} sizes={sizes} className={className} priority={priority} decorative={decorative} />
+  ) : (
+    <ExtraPhoto item={extraForProduct(slug as ExtraProductSlug)} size="fill" sizes={sizes} decorative={decorative ?? false} priority={priority ?? false} />
+  )
+  if (!zoom) return photo
+  return (
+    <span className="relative block size-full rounded-[inherit]">
+      {photo}
+      <ZoomButton image={productLightbox(slug)} />
+    </span>
+  )
 }

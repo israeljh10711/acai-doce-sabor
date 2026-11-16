@@ -1,8 +1,18 @@
 import { Outlet, ScrollRestoration } from 'react-router'
+import { LightboxProvider } from '../../features/lightbox/LightboxProvider.tsx'
 import { SiteFooter } from './SiteFooter.tsx'
 import { SiteHeader } from './SiteHeader.tsx'
 
 export function AppLayout() {
+  return (
+    // A foto ampliada vale para o site todo: qualquer foto de produto ou ingrediente abre nela.
+    <LightboxProvider>
+      <Layout />
+    </LightboxProvider>
+  )
+}
+
+function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <a

@@ -1,6 +1,9 @@
 import { AnimatePresence, m, useReducedMotion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import { ArrowRight, Bell, Close } from '../../components/ui/icons.tsx'
+import { useLightbox } from '../lightbox/lightboxContext.ts'
+import { offerLightbox } from '../lightbox/lightboxImages.ts'
+import { ZoomButton } from '../lightbox/ZoomButton.tsx'
 import type { OfferNotification } from './offerNotifications.ts'
 import { OFFER_TIMING, type OfferSnapshot } from './offerScheduler.ts'
 
@@ -25,8 +28,10 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
   const reduceMotion = useReducedMotion()
   const bar = useRef<HTMLDivElement>(null)
   const animation = useRef<Animation | null>(null)
-  // Cada fonte de pausa separada: o cartão só volta a contar quando nenhuma está ativa.
-  const holds = useRef({ hover: false, press: false, focus: false })
+  // Cada fonte de pausa separada: o cartão só volta a contar quando nenhuma está ativa. `zoom`: a
+  // foto da oferta está aberta, ampliada.
+  const holds = useRef({ hover: false, press: false, focus: false, zoom: false })
+  const zoomOpen = useLightbox().current?.origin === 'offer'
 
   const hold = (source: keyof typeof holds.current, value: boolean) => {
     holds.current[source] = value
@@ -35,7 +40,7 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
 
   // Barra de tempo: recomeça a cada oferta e para junto com a contagem.
   useEffect(() => {
-    holds.current = { hover: false, press: false, focus: false }
+    holds.current = { hover: false, press: false, focus: false, zoom: false }
     const element = bar.current
     if (!element || !offer || typeof element.animate !== 'function') return
     animation.current = element.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], {
@@ -48,6 +53,13 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
       animation.current = null
     }
   }, [snapshot.showKey, offer])
+
+  // Foto da oferta ampliada: a oferta espera na tela (e a barra para) até a foto fechar.
+  useEffect(() => {
+    if (holds.current.zoom === zoomOpen) return
+    holds.current.zoom = zoomOpen
+    onHold(Object.values(holds.current).some(Boolean))
+  }, [zoomOpen, onHold])
 
   useEffect(() => {
     const current = animation.current
@@ -97,42 +109,49 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => onAccept(offer)}
-              className="flex w-full cursor-pointer items-start gap-3 px-3 pb-3 text-left focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-acai-800"
-            >
-              {/* Miniatura da foto do cardápio: enfeite, o nome da oferta está ao lado. */}
-              <img
-                src={offer.photo.src}
-                alt=""
-                width={48}
-                height={48}
-                decoding="async"
-                data-offer-photo={offer.photo.fit}
-                className={`size-12 shrink-0 rounded-xl bg-white ring-1 ring-line ${offer.photo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'}`}
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm leading-tight font-extrabold text-acai-800 sm:text-base">{offer.title}</span>
-                <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-soft">{offer.subtitle}</span>
-                <span className="mt-2 flex items-center justify-between gap-2">
-                  <span className="nums leading-tight">
-                    {offer.oldPriceText && (
-                      <>
-                        <span className="sr-only">De </span>
-                        <s className="mr-1.5 text-xs text-ink-soft">{offer.oldPriceText}</s>
-                        <span className="sr-only"> por </span>
-                      </>
-                    )}
-                    <strong className="text-sm font-black whitespace-nowrap text-acai-800">{offer.priceText}</strong>
-                  </span>
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-acai-800 px-3 py-1.5 text-xs font-bold text-white">
-                    Aproveitar
-                    <ArrowRight className="size-3.5" />
+            {/* O cartão inteiro aceita a oferta (o "depois" do botão cobre tudo), menos a
+                miniatura, que amplia a foto: a lupa fica por cima (`z-10`), fora do botão. */}
+            <div className="relative flex w-full items-start gap-3 px-3 pb-3">
+              <span className="relative z-10 size-12 shrink-0 rounded-xl">
+                {/* Miniatura da foto do cardápio: enfeite, o nome da oferta está ao lado. */}
+                <img
+                  src={offer.photo.src}
+                  alt=""
+                  width={48}
+                  height={48}
+                  decoding="async"
+                  data-offer-photo={offer.photo.fit}
+                  className={`size-12 rounded-xl bg-white ring-1 ring-line ${offer.photo.fit === 'contain' ? 'object-contain p-0.5' : 'object-cover'}`}
+                />
+                <ZoomButton image={offerLightbox(offer)} origin="offer" badge="sm" />
+              </span>
+              <button
+                type="button"
+                onClick={() => onAccept(offer)}
+                className="min-w-0 flex-1 cursor-pointer text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-3 focus-visible:after:-outline-offset-3 focus-visible:after:outline-acai-800"
+              >
+                <span className="block min-w-0">
+                  <span className="block text-sm leading-tight font-extrabold text-acai-800 sm:text-base">{offer.title}</span>
+                  <span className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-soft">{offer.subtitle}</span>
+                  <span className="mt-2 flex items-center justify-between gap-2">
+                    <span className="nums leading-tight">
+                      {offer.oldPriceText && (
+                        <>
+                          <span className="sr-only">De </span>
+                          <s className="mr-1.5 text-xs text-ink-soft">{offer.oldPriceText}</s>
+                          <span className="sr-only"> por </span>
+                        </>
+                      )}
+                      <strong className="text-sm font-black whitespace-nowrap text-acai-800">{offer.priceText}</strong>
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-acai-800 px-3 py-1.5 text-xs font-bold text-white">
+                      Aproveitar
+                      <ArrowRight className="size-3.5" />
+                    </span>
                   </span>
                 </span>
-              </span>
-            </button>
+              </button>
+            </div>
 
             {/* Barra de tempo: some para quem pediu menos movimento no aparelho. */}
             <div aria-hidden="true" className="h-1 bg-gold-100 motion-reduce:hidden">
