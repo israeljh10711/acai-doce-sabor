@@ -5,6 +5,7 @@ import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { cartActions } from '../cart/cartStore.ts'
 import { ProductVisual } from '../catalog/ItemVisual.tsx'
+import { isProductAvailable } from '../catalog/availability.ts'
 import { type Product, TOPPING_GROUPS, flavorTermOf } from '../catalog/menu.ts'
 import { productInfo } from '../catalog/productInfo.ts'
 import { freeByGroup } from '../catalog/selection.ts'
@@ -120,7 +121,24 @@ function CartButton({ product, cfg, editingItemId }: OrderSummaryProps) {
   const navigate = useNavigate()
   const button = useRef<HTMLButtonElement>(null)
   const [confirming, setConfirming] = useState(false)
-  const ready = cfg.size !== undefined && cfg.missing.length === 0
+  // Esgotado pelo vendedor (pedido de 2026-11-17): nem adicionar, nem salvar a edição.
+  const available = isProductAvailable(product.slug)
+  const ready = available && cfg.size !== undefined && cfg.missing.length === 0
+
+  if (!available) {
+    return (
+      <div className="mt-5">
+        <button
+          type="button"
+          disabled
+          className="inline-flex min-h-14 w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-line px-5 text-base font-extrabold tracking-tight text-ink-soft uppercase"
+        >
+          Indisponível no momento
+        </button>
+        <p className="mt-2 text-sm text-ink-soft">Este produto esgotou por agora. Escolha outro no cardápio.</p>
+      </div>
+    )
+  }
 
   const submit = () => {
     if (!ready) return

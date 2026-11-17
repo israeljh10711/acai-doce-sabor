@@ -56,7 +56,7 @@ function HighlightCard({ item, level, onChoose }: { item: ExtraItem; level: 3 | 
     >
       <div className="relative">
         <ExtraVisual item={item} size="fill" zoom sizes="(min-width: 80rem) 170px, (min-width: 40rem) 30vw, 46vw" />
-        <SoldOut item={item} />
+        <SoldOut available={item.available !== false} />
         <SellerEditButton target={{ kind: 'item', id: item.id }} label={item.name} className="absolute top-1.5 left-1.5 z-20" />
       </div>
       <Heading level={level} id={nameId} className="mt-2.5 font-display text-sm leading-snug font-black text-acai-800 sm:text-base">

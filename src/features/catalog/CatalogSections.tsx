@@ -190,7 +190,7 @@ function SectionItemCard({ item, level, onChoose }: { item: ExtraItem; level: Le
     >
       <div className="relative w-28 shrink-0 self-start sm:w-full">
         <ExtraVisual item={item} size="fill" zoom sizes="(min-width: 80rem) 300px, (min-width: 40rem) 45vw, 112px" />
-        <SoldOut item={item} />
+        <SoldOut available={item.available !== false} />
         <SellerEditButton target={{ kind: 'item', id: item.id }} label={item.name} className="absolute top-1.5 left-1.5 z-20" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
@@ -222,12 +222,17 @@ function SectionItemCard({ item, level, onChoose }: { item: ExtraItem; level: Le
   )
 }
 
-/** Selo "Esgotado" sobre a foto (o vendedor marcou como esgotado). */
-export function SoldOut({ item }: { item: ExtraItem }) {
-  if (item.available !== false) return null
+/**
+ * Tarja "ESGOTADO" atravessando a foto esmaecida (pedido de 2026-11-17), nos itens, nos 4
+ * produtos, no personalizador e no carrinho. A foto continua ampliando (a tarja não pega o toque).
+ */
+export function SoldOut({ available }: { available: boolean }) {
+  if (available) return null
   return (
-    <span className="pointer-events-none absolute top-1.5 right-1.5 z-20 rounded-full bg-red-600 px-2 py-0.5 text-[0.7rem] font-extrabold tracking-wide text-white uppercase shadow-sm">
-      Esgotado
+    <span data-sold-out="" className="pointer-events-none absolute inset-0 z-[15] grid place-items-center overflow-hidden rounded-[inherit] bg-white/60">
+      <span className="w-full bg-red-600 py-1 text-center text-xs font-black tracking-[0.2em] text-white uppercase shadow-sm sm:text-sm">
+        Esgotado
+      </span>
     </span>
   )
 }

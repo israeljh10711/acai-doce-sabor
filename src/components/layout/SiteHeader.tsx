@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router'
 import { cartCount } from '../../features/cart/cart.ts'
+import { StoreHeaderBadge } from '../../features/store-hours/StoreHeaderBadge.tsx'
 import { useCart } from '../../features/cart/cartStore.ts'
 import { paths } from '../../paths.ts'
 import { storeInfo } from '../../services/storeInfo.ts'
@@ -28,6 +29,9 @@ export function SiteHeader() {
           </span>
         </Link>
 
+        {/* Loja aberta ou fechada e o prazo de entrega (pedido de 2026-11-17); no celular, logo abaixo. */}
+        <StoreHeaderBadge className="hidden md:inline-flex" />
+
         <nav aria-label="Navegação principal" className="flex items-center gap-1.5 sm:gap-3">
           <NavLink
             to={paths.buildOrder}
@@ -50,6 +54,7 @@ export function SiteHeader() {
           </NavLink>
         </nav>
       </Container>
+      <StoreHeaderBadge strip className="md:hidden" />
     </header>
   )
 }

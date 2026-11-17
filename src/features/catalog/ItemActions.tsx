@@ -26,11 +26,15 @@ export function ItemActionButton({
   label?: string
   className?: string
 }) {
-  // Esgotado pelo vendedor (2026-11-16): o botão fica desligado, com o aviso.
+  // Esgotado pelo vendedor: o botão fica desligado, com "Indisponível no momento" (2026-11-17).
   if (item.available === false) {
     return (
-      <button type="button" disabled className={`${actionClass} cursor-not-allowed opacity-70 ${className}`}>
-        Esgotado
+      <button
+        type="button"
+        disabled
+        className={`inline-flex min-h-11 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-line px-4 text-sm font-bold whitespace-nowrap text-ink-soft ${className}`}
+      >
+        Indisponível no momento
         <span className="sr-only">: {item.name}</span>
       </button>
     )

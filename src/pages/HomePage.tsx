@@ -8,8 +8,11 @@ import { LEGACY_ANCHORS, MONTE_TITLE } from '../features/catalog/catalogNav.ts'
 import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
-import { HOURS_TEXT } from '../features/store-hours/hours.ts'
+import { useStoreSettings } from '../features/catalog/catalogStore.ts'
+import { hoursText } from '../features/store-hours/hours.ts'
+import { StoreClosedCard } from '../features/store-hours/StoreClosedCard.tsx'
 import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
+import { storeAddressText } from '../features/store/storeSettings.ts'
 import { useHashScroll } from '../hooks/useHashScroll.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { storeInfo } from '../services/storeInfo.ts'
@@ -32,6 +35,11 @@ export function HomePage() {
   return (
     <>
       <Hero />
+
+      {/* Loja fechada (pedido de 2026-11-17): o convite para voltar, o endereço e o WhatsApp. */}
+      <Container className="pt-8 sm:pt-10 empty:hidden">
+        <StoreClosedCard />
+      </Container>
 
       {/* O cardápio inteiro (navegação, busca, destaques, os 4 produtos e as 5 seções), igual ao da página Cardápio. */}
       <MenuBrowser
@@ -145,7 +153,9 @@ function HeroPhoto() {
 }
 
 function StoreInfo() {
-  const { address, instagramHandle, instagramUrl, whatsapp } = storeInfo
+  // Horário e contato atuais (o vendedor muda em "Horários e Contato", 2026-11-17).
+  const { hours, contact } = useStoreSettings()
+  const { instagramHandle, instagramUrl } = storeInfo
   return (
     <section aria-labelledby="loja-titulo" className="bg-acai-950 text-white">
       <Container className="grid gap-10 py-14 sm:py-16 lg:grid-cols-[1fr_auto] lg:items-center">
@@ -158,27 +168,27 @@ function StoreInfo() {
               <Clock className="mt-0.5 size-5 shrink-0 text-gold-400" />
               <span>
                 <span className="block font-bold text-white">Funcionamento</span>
-                {HOURS_TEXT}
+                {hoursText(hours)}
               </span>
             </li>
             <li className="flex gap-3">
               <Pin className="mt-0.5 size-5 shrink-0 text-gold-400" />
               <span>
                 <span className="block font-bold text-white">Endereço</span>
-                {address.street}, {address.city}, PB
+                {storeAddressText(contact)}
               </span>
             </li>
             <li className="flex gap-3">
               <Chat className="mt-0.5 size-5 shrink-0 text-gold-400" />
               <span>
                 <span className="block font-bold text-white">WhatsApp</span>
-                <span className="nums">{whatsapp}</span>
+                <span className="nums">{contact.whatsapp}</span>
               </span>
             </li>
           </ul>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row">
-          <ButtonLink href={buildWhatsAppUrl(whatsapp)} variant="onBrandPrimary">
+          <ButtonLink href={buildWhatsAppUrl(contact.whatsapp)} variant="onBrandPrimary">
             <Chat className="size-5" />
             Falar no WhatsApp
           </ButtonLink>

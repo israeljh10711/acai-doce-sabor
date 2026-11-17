@@ -50,6 +50,26 @@ export type Customer = { name: string; phone: string | null; fulfillment: Fulfil
 
 export type CustomerField = 'name' | 'phone' | 'kind' | 'street' | 'number' | 'district' | 'zone'
 
+/**
+ * Dados guardados na aba (`sessionStorage`), conferidos: quem volta ao cardápio para pegar mais
+ * um item não perde o que já escreveu. Campo de tipo errado vira vazio.
+ */
+export function parseCustomerDraft(raw: unknown): CustomerDraft {
+  if (typeof raw !== 'object' || raw === null) return EMPTY_CUSTOMER
+  const data = raw as Record<string, unknown>
+  const text = (key: keyof CustomerDraft) => (typeof data[key] === 'string' ? (data[key] as string).slice(0, 120) : '')
+  return {
+    name: text('name'),
+    phone: text('phone'),
+    kind: data.kind === 'entrega' || data.kind === 'retirada' ? data.kind : null,
+    street: text('street'),
+    number: text('number'),
+    district: text('district'),
+    zoneId: typeof data.zoneId === 'string' ? data.zoneId.slice(0, 40) : null,
+    reference: text('reference'),
+  }
+}
+
 /** O carrinho mostra a lista de bairros (com o valor de cada um) só no modo de taxas com bairros. */
 export function zoneList(delivery: DeliverySettings): readonly DeliveryZone[] {
   return delivery.mode === 'taxas' ? delivery.zones : []

@@ -1,5 +1,5 @@
 import { m } from 'motion/react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
@@ -7,11 +7,13 @@ import { ArrowLeft, Bag, Minus, Pencil, Plus, Trash } from '../components/ui/ico
 import {
   type Cart,
   type CartItem,
+  type CartItemProblem,
   type ExtraCartItem,
   MAX_ITEM_QUANTITY,
+  MAX_NOTE_LENGTH,
   type ProductCartItem,
   cartCount,
-  cartTotalCents,
+  cartItemProblem,
   describeExtra,
   describeItem,
   lineTotalCents,
@@ -19,6 +21,7 @@ import {
 } from '../features/cart/cart.ts'
 import { cartActions, useCart } from '../features/cart/cartStore.ts'
 import { ILLUSTRATIVE_NOTICE } from '../features/catalog/notices.ts'
+import { SoldOut } from '../features/catalog/CatalogSections.tsx'
 import { CheckoutPanel } from '../features/checkout/CheckoutPanel.tsx'
 import { getExtraItem } from '../features/catalog/extras.ts'
 import { ExtraVisual, ProductVisual } from '../features/catalog/ItemVisual.tsx'
@@ -26,6 +29,7 @@ import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
 import { formatBRL } from '../utils/money.ts'
+import { StoreClosedCard } from '../features/store-hours/StoreClosedCard.tsx'
 
 /** Carrinho: cada item com a foto do que foi montado, as escolhas, a quantidade e os valores. */
 export function CartPage() {
@@ -61,7 +65,11 @@ export function CartPage() {
 
       <Container className="py-8 sm:py-12">
         {cart.items.length === 0 ? (
-          <EmptyCart />
+          <>
+            {/* Loja fechada (pedido de 2026-11-17): o aviso com o endereço e o WhatsApp. */}
+            <StoreClosedCard className="mx-auto mb-6 max-w-2xl" />
+            <EmptyCart />
+          </>
         ) : (
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <ul className="flex flex-col gap-4" aria-label="Itens do carrinho">
@@ -192,13 +200,21 @@ function LineFrame({
   children: ReactNode
 }) {
   const unit = unitPriceCents(item)
+  const problem = cartItemProblem(item)
 
   return (
-    <m.li layout className="rounded-3xl bg-white p-4 shadow-card ring-1 ring-line sm:p-5">
+    <m.li layout className={`rounded-3xl bg-white p-4 shadow-card sm:p-5 ${problem ? 'ring-2 ring-red-600' : 'ring-1 ring-line'}`}>
       <article aria-label={title} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[7rem_minmax(0,1fr)]">
-        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-line">{visual}</div>
+        <div className="relative self-start overflow-hidden rounded-2xl bg-white ring-1 ring-line">
+          {visual}
+          {problem?.kind === 'item' && <SoldOut available={false} />}
+        </div>
 
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0">
+          {children}
+          {problem && <ProblemNotice problem={problem} editTo={editTo} onRemove={onRemove} title={title} />}
+          <NoteField item={item} title={title} />
+        </div>
 
         <div className="col-span-2 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
           <QuantityControl item={item} title={title} />
@@ -230,6 +246,93 @@ function LineFrame({
         </div>
       </article>
     </m.li>
+  )
+}
+
+/**
+ * Item que esgotou depois de entrar no carrinho (pedido de 2026-11-17): o aviso e o que fazer.
+ * O envio do pedido espera o cliente tirar o item ou editar a montagem.
+ */
+function ProblemNotice({ problem, editTo, onRemove, title }: { problem: CartItemProblem; editTo?: string; onRemove: () => void; title: string }) {
+  const action =
+    'inline-flex min-h-10 cursor-pointer items-center justify-center rounded-full px-3 text-xs font-bold ring-1 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-red-800'
+  return (
+    <div data-cart-problem="" className="mt-2 rounded-xl bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">
+      <p className="font-bold">
+        {problem.kind === 'item' ? 'Esgotado: este item não está disponível agora.' : `Esgotou: ${problem.names.join(', ')}.`}
+      </p>
+      <p className="mt-0.5">{problem.kind === 'item' ? 'Remova para enviar o pedido.' : 'Edite o item para tirar o que esgotou, ou remova.'}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {problem.kind === 'toppings' && editTo && (
+          <Link to={editTo} className={`${action} bg-white text-acai-800 ring-acai-800/30 hover:bg-acai-100`}>
+            Editar item<span className="sr-only"> {title}</span>
+          </Link>
+        )}
+        <button type="button" onClick={onRemove} className={`${action} bg-white text-red-800 ring-red-800/30 hover:bg-red-100`}>
+          Remover item<span className="sr-only"> {title}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * "+ Observação" (pedido de 2026-11-17, opção 2A): o cliente escreve um recado para o item
+ * ("pouco gelo") e ele vai para a comanda do WhatsApp. Vazia, a linha não aparece na comanda.
+ */
+function NoteField({ item, title }: { item: CartItem; title: string }) {
+  const [open, setOpen] = useState(Boolean(item.note))
+  const [text, setText] = useState(item.note ?? '')
+  const [focusNow, setFocusNow] = useState(false)
+  const input = useRef<HTMLInputElement>(null)
+  const id = `${item.id}-observacao`
+
+  useEffect(() => {
+    if (focusNow) input.current?.focus()
+  }, [focusNow])
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        data-note-add=""
+        onClick={() => {
+          setOpen(true)
+          setFocusNow(true)
+        }}
+        className="mt-2 inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-bold text-acai-800 ring-1 ring-acai-800/25 transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+      >
+        <Plus className="size-3.5" />
+        Observação<span className="sr-only"> para {title}</span>
+      </button>
+    )
+  }
+  return (
+    <div className="mt-2">
+      <label htmlFor={id} className="text-xs font-bold text-acai-800">
+        Observação (opcional)
+      </label>
+      <input
+        ref={input}
+        id={id}
+        data-note-input=""
+        type="text"
+        maxLength={MAX_NOTE_LENGTH}
+        placeholder="Ex.: pouco gelo"
+        value={text}
+        onChange={(event) => {
+          setText(event.target.value)
+          cartActions.setNote(item.id, event.target.value)
+        }}
+        onBlur={() => {
+          if (!text.trim()) {
+            setOpen(false)
+            setFocusNow(false)
+          }
+        }}
+        className="mt-1 min-h-11 w-full rounded-xl bg-white px-3 text-sm text-acai-950 ring-1 ring-line outline-none placeholder:text-ink-soft focus:ring-2 focus:ring-acai-700"
+      />
+    </div>
   )
 }
 
@@ -266,8 +369,9 @@ function QuantityControl({ item, title }: { item: CartItem; title: string }) {
 }
 
 /**
- * Total e finalização: forma de pagamento e envio do pedido pelo WhatsApp da loja
- * (pedido de 2026-11-14). Ver `features/checkout/CheckoutPanel.tsx`.
+ * Total e finalização: valores com o frete, dados do cliente, entrega ou retirada, forma de
+ * pagamento e envio do pedido pelo WhatsApp da loja (pedidos de 2026-11-14 e 2026-11-17).
+ * Ver `features/checkout/CheckoutPanel.tsx`.
  */
 function Checkout({ cart, onCleared }: { cart: Cart; onCleared: () => void }) {
   return (
@@ -276,14 +380,6 @@ function Checkout({ cart, onCleared }: { cart: Cart; onCleared: () => void }) {
         Resumo do pedido
       </h2>
       <div className="flex flex-col gap-5 p-5">
-        <div>
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="font-display text-lg font-extrabold text-acai-800 uppercase">Total</span>
-            <span className="nums text-3xl font-extrabold whitespace-nowrap text-acai-800">{formatBRL(cartTotalCents(cart))}</span>
-          </div>
-          <p className="mt-1 text-xs text-ink-soft">A taxa de entrega não entra neste total.</p>
-        </div>
-
         <CheckoutPanel cart={cart} onCleared={onCleared} />
         <p className="text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
       </div>

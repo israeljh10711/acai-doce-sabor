@@ -1,5 +1,7 @@
 import { Link } from 'react-router'
-import { HOURS_TEXT } from '../../features/store-hours/hours.ts'
+import { useStoreSettings } from '../../features/catalog/catalogStore.ts'
+import { hoursText } from '../../features/store-hours/hours.ts'
+import { storeAddressText } from '../../features/store/storeSettings.ts'
 import { paths } from '../../paths.ts'
 import { storeInfo } from '../../services/storeInfo.ts'
 import { buildWhatsAppUrl } from '../../utils/whatsapp.ts'
@@ -10,7 +12,9 @@ const linkClass =
   'inline-flex min-h-11 items-center font-medium text-white/85 hover:text-gold-400 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white'
 
 export function SiteFooter() {
-  const { address, instagramHandle, instagramUrl, name, whatsapp } = storeInfo
+  const { instagramHandle, instagramUrl, name } = storeInfo
+  // Horário e contato atuais (o vendedor muda em "Horários e Contato", 2026-11-17).
+  const { hours, contact } = useStoreSettings()
 
   return (
     <footer className="bg-acai-950 text-white/80">
@@ -19,10 +23,8 @@ export function SiteFooter() {
           <Logo version="badge" sizes="56px" className="size-14" decorative />
           <div>
             <p className="font-display text-lg font-extrabold tracking-tight text-white uppercase" translate="no">{name}</p>
-            <p className="text-sm">
-              {address.street}, {address.city}, PB
-            </p>
-            <p className="text-sm">{HOURS_TEXT}</p>
+            <p className="text-sm">{storeAddressText(contact)}</p>
+            <p className="text-sm">{hoursText(hours)}</p>
           </div>
         </div>
 
@@ -39,7 +41,7 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <a href={buildWhatsAppUrl(whatsapp)} target="_blank" rel="noreferrer" className={linkClass}>
+              <a href={buildWhatsAppUrl(contact.whatsapp)} target="_blank" rel="noreferrer" className={linkClass}>
                 <span className="link-draw">WhatsApp</span>
                 <span className="sr-only"> (abre em nova aba)</span>
               </a>

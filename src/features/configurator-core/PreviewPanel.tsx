@@ -3,6 +3,8 @@ import { formatBRL } from '../../utils/money.ts'
 import type { Product } from '../catalog/menu.ts'
 import { ILLUSTRATIVE_NOTICE } from '../catalog/notices.ts'
 import { ProductVisual } from '../catalog/ItemVisual.tsx'
+import { isProductAvailable } from '../catalog/availability.ts'
+import { SoldOut } from '../catalog/CatalogSections.tsx'
 import { useLightbox } from '../lightbox/lightboxContext.ts'
 import { productLightbox } from '../lightbox/lightboxImages.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
@@ -33,8 +35,9 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
       className="rounded-3xl bg-white p-2.5 ring-1 ring-line lg:p-5 lg:shadow-card"
     >
       <div className="flex items-center gap-3 lg:flex-col lg:items-stretch lg:gap-4">
-        <div className="size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line min-[360px]:size-28 sm:size-32 lg:mx-auto lg:size-auto lg:w-full lg:max-w-sm">
+        <div className="relative size-24 shrink-0 overflow-hidden rounded-2xl bg-white ring-1 ring-line min-[360px]:size-28 sm:size-32 lg:mx-auto lg:size-auto lg:w-full lg:max-w-sm">
           <ProductVisual slug={product.slug} sizes="(min-width: 64rem) 384px, 128px" className="size-full" priority zoom />
+          <SoldOut available={isProductAvailable(product.slug)} />
         </div>
 
         <div className="min-w-0 flex-1 lg:text-center">

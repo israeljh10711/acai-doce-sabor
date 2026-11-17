@@ -124,6 +124,42 @@ export const Flame = (props: IconProps) => (
   </Icon>
 )
 
+/** Moto de entrega (o "🛵" pedido em 2026-11-17). */
+export const Scooter = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="6" cy="17" r="2.5" />
+    <circle cx="18" cy="17" r="2.5" />
+    <path d="M8.5 17h5.5l3-7.5h2" />
+    <path d="M14 17l-2.5-5H4" />
+    <rect x="4" y="5" width="6" height="5" rx="1" />
+  </Icon>
+)
+
+/** Fachada de loja (retirada no balcão, o "🏪" pedido em 2026-11-17). */
+export const Storefront = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M4.5 11v9h15v-9" />
+    <path d="M3 10l2-6h14l2 6" />
+    <path d="M3 10a3 3 0 0 0 6 0a3 3 0 0 0 6 0a3 3 0 0 0 6 0" />
+    <path d="M10 20v-5h4v5" />
+  </Icon>
+)
+
+/** Proibido: item esgotado (o "🚫" pedido em 2026-11-17). */
+export const Ban = (props: IconProps) => (
+  <Icon {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M5.6 5.6l12.8 12.8" />
+  </Icon>
+)
+
+/** Lua: loja fechada. */
+export const Moon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />
+  </Icon>
+)
+
 export const Clock = (props: IconProps) => (
   <Icon {...props}>
     <circle cx="12" cy="12" r="9" />

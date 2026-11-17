@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DeliverySettings } from '../store/storeSettings.ts'
-import { type CustomerDraft, EMPTY_CUSTOMER, OTHER_ZONE, checkCustomer, feeCents, feeFor } from './delivery.ts'
+import { type CustomerDraft, EMPTY_CUSTOMER, OTHER_ZONE, checkCustomer, feeCents, feeFor, parseCustomerDraft } from './delivery.ts'
 
 const TAXAS: DeliverySettings = {
   mode: 'taxas',
@@ -86,5 +86,14 @@ describe('dados do cliente (pedido de 2026-11-17)', () => {
   it('na lista de bairros, falta escolher o bairro', () => {
     const result = checkCustomer(entrega({ zoneId: null }), TAXAS)
     expect(result.ok ? null : result.problems).toEqual({ zone: 'Escolha o bairro.' })
+  })
+})
+
+describe('dados guardados na aba (pedido de 2026-11-17)', () => {
+  it('voltam iguais; campo estranho ou de tipo errado vira vazio', () => {
+    const saved = entrega({ zoneId: 'centro', reference: 'casa azul' })
+    expect(parseCustomerDraft(JSON.parse(JSON.stringify(saved)))).toEqual(saved)
+    expect(parseCustomerDraft({ name: 5, kind: 'voando', zoneId: 3, street: 'Rua A', extra: 'x' })).toEqual({ ...EMPTY_CUSTOMER, street: 'Rua A' })
+    expect(parseCustomerDraft(null)).toEqual(EMPTY_CUSTOMER)
   })
 })

@@ -1,6 +1,7 @@
 import { Container } from '../components/layout/Container.tsx'
 import { LEGACY_ANCHORS } from '../features/catalog/catalogNav.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
+import { StoreClosedCard } from '../features/store-hours/StoreClosedCard.tsx'
 import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
 import { useHashScroll } from '../hooks/useHashScroll.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
@@ -28,6 +29,10 @@ export function BuildOrderPage() {
           </p>
         </Container>
       </div>
+      {/* Loja fechada (pedido de 2026-11-17): o convite para voltar, o endereço e o WhatsApp. */}
+      <Container className="pt-8 empty:hidden">
+        <StoreClosedCard />
+      </Container>
       <MenuBrowser headingLevel={2} />
     </>
   )

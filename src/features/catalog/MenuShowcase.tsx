@@ -10,6 +10,8 @@ import { ProductPhoto } from './ProductPhoto.tsx'
 import { productLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
 import { SellerEditButton } from '../seller/SellerAccess.tsx'
+import { isProductAvailable } from './availability.ts'
+import { SoldOut } from './CatalogSections.tsx'
 import { startingPriceCents } from './showcase.ts'
 
 const BADGE_ICONS = { 'Especialidade da casa': Crown, 'O mais pedido': Flame } as const
@@ -84,6 +86,7 @@ function Badges({ category }: { category: Category }) {
 
 function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2' | 'h3' }) {
   const product = PRODUCTS[category.slug]
+  const available = isProductAvailable(category.slug)
   const kinds = [...new Set(product.sizes.map((size) => size.container))].length
   return (
     // A âncora fica no <article>, sem o deslocamento da animação de entrada (que fica por dentro).
@@ -101,6 +104,7 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
       <div className="relative bg-white">
         <ProductPhoto slug={category.slug} sizes="(min-width: 80rem) 480px, (min-width: 64rem) 680px, 100vw" className="size-full min-h-72" />
         <ZoomButton image={productLightbox(category.slug)} />
+        <SoldOut available={available} />
         <SellerEditButton target={{ kind: 'product', id: category.slug }} label={category.name} className="absolute top-3 left-3 z-20" />
       </div>
       <div className="flex flex-col justify-center gap-5 p-6 sm:p-10">
@@ -114,13 +118,21 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
           <Fact label="Tamanhos" value={String(product.sizes.length)} />
           <Fact label="Recipientes" value={String(kinds)} />
         </dl>
-        <Link
-          to={paths.configurator(category.slug)}
-          className="btn-gold inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-full px-7 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white sm:w-fit"
-        >
-          {category.actionLabel}
-          <ArrowRight className="size-5" />
-        </Link>
+        {available ? (
+          <Link
+            to={paths.configurator(category.slug)}
+            className="btn-gold inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-full px-7 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white sm:w-fit"
+          >
+            {category.actionLabel}
+            <ArrowRight className="size-5" />
+          </Link>
+        ) : (
+          // Esgotado pelo vendedor (pedido de 2026-11-17): sem o caminho para o personalizador.
+          <button type="button" disabled className="inline-flex min-h-13 w-full cursor-not-allowed items-center justify-center rounded-full bg-white/15 px-7 text-base font-extrabold tracking-tight text-white/80 uppercase ring-1 ring-white/30 sm:w-fit">
+            Indisponível no momento
+            <span className="sr-only">: {category.name}</span>
+          </button>
+        )}
       </div>
       </m.div>
     </article>
@@ -137,6 +149,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 }
 
 function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' | 'h3' }) {
+  const available = isProductAvailable(category.slug)
   return (
     <article
       aria-labelledby={`${category.slug}-titulo`}
@@ -147,6 +160,7 @@ function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' 
         <ProductPhoto slug={category.slug} sizes="(min-width: 48rem) 360px, 100vw" className="w-full px-4 pt-14 pb-3" />
         {/* Por cima do link que cobre o cartão: tocar na foto amplia, o resto abre o personalizador. */}
         <ZoomButton image={productLightbox(category.slug)} />
+        <SoldOut available={available} />
         <SellerEditButton target={{ kind: 'product', id: category.slug }} label={category.name} className="absolute top-4 left-4 z-20" />
         <p className="nums absolute top-4 right-4 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
           <span className="font-semibold">a partir de </span>
@@ -159,13 +173,24 @@ function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' 
         </Heading>
         <p className="text-ink-soft">{category.tagline}</p>
         <p className="text-sm font-semibold text-acai-700">{category.summary}</p>
-        <Link
-          to={paths.configurator(category.slug)}
-          className="mt-auto inline-flex min-h-12 items-center gap-2 pt-3 font-extrabold text-acai-800 after:absolute after:inset-0 after:content-[''] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800"
-        >
-          <span className="link-draw">{category.actionLabel}</span>
-          <ArrowRight className="size-5 transition-transform duration-200 group-hover:translate-x-1" />
-        </Link>
+        {available ? (
+          <Link
+            to={paths.configurator(category.slug)}
+            className="mt-auto inline-flex min-h-12 items-center gap-2 pt-3 font-extrabold text-acai-800 after:absolute after:inset-0 after:content-[''] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800"
+          >
+            <span className="link-draw">{category.actionLabel}</span>
+            <ArrowRight className="size-5 transition-transform duration-200 group-hover:translate-x-1" />
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="mt-auto inline-flex min-h-12 w-fit cursor-not-allowed items-center rounded-full bg-line px-4 text-sm font-bold text-ink-soft"
+          >
+            Indisponível no momento
+            <span className="sr-only">: {category.name}</span>
+          </button>
+        )}
       </div>
     </article>
   )

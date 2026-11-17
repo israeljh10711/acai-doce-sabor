@@ -154,6 +154,11 @@ export function parseStoreSettings(raw: unknown): StoreSettings {
   return resolveStoreSettings(parseStoreSettingsChange(raw))
 }
 
+/** O endereço no mapa (abre o Google Maps no celular ou no computador). */
+export function mapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+}
+
 /** "Rua Francisco Tota, 12, Teixeira, PB". */
 export function storeAddressText(contact: StoreContact): string {
   return `${contact.street}, ${contact.city}, ${contact.uf}`
