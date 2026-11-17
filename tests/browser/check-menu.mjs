@@ -75,6 +75,15 @@ const page = async (path, viewport) => {
   await waitFor(`document.querySelector('h1')`)
   await browser.evaluate(`window.scrollTo(0, 0); true`)
 }
+/** Comanda de 2026-11-17: nome e retirada na loja (sem endereço), antes de enviar o pedido. */
+const FILL_CUSTOMER = `(() => {
+  const name = document.querySelector('input[autocomplete="name"]');
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(name, 'Cliente Teste');
+  name.dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('input[type="radio"][value="retirada"]').click();
+  return true;
+})()`
+
 const click = async (expression) => {
   await browser.evaluate(helpers)
   const ok = await browser.evaluate(`(() => { const el = ${expression}; if (!el) return false; el.click(); return true })()`)
@@ -361,34 +370,41 @@ try {
 
     // --- Mensagem do WhatsApp com tudo ---
     await browser.evaluate(`__stubOpen()`)
+    await browser.evaluate(FILL_CUSTOMER)
+    await sleep(300)
     await click(`__q('input[value="dinheiro"]')`)
     await browser.evaluate(`__type('#troco-para', '150')`)
     await sleep(250)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`)
     const message = await browser.evaluate(`__openedText()`)
+    // Comanda de 2026-11-17: o título vem depois do número (1️⃣, 2️⃣...); as outras linhas, inteiras.
+    const has = (text) => (message ?? '').split('\n').some((line) => line === text || line.endsWith(` ${text}`))
     check(
       `${at} WhatsApp: cada item com quantidade, sabor, adicionais e valor`,
       [
-        '*2x Picolé Gourmet* — R$ 6,00 (R$ 3,00 cada)',
-        '• Sabor: Nutella',
-        '*1x Kit Completo Casquinha DUO* — R$ 41,00',
-        '• Sabor do sorvete (2 litros): Ninho com morango (outro sabor)',
-        '• Sabor da cobertura: Caramelo',
-        '*1x Pote de Açaí 1 Litro Montado* — R$ 30,00',
-        '• Adicionais: Granola, Paçoca',
-        '• Frutas: Kiwi',
-        '*1x Barca de Açaí* — R$ 34,00',
-        '• Cobertura: Chocolate',
-        '• Frutas: Kiwi, Morango',
-        '• Adicionais pagos: Kit Kat (+ R$ 4,00)',
-        '*TOTAL DO PEDIDO: R$ 111,00*',
-        '*TROCO PARA:* R$ 150,00 *(Levar troco de R$ 39,00)*',
-      ].map((line) => message?.split('\n').includes(line)),
-      Array(14).fill(true),
+        '*2x Picolé Gourmet* (Sabor: Nutella) — *R$ 6,00*',
+        '*1x Kit Completo Casquinha DUO* — *R$ 41,00*',
+        '   • *Sabor do sorvete (2 litros):* Ninho com morango (outro sabor)',
+        '   • *Sabor da cobertura:* Caramelo',
+        '*1x Pote de Açaí 1 Litro Montado* — *R$ 30,00*',
+        '      • Adicionais: Granola, Paçoca',
+        '      • Frutas: Kiwi',
+        '*1x Barca de Açaí* (Cobertura: Chocolate) — *R$ 34,00*',
+        '   ➕ *Cremes / Extras Pagos:* Kit Kat (+R$ 4,00)',
+        '      • Frutas: Kiwi, Morango',
+        '💰 *TOTAL A PAGAR:* *R$ 111,00*',
+        '  🪙 *Troco para:* R$ 150,00 *(Levar R$ 39,00 de troco)*',
+      ].map(has),
+      Array(12).fill(true),
     )
     await click(`__q('input[value="pix"]')`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`)
-    check(`${at} WhatsApp com Pix`, (await browser.evaluate(`__openedText()`)).split('\n').slice(-2), ['*FORMA DE PAGAMENTO:* Pix', 'Envio o comprovante do Pix nesta conversa.'])
+    const pixLines = (await browser.evaluate(`__openedText()`)).split('\n')
+    check(
+      `${at} WhatsApp com Pix`,
+      ['• *Método escolhido:* 💠 *Pix* — *R$ 111,00*', '  📎 _Envio o comprovante do Pix nesta conversa._'].map((t) => pixLines.includes(t)),
+      [true, true],
+    )
     check(`${at} console sem erros`, browser.consoleProblems(), [])
   }
 } catch (error) {

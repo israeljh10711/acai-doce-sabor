@@ -100,6 +100,15 @@ const page = async (path, viewport) => {
   await browser.goto(baseUrl + path, viewport)
   await waitFor(`document.querySelector('h1')`)
 }
+/** Comanda de 2026-11-17: nome e retirada na loja (sem endereço), antes de enviar o pedido. */
+const FILL_CUSTOMER = `(() => {
+  const name = document.querySelector('input[autocomplete="name"]');
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(name, 'Cliente Teste');
+  name.dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('input[type="radio"][value="retirada"]').click();
+  return true;
+})()`
+
 const click = async (expression) => {
   await browser.evaluate(helpers)
   const ok = await browser.evaluate(`(() => { const el = ${expression}; if (!el) return false; el.click(); return true })()`)
@@ -370,6 +379,8 @@ try {
 
     // --- Finalização: forma de pagamento, troco, Pix e mensagem do WhatsApp ---
     await browser.evaluate(`__stubOpen()`)
+    await browser.evaluate(FILL_CUSTOMER)
+    await sleep(300)
     const sendButton = `__button('Confirmar e Enviar Pedido no WhatsApp')`
     await click(sendButton)
     check(`${at} sem forma de pagamento: aviso e nada aberto`, await browser.evaluate(`[__text().includes('Selecione uma forma de pagamento para continuar'), window.__opened.length]`), [true, 0])
@@ -390,27 +401,31 @@ try {
       [1, 'https://wa.me/5583996999980'],
     )
     const message = await browser.evaluate(`__openedText()`)
+    // Comanda de 2026-11-17: itens numerados, pagos com o valor, acompanhamentos por grupo.
     check(
       `${at} mensagem: cabeçalho, itens com escolhas e total`,
       [
-        '*NOVO PEDIDO — AÇAÍ DOCE SABOR* 🍨',
-        '*ITENS DO PEDIDO:*',
-        '*2x Açaí Tradicional (Pote 200 ml)* — R$ 22,00 (R$ 11,00 cada)',
-        '• Adicionais: 2x Granola',
-        '• Caldas/Cremes: Banana caramelada',
-        '• Adicionais pagos: Kit Kat (+ R$ 4,00)',
-        '*1x Açaí Batido (Copo 300 ml)* — R$ 49,00',
-        '• Sabor: Açaí com Leite Condensado e Amendoim',
-        '*TOTAL DO PEDIDO: R$ 71,00*',
+        '🍧 *NOVO PEDIDO — AÇAÍ DOCE SABOR* 🍧',
+        '🍨 *ITENS DO PEDIDO*',
+        '*2x Açaí Tradicional* (Pote 200 ml) — *R$ 22,00*',
+        '   ➕ *Cremes / Extras Pagos:* Kit Kat (+R$ 4,00)',
+        '      • Adicionais: 2x Granola',
+        '      • Caldas e cremes: Banana caramelada',
+        '*1x Açaí Batido* (Copo 300 ml · Sabor: Açaí com Leite Condensado e Amendoim) — *R$ 49,00*',
+        '💰 *TOTAL A PAGAR:* *R$ 71,00*',
       ].map((t) => message.includes(t)),
-      Array(9).fill(true),
+      Array(8).fill(true),
     )
-    check(`${at} mensagem: dinheiro com troco`, message.split('\n').slice(-2), ['*FORMA DE PAGAMENTO:* Dinheiro', '*TROCO PARA:* R$ 100,00 *(Levar troco de R$ 29,00)*'])
+    check(
+      `${at} mensagem: dinheiro com troco`,
+      ['• *Método escolhido:* 💵 *Dinheiro* — *R$ 71,00*', '  🪙 *Troco para:* R$ 100,00 *(Levar R$ 29,00 de troco)*'].map((t) => message.split('\n').includes(t)),
+      [true, true],
+    )
     check(`${at} avisa que abriu o WhatsApp, sem dizer que enviou`, await browser.evaluate(`[__text().includes('Abrimos o WhatsApp com o seu pedido.'), /pedido (foi )?enviado/i.test(__text())]`), [true, false])
     await click(`[...document.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label').textContent.includes('Não preciso de troco'))`)
     check(`${at} "não preciso de troco" desliga o campo; aviso antigo some`, await browser.evaluate(`[__q('#troco-para').disabled, __text().includes('Abrimos o WhatsApp')]`), [true, false])
     await click(sendButton)
-    check(`${at} mensagem sem troco`, (await browser.evaluate(`__openedText()`)).split('\n').at(-1), '*TROCO:* Não preciso de troco (valor exato)')
+    check(`${at} mensagem sem troco`, (await browser.evaluate(`__openedText()`)).split('\n').includes('  ✅ *Troco:* Não precisa (valor exato)'), true)
     await click(`__radio('pix')`)
     check(
       `${at} Pix: chave, tipo, titular e instrução`,
@@ -423,7 +438,12 @@ try {
     await sleep(2600)
     check(`${at} depois de 2,5 s o botão volta a "Copiar chave Pix"`, await browser.evaluate(`!!__button('Copiar chave Pix')`), true)
     await click(sendButton)
-    check(`${at} mensagem com Pix`, (await browser.evaluate(`__openedText()`)).split('\n').slice(-2), ['*FORMA DE PAGAMENTO:* Pix', 'Envio o comprovante do Pix nesta conversa.'])
+    const pixLines = (await browser.evaluate(`__openedText()`)).split('\n')
+    check(
+      `${at} mensagem com Pix`,
+      ['• *Método escolhido:* 💠 *Pix* — *R$ 71,00*', '  📎 _Envio o comprovante do Pix nesta conversa._'].map((t) => pixLines.includes(t)),
+      [true, true],
+    )
     await click(`__button('Já enviei, esvaziar o carrinho')`)
     check(`${at} "Já enviei" esvazia o carrinho`, await browser.evaluate(`[document.body.textContent.includes('Seu carrinho está vazio'), __cartCount()]`), [true, '0'])
     check(`${at} console sem erros`, browser.consoleProblems(), [])

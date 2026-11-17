@@ -62,7 +62,7 @@ const routes = [
   {
     path: '/carrinho',
     label: 'carrinho: troco calculado e WhatsApp aberto',
-    setup: `(async () => { window.open = () => ({}); await __pay('dinheiro'); __type('#troco-para', '100'); await __wait(300); __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
+    setup: `(async () => { window.open = () => ({}); __type('input[autocomplete="name"]', 'Cliente Teste'); document.querySelector('input[value="retirada"]').click(); await __wait(300); await __pay('dinheiro'); __type('#troco-para', '100'); await __wait(300); __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
   },
   {
     path: '/carrinho',
@@ -125,6 +125,47 @@ const routes = [
     path: '/monte-seu-pedido',
     label: 'notificação de oferta',
     setup: `(async () => { for (let i = 0; i < 100 && !document.querySelector('aside[aria-label="Oferta"]'); i++) await __wait(100); await __wait(500); return !!document.querySelector('aside[aria-label="Oferta"]') })()`,
+  },
+  // Operação do vendedor (pedido de 2026-11-17). Ficam no fim: gravam estado no aparelho (a próxima
+  // largura começa com o aparelho limpo).
+  {
+    path: '/',
+    label: 'loja fechada pelo vendedor: selo e aviso',
+    before: `localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ settings: { loja: { override: { state: 'closed', until: Date.now() + 36e5 }, delivery: { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] } } } })); true`,
+  },
+  {
+    path: '/carrinho',
+    label: 'carrinho: entrega por bairro, loja fechada e item esgotado',
+    before: `localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'c1', itemId: 'jujuba', choices: [], quantity: 1 }, { kind: 'extra', id: 'c2', itemId: 'agua-mineral-500-ml', choices: [], quantity: 1 }] })); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ items: { jujuba: { available: false } }, settings: { loja: { override: { state: 'closed', until: Date.now() + 36e5 }, delivery: { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] } } } })); true`,
+    setup: `(async () => { document.querySelector('input[value="entrega"]').click(); await __wait(400); __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400); document.querySelector('[data-note-add]').click(); await __wait(300) })()`,
+  },
+  {
+    path: '/monte-seu-pedido',
+    label: 'modo vendedor: faixa, Disponível / Esgotado e Duplicar',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ items: { jujuba: { available: false } } })); true`,
+  },
+  {
+    path: '/monte-seu-pedido/acai-tradicional',
+    label: 'modo vendedor: complementos com Disponível / Esgotado',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ toppings: { granola: { available: false } } })); true`,
+  },
+  {
+    path: '/',
+    label: 'modo vendedor: Entrega / Frete',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
+    setup: `(async () => { document.querySelector('[data-delivery-settings]').click(); await __wait(600); document.querySelector('dialog[open] input[value="taxas"]').click(); await __wait(400) })()`,
+  },
+  {
+    path: '/',
+    label: 'modo vendedor: Horários e Contato',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
+    setup: `(async () => { document.querySelector('[data-hours-contact]').click(); await __wait(600) })()`,
+  },
+  {
+    path: '/',
+    label: 'modo vendedor: Tempo',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
+    setup: `(async () => { document.querySelector('[data-delivery-time]').click(); await __wait(600) })()`,
   },
 ]
 const viewports = [
@@ -231,8 +272,13 @@ try {
     await browser.goto(baseUrl + '/', viewport)
     await browser.evaluate(`localStorage.clear(); true`)
     for (const entry of routes) {
-      const { path, label, setup } = typeof entry === 'string' ? { path: entry } : entry
+      const { path, label, setup, before } = typeof entry === 'string' ? { path: entry } : entry
       const route = label ? `${path} (${label})` : path
+      // `before`: grava um estado no aparelho (modo vendedor, loja fechada...) e abre de novo.
+      if (before) {
+        await browser.goto(baseUrl + path, viewport)
+        await browser.evaluate(before)
+      }
       await browser.goto(baseUrl + path, viewport)
       if (setup) {
         await browser.evaluate(prepare)

@@ -73,6 +73,15 @@ const waitFor = async (condition, timeout = 10000) => {
   }
   return false
 }
+/** Comanda de 2026-11-17: nome e retirada na loja (sem endereço), antes de enviar o pedido. */
+const FILL_CUSTOMER = `(() => {
+  const name = document.querySelector('input[autocomplete="name"]');
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(name, 'Cliente Teste');
+  name.dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('input[type="radio"][value="retirada"]').click();
+  return true;
+})()`
+
 const page = async (path, viewport) => {
   await browser.goto(baseUrl + path, viewport)
   await waitFor(`document.querySelector('h1')`)
@@ -240,16 +249,28 @@ try {
     check(`${at} carrinho: ${orderable.length} linhas, uma por item`, await run(`__lines().length`), orderable.length)
     check(`${at} carrinho: total ${brl(sum)}`, await run(`__total().includes(${JSON.stringify(brl(sum))})`), true)
     await run(`__stubOpen()`)
+    await run(FILL_CUSTOMER)
+    await sleep(300)
     for (const [method, label] of [['credito', 'Cartão de crédito'], ['debito', 'Cartão de débito']]) {
       await click(`__q('input[name="forma-de-pagamento"][value="${method}"]')`)
       await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`)
       const message = (await run(`__openedText()`)) ?? ''
       const lines = message.split('\n')
-      const missing = orderable.filter((item) => !lines.includes(`*1x ${item.name}* — ${brl(item.priceCents)}`)).map((item) => item.id)
-      const flavorsMissing = orderable.flatMap((item) => choiceGroupsOf(item).map((group) => `• ${group.label}: ${group.options[0]}`)).filter((line) => !lines.includes(line))
+      // Comanda de 2026-11-17: "1️⃣ *1x Nome* (Sabor: X) — *R$ 3,00*"; com 2 escolhas ou mais, uma por linha.
+      const missing = orderable
+        .filter((item) => !lines.some((line) => line.includes(`*1x ${item.name}*`) && line.endsWith(`— *${brl(item.priceCents)}*`)))
+        .map((item) => item.id)
+      const flavorsMissing = orderable
+        .flatMap((item) => choiceGroupsOf(item).map((group) => [group.label, group.options[0]]))
+        .filter(([groupLabel, option]) => !message.includes(`(${groupLabel}: ${option})`) && !message.includes(`• *${groupLabel}:* ${option}`))
+        .map(([groupLabel, option]) => `${groupLabel}: ${option}`)
       check(`${at} ${label}: WhatsApp oficial (5583996999980)`, await run(`__openedTarget()`), 'https://wa.me/5583996999980')
       check(`${at} ${label}: mensagem com os ${orderable.length} itens e os sabores`, [missing, [...new Set(flavorsMissing)]], [[], []])
-      check(`${at} ${label}: total e forma de pagamento`, [lines.includes(`*TOTAL DO PEDIDO: ${brl(sum)}*`), lines.at(-1)], [true, `*FORMA DE PAGAMENTO:* ${label}`])
+      check(
+        `${at} ${label}: total e forma de pagamento`,
+        [lines.includes(`💰 *TOTAL A PAGAR:* *${brl(sum)}*`), lines.includes(`• *Método escolhido:* 💳 *${label}* — *${brl(sum)}*`)],
+        [true, true],
+      )
     }
 
     // --- O exemplo do pedido: R$ 48,00 com troco para R$ 50,00 ---
@@ -263,6 +284,8 @@ try {
     await page('/carrinho', viewport)
     check(`${at} troco: pedido de R$ 48,00 (41 + 3 + 2 x 2)`, await run(`[__lines().length, __total().includes('R$ 48,00')]`), [3, true])
     await run(`__stubOpen()`)
+    await run(FILL_CUSTOMER)
+    await sleep(300)
     await click(`__q('input[name="forma-de-pagamento"][value="dinheiro"]')`)
     await run(`__type('#troco-para', '50')`)
     await sleep(250)
@@ -275,14 +298,15 @@ try {
     await run(`__type('#troco-para', '50')`)
     await sleep(250)
     await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`)
+    const cashLines = ((await run(`__openedText()`)) ?? '').split('\n')
     check(
       `${at} mensagem: dinheiro, troco para R$ 50,00, levar R$ 2,00`,
-      ((await run(`__openedText()`)) ?? '').split('\n').slice(-2),
-      ['*FORMA DE PAGAMENTO:* Dinheiro', '*TROCO PARA:* R$ 50,00 *(Levar troco de R$ 2,00)*'],
+      ['• *Método escolhido:* 💵 *Dinheiro* — *R$ 48,00*', '  🪙 *Troco para:* R$ 50,00 *(Levar R$ 2,00 de troco)*'].map((t) => cashLines.includes(t)),
+      [true, true],
     )
     await click(`[...document.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label').textContent.includes('Não preciso de troco'))`)
     await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`)
-    check(`${at} "Não preciso de troco (valor exato)" na mensagem`, ((await run(`__openedText()`)) ?? '').split('\n').at(-1), '*TROCO:* Não preciso de troco (valor exato)')
+    check(`${at} "Não preciso de troco (valor exato)" na mensagem`, ((await run(`__openedText()`)) ?? '').split('\n').includes('  ✅ *Troco:* Não precisa (valor exato)'), true)
 
     // --- Mais, menos e remover no carrinho ---
     await click(`__line('Picolé Gourmet').querySelector('button[aria-label="Aumentar quantidade"]')`)

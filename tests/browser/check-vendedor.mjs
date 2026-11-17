@@ -86,6 +86,15 @@ const choosePhoto = async (file) => {
   await browser.send('DOM.setFileInputFiles', { nodeId: nodeIds.at(-1), files: [file] })
   for (let i = 0; i < 30 && !(await run(`!!__dialog().querySelector('button img[src^="blob:"]')`)); i++) await sleep(100)
 }
+/** Comanda de 2026-11-17: nome e retirada na loja (sem endereço), antes de enviar o pedido. */
+const FILL_CUSTOMER = `(() => {
+  const name = document.querySelector('input[autocomplete="name"]');
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(name, 'Cliente Teste');
+  name.dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('input[type="radio"][value="retirada"]').click();
+  return true;
+})()`
+
 const login = async (password) => {
   await run(`__type('#senha-vendedor', ${JSON.stringify(password)})`)
   await run(`__q('#senha-vendedor').form.requestSubmit(); true`)
@@ -136,21 +145,27 @@ try {
   await click(`__item('jujuba').querySelector('[data-seller-edit]')`, 900)
   await click(`[...__dialog().querySelectorAll('label')].find((l) => l.textContent.trim() === 'Esgotado')`, 200)
   await submitDialog()
-  check('Jujuba esgotada: selo e botão desligado', await run(`[__item('jujuba').textContent.includes('Esgotado'), __item('jujuba').querySelector('button:not([data-zoom]):not([data-seller-edit])').disabled]`), [true, true])
+  check('Jujuba esgotada: selo e botão desligado', await run(`[__item('jujuba').textContent.includes('Esgotado'), __item('jujuba').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])').disabled]`), [true, true])
 
   // --- Carrinho e WhatsApp com o produto novo e o preço editado ---
-  await click(`__lastIn('picoles-e-sorvetes').querySelector('button:not([data-zoom]):not([data-seller-edit])')`, 800)
+  await click(`__lastIn('picoles-e-sorvetes').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
   await click(`[...__dialog().querySelectorAll('button')].find((b) => b.textContent.includes('continuar comprando'))`, 900)
-  await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit])')`, 800)
+  await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
   await click(`[...__dialog().querySelectorAll('input[type=radio]')][0]`, 200)
   await click(`__button('Continuar', __dialog())`, 700)
   await click(`[...__dialog().querySelectorAll('button')].find((b) => b.textContent.includes('ir para o carrinho'))`, 1200)
   check('carrinho: Picolé trufado R$ 3,00 e Sundae R$ 9,50 (total R$ 12,50)', await run(`[document.body.innerText.includes('Picolé trufado'), document.body.innerText.includes('R$ 12,50')]`), [true, true])
   await run(`__stubOpen()`)
+  await run(FILL_CUSTOMER)
+  await sleep(300)
   await click(`__q('input[value="pix"]')`)
   await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`, 700)
   const message = (await run(`__openedText()`)) ?? ''
-  check('WhatsApp com o produto novo e o preço editado', [message.includes('*1x Picolé trufado* — R$ 3,00'), message.includes('*1x Sundae* — R$ 9,50')], [true, true])
+  check(
+    'WhatsApp com o produto novo e o preço editado',
+    [message.includes('*1x Picolé trufado* — *R$ 3,00*'), message.split('\n').some((line) => line.includes('*1x Sundae*') && line.endsWith('— *R$ 9,50*'))],
+    [true, true],
+  )
 
   // --- Complemento novo e esgotado no personalizador (Completo) ---
   await goto('/monte-seu-pedido/acai-oca', desktop)
@@ -185,8 +200,8 @@ try {
   await addSize('Pequeno', '7,00')
   await addSize('Grande', '10,00')
   await submitDialog()
-  check('Sundae com tamanhos: "a partir de R$ 7,00" e "Escolher tamanho e sabor"', await run(`[__item('sundae').textContent.includes('a partir de'), __item('sundae').querySelector('strong').textContent, __item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit])').textContent.trim().split(':')[0]]`), [true, 'R$ 7,00', 'Escolher tamanho e sabor'])
-  await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit])')`, 800)
+  check('Sundae com tamanhos: "a partir de R$ 7,00" e "Escolher tamanho e sabor"', await run(`[__item('sundae').textContent.includes('a partir de'), __item('sundae').querySelector('strong').textContent, __item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])').textContent.trim().split(':')[0]]`), [true, 'R$ 7,00', 'Escolher tamanho e sabor'])
+  await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
   check('escolha com o tamanho e o preço de cada um', await run(`[__dialog()?.querySelector('h2')?.textContent, __dialog()?.textContent.includes('R$ 10,00')]`), ['Escolha o tamanho e o sabor', true])
   await run(`__dialog().close(); true`)
   await sleep(400)

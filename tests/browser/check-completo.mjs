@@ -2,11 +2,12 @@
 // celular (390 px) e no computador (1280 px):
 // - Barca: "Completo" marca os 12 adicionais sem custo (sem o leite condensado) e as 3 frutas pelo
 //   preço de R$ 30,00, sem fechar o personalizador; tirar a Farinha láctea mantém o resto; a
-//   confirmação, o carrinho e o WhatsApp trazem "Montagem: COMPLETO (SEM: Farinha láctea)";
+//   confirmação e o carrinho trazem "Montagem: COMPLETO (SEM: Farinha láctea)" e a comanda do
+//   WhatsApp (2026-11-17), "✨ Montagem: COMPLETO" e "🚫 RETIRAR (SEM): Farinha láctea";
 // - Pote 1 L: "Completo" marca 15 itens por R$ 30,00, sem caldas nem cremes; "Limpar" zera e volta
 //   à cota de 7 grátis;
 // - Tradicional Isopor M (R$ 15,00): Completo + creme de avelã + creme de ninho = R$ 21,00, e o
-//   WhatsApp traz os dois em "Extras / Cremes e Caldas pagos";
+//   comanda do WhatsApp traz os dois em "➕ Cremes / Extras Pagos", com o valor;
 // - Açaí Batido e Milk-shake não têm o botão.
 //
 // Uso (com o site rodando, por exemplo em `npm run dev`): node tests/browser/check-completo.mjs [endereçoBase]
@@ -58,6 +59,15 @@ const page = async (path, viewport) => {
   for (let i = 0; i < 50 && !(await run(`!!document.querySelector('h1')`)); i++) await sleep(100)
   await run(`window.scrollTo(0, 0); true`)
 }
+/** Comanda de 2026-11-17: nome e retirada na loja (sem endereço), antes de enviar o pedido. */
+const FILL_CUSTOMER = `(() => {
+  const name = document.querySelector('input[autocomplete="name"]');
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(name, 'Cliente Teste');
+  name.dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('input[type="radio"][value="retirada"]').click();
+  return true;
+})()`
+
 const click = async (expression, pause = 450) => {
   const ok = await run(`(() => { const el = ${expression}; if (!el) return false; el.scrollIntoView({ block: 'center' }); el.click(); return true })()`)
   if (!ok) throw new Error(`Elemento não encontrado: ${expression}`)
@@ -103,15 +113,17 @@ try {
       true,
     ])
     await run(`__stubOpen()`)
+    await run(FILL_CUSTOMER)
+    await sleep(300)
     await click(`__q('input[value="pix"]')`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`, 700)
     const message = (await run(`__openedText()`)) ?? ''
     const lines = message.split('\n')
-    const title = lines.findIndex((line) => line.startsWith('*1x Barca de Açaí*'))
+    const title = lines.findIndex((line) => line.includes('*1x Barca de Açaí*'))
     check(
-      `${at} Barca: WhatsApp com "• Montagem: COMPLETO (SEM: Farinha láctea)" logo abaixo do título e sem a Farinha láctea nas listas`,
-      [title >= 0, lines[title + 1], lines.filter((line) => line.includes('Farinha láctea')).length],
-      [true, '• Montagem: COMPLETO (SEM: Farinha láctea)', 1],
+      `${at} Barca: comanda com "COMPLETO" e "RETIRAR (SEM): Farinha láctea" logo abaixo do título e sem a Farinha láctea nas listas`,
+      [title >= 0, lines[title + 1], lines[title + 2], lines.filter((line) => line.includes('Farinha láctea')).length],
+      [true, '   ✨ *Montagem:* COMPLETO', '   🚫 *RETIRAR (SEM):* Farinha láctea', 1],
     )
 
     // --- Pote 1 L: Completo e Limpar ---
@@ -147,15 +159,17 @@ try {
     )
     await click(`[...__confirm().querySelectorAll('button')].find((b) => b.textContent.includes('ir para o carrinho'))`, 900)
     await run(`__stubOpen()`)
+    await run(FILL_CUSTOMER)
+    await sleep(300)
     await click(`__q('input[value="pix"]')`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`, 700)
     const extras = ((await run(`__openedText()`)) ?? '').split('\n')
     check(
-      `${at} Tradicional: WhatsApp com R$ 25,00, "Montagem: COMPLETO" e os pagos com o valor`,
+      `${at} Tradicional: comanda com R$ 25,00, "COMPLETO (todos os acompanhamentos)" e os pagos com o valor`,
       [
-        extras.some((line) => line.startsWith('*1x Açaí Tradicional') && line.includes('R$ 25,00')),
-        extras.includes('• Montagem: COMPLETO'),
-        extras.includes('• Extras / Cremes e Caldas pagos: Creme de ninho (+ R$ 3,00), Creme de avelã (+ R$ 3,00), Kit Kat (+ R$ 4,00)'),
+        extras.some((line) => line.includes('*1x Açaí Tradicional*') && line.endsWith('— *R$ 25,00*')),
+        extras.includes('   ✨ *Montagem:* COMPLETO (todos os acompanhamentos)'),
+        extras.includes('   ➕ *Cremes / Extras Pagos:* Creme de ninho (+R$ 3,00), Creme de avelã (+R$ 3,00), Kit Kat (+R$ 4,00)'),
       ],
       [true, true, true],
     )

@@ -255,7 +255,7 @@ function LineFrame({
  */
 function ProblemNotice({ problem, editTo, onRemove, title }: { problem: CartItemProblem; editTo?: string; onRemove: () => void; title: string }) {
   const action =
-    'inline-flex min-h-10 cursor-pointer items-center justify-center rounded-full px-3 text-xs font-bold ring-1 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-red-800'
+    'inline-flex min-h-11 cursor-pointer items-center justify-center rounded-full px-4 text-sm font-bold ring-1 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-red-800'
   return (
     <div data-cart-problem="" className="mt-2 rounded-xl bg-red-50 p-3 text-sm text-red-800 ring-1 ring-red-200">
       <p className="font-bold">
@@ -300,7 +300,7 @@ function NoteField({ item, title }: { item: CartItem; title: string }) {
           setOpen(true)
           setFocusNow(true)
         }}
-        className="mt-2 inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-bold text-acai-800 ring-1 ring-acai-800/25 transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+        className="mt-2 inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-full px-3 text-sm font-bold text-acai-800 ring-1 ring-acai-800/25 transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
       >
         <Plus className="size-3.5" />
         Observação<span className="sr-only"> para {title}</span>
