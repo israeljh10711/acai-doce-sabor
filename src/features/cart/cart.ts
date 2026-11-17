@@ -27,14 +27,17 @@ import {
   EMPTY_SELECTION,
   type PriceLine,
   type Selection,
+  COMPLETE_GROUPS,
   addTopping,
   chooseFlavor,
   chooseSize,
+  completeLabel,
   missingChoices,
   freeByGroup,
   priceOf,
   selectedByGroup,
   selectedSize,
+  settleComplete,
 } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
 
@@ -79,6 +82,7 @@ function freezeSelection(selection: Selection): Selection {
     sizeId: selection.sizeId,
     flavorId: selection.flavorId,
     toppings: Object.freeze({ ...selection.toppings }),
+    ...(selection.complete ? { complete: true } : {}),
   })
 }
 
@@ -91,12 +95,15 @@ export function normalizeSelection(slug: string, selection: Selection): Selectio
   if (!isProductSlug(slug)) return null
   const product = PRODUCTS[slug]
 
-  let rebuilt = selection.sizeId ? chooseSize(product, EMPTY_SELECTION, selection.sizeId).selection : EMPTY_SELECTION
+  // O Completo (pedido de 2026-11-16) muda as regras: liga antes de refazer os ingredientes.
+  const start: Selection = selection.complete === true && product.completo ? { ...EMPTY_SELECTION, complete: true } : EMPTY_SELECTION
+  let rebuilt = selection.sizeId ? chooseSize(product, start, selection.sizeId).selection : start
   if (selection.flavorId) rebuilt = chooseFlavor(product, rebuilt, selection.flavorId)
   for (const [toppingId, quantity] of Object.entries(selection.toppings)) {
     const units = Number.isInteger(quantity) ? Math.min(quantity, 100) : 0
     for (let unit = 0; unit < units; unit++) rebuilt = addTopping(product, rebuilt, toppingId)
   }
+  rebuilt = settleComplete(product, rebuilt)
 
   if (missingChoices(product, rebuilt).length > 0) return null
   return freezeSelection(rebuilt)
@@ -222,6 +229,8 @@ export type ItemDescription = {
   included: { group: string; items: string[] }[]
   /** Adicionais cobrados, com quantidade e valor. */
   paid: PriceLine[]
+  /** "COMPLETO (todos os acompanhamentos)" ou "COMPLETO (SEM: ...)"; `null` fora do Completo. */
+  montagem: string | null
 }
 
 const CONTAINER_NAMES = { pote: 'Pote', copo: 'Copo', isopor: 'Isopor', barca: 'Barca' } as const
@@ -243,12 +252,17 @@ export function describeItem(item: ProductCartItem): ItemDescription {
     included: freeGroups
       .map((group) => ({
         group: TOPPING_GROUPS[group].name,
-        items: freeByGroup(product, item.selection, group).map(({ topping, quantity }) =>
+        // No Completo, os cremes também entram sem custo.
+        items: (item.selection.complete && COMPLETE_GROUPS.includes(group)
+          ? selectedByGroup(product, item.selection, group)
+          : freeByGroup(product, item.selection, group)
+        ).map(({ topping, quantity }) =>
           quantity > 1 ? `${quantity}x ${topping.name}` : topping.name,
         ),
       }))
       .filter((entry) => entry.items.length > 0),
     paid: priceOf(product, item.selection)?.paidLines ?? [],
+    montagem: completeLabel(product, item.selection),
   }
 }
 
@@ -282,6 +296,8 @@ export type SelectionSummary = {
   sections: ChoiceSection[]
   /** Preço de uma unidade do item montado. */
   unitCents: number
+  /** "COMPLETO (todos os acompanhamentos)" ou "COMPLETO (SEM: ...)"; `null` fora do Completo. */
+  montagem: string | null
 }
 
 /**
@@ -306,11 +322,13 @@ export function summarizeSelection(slug: ProductSlug, selection: Selection): Sel
         items: selectedByGroup(product, selection, group).map(({ topping, quantity }) => ({
           name: topping.name,
           quantity,
-          totalCents: topping.priceCents * quantity,
+          // No Completo, os grupos dele já estão no preço do tamanho (os cremes também).
+          totalCents: selection.complete && COMPLETE_GROUPS.includes(group) ? 0 : topping.priceCents * quantity,
         })),
       }))
       .filter((section) => section.items.length > 0),
     unitCents: priceOf(product, selection)?.totalCents ?? 0,
+    montagem: completeLabel(product, selection),
   }
 }
 
@@ -335,6 +353,8 @@ type StoredProductItem = {
   sizeId: string | null
   flavorId: string | null
   toppings: [string, number][]
+  /** Montagem Completo (desde 2026-11-16). Sem o campo, montagem normal. */
+  complete?: true
   quantity: number
 }
 
@@ -357,6 +377,7 @@ export function serializeCart(cart: Cart): string {
           sizeId: item.selection.sizeId,
           flavorId: item.selection.flavorId,
           toppings: Object.entries(item.selection.toppings),
+          ...(item.selection.complete ? { complete: true as const } : {}),
           quantity: item.quantity,
         },
   )
@@ -375,6 +396,7 @@ function restoreProduct(entry: Partial<StoredProductItem>): ProductCartItem | nu
     sizeId: isString(entry.sizeId) ? entry.sizeId : null,
     flavorId: isString(entry.flavorId) ? entry.flavorId : null,
     toppings,
+    ...(entry.complete === true ? { complete: true } : {}),
   })
   if (!selection) return null
   return Object.freeze({

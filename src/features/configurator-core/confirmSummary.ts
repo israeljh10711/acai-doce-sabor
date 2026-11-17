@@ -26,6 +26,8 @@ export function productSummary(slug: ProductSlug, selection: Selection): Confirm
     eyebrow: summary.sizeLabel ? 'Produto e tamanho' : 'Produto',
     title: summary.sizeLabel ? `${summary.productName} — ${summary.sizeLabel}` : summary.productName,
     rows: [
+      // Completo (pedido de 2026-11-16): a montagem vem primeiro, para a equipe não errar.
+      ...(summary.montagem ? [{ label: 'Montagem', value: summary.montagem }] : []),
       ...(summary.flavorName ? [{ label: summary.flavorLabel, value: summary.flavorName }] : []),
       ...summary.sections.map((section) => ({ label: section.label, value: list.format(section.items.map(choiceText)) })),
     ],

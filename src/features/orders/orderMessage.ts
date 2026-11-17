@@ -61,6 +61,8 @@ function itemLines(item: CartItem): string[] {
   const summary = summarizeSelection(item.slug, item.selection)
   const title = summary.sizeLabel ? `${summary.productName} (${summary.sizeLabel})` : summary.productName
   const lines = [`*${item.quantity}x ${title}* — ${price}`]
+  // Completo (pedido de 2026-11-16): logo abaixo do título, com o que o cliente tirou.
+  if (summary.montagem) lines.push(`• Montagem: ${summary.montagem}`)
   if (summary.flavorName) lines.push(`• ${summary.flavorLabel}: ${summary.flavorName}`)
   for (const section of summary.sections) {
     const label = MESSAGE_GROUP_LABELS[section.group] ?? section.label

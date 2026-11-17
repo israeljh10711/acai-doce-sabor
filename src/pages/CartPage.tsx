@@ -123,6 +123,12 @@ function ProductLine({ item, onRemove }: { item: ProductCartItem; onRemove: () =
           {description.container && !description.sizeName.startsWith(description.container) && ` · ${description.container}`}
         </p>
       )}
+      {/* Completo (pedido de 2026-11-16): destaque no topo, para a equipe de montagem não errar. */}
+      {description.montagem && (
+        <p data-montagem="" className="mt-1 inline-block rounded-lg bg-gold-100 px-2 py-0.5 text-sm font-bold text-acai-950 ring-1 ring-gold-400">
+          Montagem: {description.montagem}
+        </p>
+      )}
       {description.flavorName && (
         <p className="text-sm text-ink-soft">
           {description.flavorLabel}: {description.flavorName}
