@@ -4,6 +4,7 @@ import { ChevronDown } from '../../components/ui/icons.tsx'
 import { type Drawer, type DrawerId, type ExtraItem, flavorCount } from './extras.ts'
 import { type ChooseItem, ItemActionButton, ItemPrice } from './ItemActions.tsx'
 import { ExtraVisual } from './ItemVisual.tsx'
+import { SellerAddButton, SellerEditButton } from '../seller/SellerAccess.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
 
 type Level = 2 | 3 | 4 | 5
@@ -121,6 +122,7 @@ function CatalogSection({
             </span>
           </div>
           <p className="mt-1 text-sm leading-snug text-ink-soft">{drawer.subtitle}</p>
+          <SellerAddButton target={{ kind: 'item', id: null, drawer: drawer.id }} text="+ Adicionar produto" className="mt-2" />
         </div>
         <button
           type="button"
@@ -185,8 +187,10 @@ function SectionItemCard({ item, level, onChoose }: { item: ExtraItem; level: Le
       data-product-id={item.id}
       className="flex h-full gap-3.5 rounded-2xl bg-white p-3 shadow-card ring-1 ring-line sm:flex-col sm:gap-3"
     >
-      <div className="w-28 shrink-0 self-start sm:w-full">
+      <div className="relative w-28 shrink-0 self-start sm:w-full">
         <ExtraVisual item={item} size="fill" zoom sizes="(min-width: 80rem) 300px, (min-width: 40rem) 45vw, 112px" />
+        <SoldOut item={item} />
+        <SellerEditButton target={{ kind: 'item', id: item.id }} label={item.name} className="absolute top-1.5 left-1.5 z-20" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         {(item.badge || flavors > 0) && (
@@ -214,5 +218,15 @@ function SectionItemCard({ item, level, onChoose }: { item: ExtraItem; level: Le
         </div>
       </div>
     </article>
+  )
+}
+
+/** Selo "Esgotado" sobre a foto (o vendedor marcou como esgotado). */
+export function SoldOut({ item }: { item: ExtraItem }) {
+  if (item.available !== false) return null
+  return (
+    <span className="pointer-events-none absolute top-1.5 right-1.5 z-20 rounded-full bg-red-600 px-2 py-0.5 text-[0.7rem] font-extrabold tracking-wide text-white uppercase shadow-sm">
+      Esgotado
+    </span>
   )
 }

@@ -301,6 +301,52 @@ export const RotateCcw = (props: IconProps) => (
   </Icon>
 )
 
+export const Lock = (props: IconProps) => (
+  <Icon {...props}>
+    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </Icon>
+)
+
+export const LockOpen = (props: IconProps) => (
+  <Icon {...props}>
+    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+  </Icon>
+)
+
+export const Eye = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+)
+
+export const EyeOff = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+    <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+    <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+    <path d="m2 2 20 20" />
+  </Icon>
+)
+
+export const Download = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M12 15V3" />
+  </Icon>
+)
+
+export const Upload = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m17 8-5-5-5 5" />
+    <path d="M12 3v12" />
+  </Icon>
+)
+
 export const Tag = (props: IconProps) => (
   <Icon {...props}>
     <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />

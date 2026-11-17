@@ -1,5 +1,6 @@
 import { ArrowRight, Flame } from '../../components/ui/icons.tsx'
 import { type NavEntry, OFFERS_ANCHOR } from './catalogNav.ts'
+import { SellerAccessButton } from '../seller/SellerAccess.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
 
 type NavProps = {
@@ -26,6 +27,10 @@ export function CatalogSidebar({ entries, current, onGo }: NavProps) {
       <nav aria-label="Categorias do cardápio" className="mt-4">
         <CategoryList entries={entries} current={current} onGo={onGo} idPrefix="lateral" />
       </nav>
+      {/* Acesso discreto do vendedor / dono (pedido de 2026-11-16). */}
+      <div className="mt-3 border-t border-line pt-3">
+        <SellerAccessButton />
+      </div>
     </div>
   )
 }

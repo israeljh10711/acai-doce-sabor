@@ -1,5 +1,7 @@
 import { Outlet, ScrollRestoration } from 'react-router'
 import { LightboxProvider } from '../../features/lightbox/LightboxProvider.tsx'
+import { SellerBarSlot } from '../../features/seller/SellerAccess.tsx'
+import { SellerModeProvider } from '../../features/seller/SellerModeProvider.tsx'
 import { SiteFooter } from './SiteFooter.tsx'
 import { SiteHeader } from './SiteHeader.tsx'
 
@@ -7,7 +9,10 @@ export function AppLayout() {
   return (
     // A foto ampliada vale para o site todo: qualquer foto de produto ou ingrediente abre nela.
     <LightboxProvider>
-      <Layout />
+      {/* Modo vendedor (pedido de 2026-11-16): a faixa no topo e as telas de edição. */}
+      <SellerModeProvider>
+        <Layout />
+      </SellerModeProvider>
     </LightboxProvider>
   )
 }
@@ -22,6 +27,7 @@ function Layout() {
         Pular para o conteúdo
       </a>
 
+      <SellerBarSlot />
       <SiteHeader />
 
       {/* Cada página cuida da própria largura, com o Container, para poder ter faixas de ponta a ponta. */}

@@ -2,6 +2,8 @@ import type { ComponentPropsWithoutRef } from 'react'
 import { Flame } from '../../components/ui/icons.tsx'
 import type { ExtraItem } from './extras.ts'
 import { type ChooseItem, ItemActionButton, ItemPrice } from './ItemActions.tsx'
+import { SellerEditButton } from '../seller/SellerAccess.tsx'
+import { SoldOut } from './CatalogSections.tsx'
 import { ExtraVisual } from './ItemVisual.tsx'
 
 function Heading({ level, ...props }: { level: 2 | 3 | 4 } & ComponentPropsWithoutRef<'h2'>) {
@@ -52,7 +54,11 @@ function HighlightCard({ item, level, onChoose }: { item: ExtraItem; level: 3 | 
       data-product-id={item.id}
       className="flex h-full flex-col rounded-2xl bg-white p-2.5 shadow-card ring-1 ring-line"
     >
-      <ExtraVisual item={item} size="fill" zoom sizes="(min-width: 80rem) 170px, (min-width: 40rem) 30vw, 46vw" />
+      <div className="relative">
+        <ExtraVisual item={item} size="fill" zoom sizes="(min-width: 80rem) 170px, (min-width: 40rem) 30vw, 46vw" />
+        <SoldOut item={item} />
+        <SellerEditButton target={{ kind: 'item', id: item.id }} label={item.name} className="absolute top-1.5 left-1.5 z-20" />
+      </div>
       <Heading level={level} id={nameId} className="mt-2.5 font-display text-sm leading-snug font-black text-acai-800 sm:text-base">
         {item.name}
       </Heading>

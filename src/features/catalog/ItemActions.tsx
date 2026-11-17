@@ -26,6 +26,15 @@ export function ItemActionButton({
   label?: string
   className?: string
 }) {
+  // Esgotado pelo vendedor (2026-11-16): o botão fica desligado, com o aviso.
+  if (item.available === false) {
+    return (
+      <button type="button" disabled className={`${actionClass} cursor-not-allowed opacity-70 ${className}`}>
+        Esgotado
+        <span className="sr-only">: {item.name}</span>
+      </button>
+    )
+  }
   if (item.action.type === 'customizer') {
     return (
       <Link to={paths.configurator(item.action.product)} className={`${actionClass} ${className}`}>

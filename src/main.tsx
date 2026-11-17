@@ -5,7 +5,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router/dom'
 import './index.css'
+import { initCatalog } from './features/seller/sellerBackend.ts'
 import { router } from './router.ts'
+
+// Mudanças do modo vendedor (preços, fotos, itens novos) antes de desenhar o site.
+initCatalog()
 
 const rootElement = document.getElementById('root')
 

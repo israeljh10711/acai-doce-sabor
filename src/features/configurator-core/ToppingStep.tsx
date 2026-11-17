@@ -1,4 +1,5 @@
 import { m } from 'motion/react'
+import { SellerAddButton, SellerEditButton } from '../seller/SellerAccess.tsx'
 import { Check } from '../../components/ui/icons.tsx'
 import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppingsOf } from '../catalog/menu.ts'
 import { ingredientPhoto } from '../catalog/photos.ts'
@@ -74,6 +75,8 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
         hintId={hintId}
         hintTone={hint.full ? 'alert' : 'neutral'}
       />
+      {/* Modo vendedor (2026-11-16): complemento novo neste grupo. */}
+      <SellerAddButton target={{ kind: 'topping', id: null, group }} text="+ Adicionar complemento" className="mt-3" />
 
       {/* Grade de blocos: a foto do produto em cima e o nome embaixo, com a largura toda do cartão. */}
       <ul className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-2">
@@ -114,6 +117,12 @@ function Thumb({ topping }: { topping: Topping }) {
         />
       )}
       {photo && <ZoomButton image={toppingLightbox(topping)} />}
+      {topping.available === false && (
+        <span className="pointer-events-none absolute inset-x-1 bottom-1 z-20 rounded-md bg-red-600 py-0.5 text-center text-[0.65rem] font-extrabold tracking-wide text-white uppercase">
+          Esgotado
+        </span>
+      )}
+      <SellerEditButton target={{ kind: 'topping', id: topping.id }} label={topping.name} className="absolute top-1 left-1 z-30 min-h-8 px-2" />
     </span>
   )
 }

@@ -3,6 +3,7 @@ import { Logo } from '../../components/brand/Logo.tsx'
 import { Close } from '../../components/ui/icons.tsx'
 import { storeInfo } from '../../services/storeInfo.ts'
 import type { NavEntry } from './catalogNav.ts'
+import { SellerAccessButton } from '../seller/SellerAccess.tsx'
 import { CategoryList, OffersShortcut } from './CatalogSidebar.tsx'
 
 type MobileCategoryDrawerProps = {
@@ -79,6 +80,10 @@ export function MobileCategoryDrawer({ open, onClose, entries, current, onGo, op
         <nav aria-label="Categorias do cardápio" className="mt-4">
           <CategoryList entries={entries} current={current} onGo={choose} idPrefix="menu" />
         </nav>
+        {/* Acesso do vendedor / dono, para editar pelo celular na loja (pedido de 2026-11-16). */}
+        <div className="mt-auto border-t border-line pt-3">
+          <SellerAccessButton beforeOpen={() => dialog.current?.close()} />
+        </div>
       </div>
     </dialog>
   )

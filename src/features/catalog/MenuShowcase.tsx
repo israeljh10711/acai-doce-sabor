@@ -9,6 +9,7 @@ import { PRODUCTS } from './menu.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
 import { productLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
+import { SellerEditButton } from '../seller/SellerAccess.tsx'
 import { startingPriceCents } from './showcase.ts'
 
 const BADGE_ICONS = { 'Especialidade da casa': Crown, 'O mais pedido': Flame } as const
@@ -100,6 +101,7 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
       <div className="relative bg-white">
         <ProductPhoto slug={category.slug} sizes="(min-width: 80rem) 480px, (min-width: 64rem) 680px, 100vw" className="size-full min-h-72" />
         <ZoomButton image={productLightbox(category.slug)} />
+        <SellerEditButton target={{ kind: 'product', id: category.slug }} label={category.name} className="absolute top-3 left-3 z-20" />
       </div>
       <div className="flex flex-col justify-center gap-5 p-6 sm:p-10">
         <Badges category={category} />
@@ -145,6 +147,7 @@ function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' 
         <ProductPhoto slug={category.slug} sizes="(min-width: 48rem) 360px, 100vw" className="w-full px-4 pt-14 pb-3" />
         {/* Por cima do link que cobre o cartão: tocar na foto amplia, o resto abre o personalizador. */}
         <ZoomButton image={productLightbox(category.slug)} />
+        <SellerEditButton target={{ kind: 'product', id: category.slug }} label={category.name} className="absolute top-4 left-4 z-20" />
         <p className="nums absolute top-4 right-4 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
           <span className="font-semibold">a partir de </span>
           {formatBRL(startingPriceCents(category.slug))}
