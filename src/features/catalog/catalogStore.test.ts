@@ -61,13 +61,14 @@ describe('as mudanças do vendedor chegam a todo o site (catalogStore)', () => {
     expect(cart.items).toHaveLength(1)
   })
 
-  it('excluído some de tudo e sai do carrinho; esgotado não entra e sai do carrinho', () => {
+  it('excluído some de tudo e sai do carrinho; esgotado não entra, mas o que já estava fica (marcado)', () => {
     const saved = serializeCart(addExtraItem(addExtraItem(EMPTY_CART, 'agua-mineral-500-ml', {}).cart, 'jujuba', {}).cart)
     setCatalogChanges({ ...NO_CHANGES, items: { 'agua-mineral-500-ml': { deleted: true }, jujuba: { available: false } } })
     expect(getExtraItem('agua-mineral-500-ml')).toBeUndefined()
     expect(searchMenu('agua').total).toBe(0)
     expect(addExtraItem(EMPTY_CART, 'jujuba', {}).cart.items).toHaveLength(0)
-    expect(parseCart(saved).items).toEqual([])
+    // Desde 2026-11-17 o esgotado que já estava no carrinho fica, marcado, até o cliente tirar.
+    expect(parseCart(saved).items.map((item) => (item.kind === 'extra' ? item.itemId : item.slug))).toEqual(['jujuba'])
     // Esgotado continua aparecendo na busca (com o aviso na tela).
     expect(searchMenu('jujuba').total).toBe(1)
   })

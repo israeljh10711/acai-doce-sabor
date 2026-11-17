@@ -799,8 +799,13 @@ export function cleanOtherText(text: string): string {
  * (ignorando acentos e maiúsculas) vira a própria opção. Devolve `null` quando falta ou sobra
  * algo inválido; chaves que o item não tem são ignoradas.
  */
-export function normalizeChoices(item: ExtraItem, raw: Readonly<Record<string, unknown>>): Readonly<Record<string, string>> | null {
-  if (!isOrderableExtra(item)) return null
+export function normalizeChoices(
+  item: ExtraItem,
+  raw: Readonly<Record<string, unknown>>,
+  /** `ignoreStock`: reler um item que já estava no carrinho, mesmo esgotado (pedido de 2026-11-17). */
+  options: { ignoreStock?: boolean } = {},
+): Readonly<Record<string, string>> | null {
+  if (item.action.type === 'customizer' || (!options.ignoreStock && item.available === false)) return null
   const choices: Record<string, string> = {}
   for (const group of choiceGroupsOf(item)) {
     const value = raw[group.id]

@@ -17,6 +17,7 @@ import {
   parseCart,
   removeItem,
   serializeCart,
+  setNote,
   setQuantity,
   updateItem,
 } from './cart.ts'
@@ -31,7 +32,13 @@ function load(): Cart {
   }
 }
 
-let state: Cart = load()
+/**
+ * Lido na primeira vez que alguém pede, e não ao carregar o módulo (2026-11-17): assim as
+ * mudanças do vendedor (`initCatalog`, em `main.tsx`) já valem. Lido antes, um item criado pelo
+ * vendedor sumia do carrinho ao recarregar a página.
+ */
+let state: Cart | null = null
+const current = (): Cart => (state ??= load())
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -39,7 +46,7 @@ function emit() {
 }
 
 function commit(next: Cart) {
-  if (next === state) return
+  if (next === current()) return
   state = next
   try {
     if (next.items.length === 0) globalThis.localStorage?.removeItem(STORAGE_KEY)
@@ -62,7 +69,7 @@ if (typeof window !== 'undefined') {
 export const cartActions = {
   /** Põe a montagem no carrinho. Devolve o item criado, ou `null` se a montagem está incompleta. */
   add(slug: ProductSlug, selection: Selection): ProductCartItem | null {
-    const { cart, item } = addItem(state, slug, selection)
+    const { cart, item } = addItem(current(), slug, selection)
     commit(cart)
     return item
   },
@@ -71,18 +78,22 @@ export const cartActions = {
    * Devolve o item, ou `null` se a escolha é inválida.
    */
   addExtra(itemId: string, choices: Readonly<Record<string, string>>): ExtraCartItem | null {
-    const { cart, item } = addExtraItem(state, itemId, choices)
+    const { cart, item } = addExtraItem(current(), itemId, choices)
     commit(cart)
     return item
   },
   update(id: string, selection: Selection) {
-    commit(updateItem(state, id, selection))
+    commit(updateItem(current(), id, selection))
   },
   remove(id: string) {
-    commit(removeItem(state, id))
+    commit(removeItem(current(), id))
   },
   setQuantity(id: string, quantity: number) {
-    commit(setQuantity(state, id, quantity))
+    commit(setQuantity(current(), id, quantity))
+  },
+  /** Observação do item ("pouco gelo"); vazia apaga (pedido de 2026-11-17). */
+  setNote(id: string, note: string) {
+    commit(setNote(current(), id, note))
   },
   /** Esvazia o carrinho (o cliente avisa que já enviou o pedido pelo WhatsApp). */
   clear() {
@@ -90,12 +101,17 @@ export const cartActions = {
   },
 }
 
+/** O carrinho agora (fora de um componente). */
+export function getCart(): Cart {
+  return current()
+}
+
 function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
 
-const getSnapshot = () => state
+const getSnapshot = () => current()
 
 export function useCart(): Cart {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)

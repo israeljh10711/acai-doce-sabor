@@ -106,6 +106,11 @@ export type Product = {
    * cremes pelo preço do tamanho. Só os 4 açaís montáveis.
    */
   completo?: true
+  /**
+   * `false` quando o vendedor marcou o produto como esgotado (pedido de 2026-11-17): o cartão
+   * mostra a tarja e o personalizador não deixa pedir. Sem o campo, disponível.
+   */
+  available?: boolean
 }
 
 /**

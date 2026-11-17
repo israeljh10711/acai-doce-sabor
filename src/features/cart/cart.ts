@@ -13,6 +13,7 @@
  * o personalizador e a finalização mostram sempre o mesmo valor. Na Fase 6 o servidor repete a
  * conta.
  */
+import { isProductAvailable } from '../catalog/availability.ts'
 import { choiceRows, extraPriceCents, getExtraItem, isOrderableExtra, normalizeChoices } from '../catalog/extras.ts'
 import {
   type Product,
@@ -21,6 +22,7 @@ import {
   TOPPING_GROUPS,
   type ToppingGroupId,
   flavorTermOf,
+  getTopping,
   isProductSlug,
 } from '../catalog/menu.ts'
 import {
@@ -51,6 +53,8 @@ export type ProductCartItem = {
   selection: Selection
   /** Quantas unidades deste item montado. */
   quantity: number
+  /** Observação do cliente para este item ("pouco gelo"), pedido de 2026-11-17. */
+  note?: string
 }
 
 export type ExtraCartItem = {
@@ -61,9 +65,21 @@ export type ExtraCartItem = {
   /** Escolha de cada grupo do item ("sabor", "sorvete", "cobertura"...). Vazio sem escolha. */
   choices: Readonly<Record<string, string>>
   quantity: number
+  /** Observação do cliente para este item, pedido de 2026-11-17. */
+  note?: string
 }
 
 export type CartItem = ProductCartItem | ExtraCartItem
+
+/** Tamanho máximo da observação de um item. */
+export const MAX_NOTE_LENGTH = 140
+
+/** Observação sem espaços sobrando, com até 140 caracteres; `undefined` quando fica vazia. */
+export function cleanNote(text: unknown): string | undefined {
+  if (typeof text !== 'string') return undefined
+  const note = text.replace(/\s+/g, ' ').trim().slice(0, MAX_NOTE_LENGTH).trim()
+  return note || undefined
+}
 
 export type Cart = { readonly items: readonly CartItem[] }
 
@@ -100,7 +116,8 @@ export function normalizeSelection(slug: string, selection: Selection): Selectio
   if (selection.flavorId) rebuilt = chooseFlavor(product, rebuilt, selection.flavorId)
   for (const [toppingId, quantity] of Object.entries(selection.toppings)) {
     const units = Number.isInteger(quantity) ? Math.min(quantity, 100) : 0
-    for (let unit = 0; unit < units; unit++) rebuilt = addTopping(product, rebuilt, toppingId)
+    // Sem olhar o esgotado: o complemento que esgotou fica e o carrinho avisa (2026-11-17).
+    for (let unit = 0; unit < units; unit++) rebuilt = addTopping(product, rebuilt, toppingId, { ignoreStock: true })
   }
   rebuilt = settleComplete(product, rebuilt)
 
@@ -186,6 +203,39 @@ export function setQuantity(cart: Cart, id: string, quantity: number): Cart {
   const items = [...cart.items]
   items[index] = Object.freeze({ ...cart.items[index], quantity: next })
   return { items }
+}
+
+/** Grava a observação de um item; texto vazio apaga (pedido de 2026-11-17). */
+export function setNote(cart: Cart, id: string, text: string): Cart {
+  const index = cart.items.findIndex((item) => item.id === id)
+  if (index === -1) return cart
+  const note = cleanNote(text)
+  const current = cart.items[index]
+  if (current.note === note) return cart
+  const { note: _previous, ...rest } = current
+  void _previous
+  const items = [...cart.items]
+  items[index] = Object.freeze(note ? { ...rest, note } : rest)
+  return { items }
+}
+
+export type CartItemProblem = { kind: 'item' } | { kind: 'toppings'; names: string[] }
+
+/**
+ * O que impede o envio de um item que já está no carrinho (pedido de 2026-11-17): o item ou o
+ * produto esgotou (ou saiu do cardápio), ou algum complemento escolhido esgotou.
+ */
+export function cartItemProblem(item: CartItem): CartItemProblem | null {
+  if (item.kind === 'extra') {
+    const extra = getExtraItem(item.itemId)
+    return !extra || extra.available === false ? { kind: 'item' } : null
+  }
+  if (!isProductAvailable(item.slug)) return { kind: 'item' }
+  const names = Object.keys(item.selection.toppings).flatMap((id) => {
+    const topping = getTopping(id)
+    return topping?.available === false ? [topping.name] : []
+  })
+  return names.length > 0 ? { kind: 'toppings', names } : null
 }
 
 export function findItem(cart: Cart, id: string | null | undefined): CartItem | undefined {
@@ -351,6 +401,8 @@ type StoredProductItem = {
   /** Montagem Completo (desde 2026-11-16). Sem o campo, montagem normal. */
   complete?: true
   quantity: number
+  /** Observação do item (desde 2026-11-17). */
+  note?: string
 }
 
 type StoredExtraItem = {
@@ -359,12 +411,21 @@ type StoredExtraItem = {
   itemId: string
   choices: [string, string][]
   quantity: number
+  /** Observação do item (desde 2026-11-17). */
+  note?: string
 }
 
 export function serializeCart(cart: Cart): string {
   const items: (StoredProductItem | StoredExtraItem)[] = cart.items.map((item) =>
     item.kind === 'extra'
-      ? { kind: 'extra', id: item.id, itemId: item.itemId, choices: Object.entries(item.choices), quantity: item.quantity }
+      ? {
+          kind: 'extra',
+          id: item.id,
+          itemId: item.itemId,
+          choices: Object.entries(item.choices),
+          quantity: item.quantity,
+          ...(item.note ? { note: item.note } : {}),
+        }
       : {
           kind: 'product',
           id: item.id,
@@ -374,6 +435,7 @@ export function serializeCart(cart: Cart): string {
           toppings: Object.entries(item.selection.toppings),
           ...(item.selection.complete ? { complete: true as const } : {}),
           quantity: item.quantity,
+          ...(item.note ? { note: item.note } : {}),
         },
   )
   return JSON.stringify({ v: STORAGE_VERSION, items })
@@ -394,31 +456,36 @@ function restoreProduct(entry: Partial<StoredProductItem>): ProductCartItem | nu
     ...(entry.complete === true ? { complete: true } : {}),
   })
   if (!selection) return null
+  const note = cleanNote(entry.note)
   return Object.freeze({
     id: entry.id,
     kind: 'product',
     slug: entry.slug,
     selection,
     quantity: clampQuantity(Number(entry.quantity)),
+    ...(note ? { note } : {}),
   })
 }
 
 function restoreExtra(entry: Partial<StoredExtraItem>): ExtraCartItem | null {
   if (!isString(entry.id) || !isString(entry.itemId)) return null
   const extra = getExtraItem(entry.itemId)
-  if (!extra || !isOrderableExtra(extra)) return null
+  // Item que esgotou continua no carrinho, marcado (2026-11-17); o que saiu do cardápio, não.
+  if (!extra || extra.action.type === 'customizer') return null
   const raw: Record<string, string> = {}
   for (const pair of Array.isArray(entry.choices) ? entry.choices : []) {
     if (Array.isArray(pair) && isString(pair[0]) && isString(pair[1])) raw[pair[0]] = pair[1]
   }
-  const choices = normalizeChoices(extra, raw)
+  const choices = normalizeChoices(extra, raw, { ignoreStock: true })
   if (!choices) return null
+  const note = cleanNote(entry.note)
   return Object.freeze({
     id: entry.id,
     kind: 'extra',
     itemId: entry.itemId,
     choices,
     quantity: clampQuantity(Number(entry.quantity)),
+    ...(note ? { note } : {}),
   })
 }
 

@@ -45,6 +45,8 @@ export type ProductChange = {
   sizePrices?: Record<string, number>
   /** A lista inteira de tamanhos (ajuste de 2026-11-16); quando existe, vale no lugar de `sizePrices`. */
   sizes?: ProductSizeEntry[]
+  /** Esgotado em 1 toque (pedido de 2026-11-17): `false` desliga o produto. */
+  available?: boolean
 }
 
 /** Nome e subtítulo de uma seção, ou o título do grupo "Monte do seu jeito" (`monte`). */
@@ -220,6 +222,7 @@ export function applyChanges(base: CatalogData, changes: CatalogChanges): Catalo
     products[slug] = {
       ...product,
       name: change.name ?? product.name,
+      ...(change.available !== undefined ? { available: change.available } : {}),
       sizes:
         change.sizes && change.sizes.length > 0
           ? productSizes(product, change.sizes)
@@ -351,6 +354,7 @@ function parseProduct(raw: Record<string, unknown>): ProductChange {
       .slice(0, 16)
     if (sizes.length > 0) change.sizes = sizes
   }
+  if (typeof raw.available === 'boolean') change.available = raw.available
   return change
 }
 

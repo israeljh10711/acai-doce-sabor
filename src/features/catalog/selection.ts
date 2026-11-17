@@ -88,15 +88,22 @@ export function freeUsed(selection: Selection): number {
  */
 export type AddBlocker = 'not-in-product' | 'unavailable' | 'free-limit' | 'item-max' | 'group-limit'
 
+/**
+ * `ignoreStock`: refazer uma montagem que já estava no carrinho sem olhar o esgotado (pedido de
+ * 2026-11-17). O complemento que esgotou continua nela, e o carrinho avisa o cliente.
+ */
+export type AddOptions = { ignoreStock?: boolean }
+
 export function addBlocker(
   product: Product,
   selection: Selection,
   toppingId: string,
+  options: AddOptions = {},
 ): AddBlocker | null {
   const topping = getTopping(toppingId)
   if (!topping || !offers(product, topping)) return 'not-in-product'
   // Esgotado pelo vendedor (modo vendedor, 2026-11-16).
-  if (topping.available === false) return 'unavailable'
+  if (topping.available === false && !options.ignoreStock) return 'unavailable'
 
   const quantity = quantityOf(selection, toppingId)
   // Completo: adicionais e frutas vão 1 de cada, sem cota nem limite do grupo.
@@ -117,8 +124,8 @@ export function addBlocker(
 }
 
 /** Soma uma unidade do ingrediente. Devolve a mesma seleção quando não pode. */
-export function addTopping(product: Product, selection: Selection, toppingId: string): Selection {
-  if (addBlocker(product, selection, toppingId)) return selection
+export function addTopping(product: Product, selection: Selection, toppingId: string, options: AddOptions = {}): Selection {
+  if (addBlocker(product, selection, toppingId, options)) return selection
 
   return {
     ...selection,
