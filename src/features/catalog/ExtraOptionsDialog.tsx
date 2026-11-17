@@ -152,23 +152,34 @@ export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, on
                 >
                   <legend className="text-sm font-extrabold tracking-wide text-acai-800 uppercase">{group.label}</legend>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    {options.map((option) => (
+                    {options.map((option) => {
+                      // Esgotada pelo vendedor (2026-11-17): desligada, com o aviso.
+                      const soldOut = group.unavailable?.includes(option) ?? false
+                      return (
                       <label
                         key={option}
-                        className="group relative flex min-h-12 cursor-pointer items-center gap-2 rounded-2xl border-2 border-line bg-white px-3 py-2 text-sm leading-tight font-semibold text-acai-950 transition duration-200 hover:border-acai-600/40 has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800"
+                        className={`group relative flex min-h-12 items-center gap-2 rounded-2xl border-2 border-line bg-white px-3 py-2 text-sm leading-tight font-semibold text-acai-950 transition duration-200 has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800 ${
+                          soldOut ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-acai-600/40'
+                        }`}
                       >
                         <input
                           type="radio"
                           name={`${item.id}-${group.id}`}
                           value={option}
                           checked={draft.picked[group.id] === option}
+                          disabled={soldOut}
                           onChange={() => pick(group.id, option)}
                           className="sr-only"
                         />
                         <span className={`min-w-0 flex-1 ${group.prices ? 'whitespace-nowrap' : ''}`}>
                           {option === OTHER_OPTION ? 'Outro sabor' : option}
                         </span>
-                        {group.prices?.[option] !== undefined && (
+                        {soldOut && (
+                          <span className="shrink-0 rounded-md bg-red-600 px-1.5 py-0.5 text-[0.65rem] font-extrabold tracking-wide text-white uppercase">
+                            Esgotado
+                          </span>
+                        )}
+                        {group.prices?.[option] !== undefined && !soldOut && (
                           <span className="nums shrink-0 font-extrabold whitespace-nowrap text-acai-800">
                             {formatBRL(group.prices[option])}
                           </span>
@@ -180,7 +191,8 @@ export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, on
                           <Check className="size-3.5" />
                         </span>
                       </label>
-                    ))}
+                      )
+                    })}
                   </div>
 
                   {draft.picked[group.id] === OTHER_OPTION && (

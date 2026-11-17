@@ -5,6 +5,7 @@ import type { ConfiguratorApi } from '../configurator-core/useConfigurator.ts'
 import { ingredientPhoto } from '../catalog/photos.ts'
 import { toppingLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
+import { SellerFlavorToggle } from '../seller/SellerAccess.tsx'
 
 /** Cor de cada sabor de milk-shake, na amostra ao lado do nome. */
 const SHAKE_COLORS: Readonly<Record<string, string>> = {
@@ -69,29 +70,42 @@ export function FlavorStep({
       )}
 
       <div className={`mt-4 grid gap-2.5 ${longNames ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-2'}`}>
-        {product.flavors.map((flavor) => (
+        {product.flavors.map((flavor) => {
+          // Esgotado pelo vendedor (2026-11-17): desligado, com o aviso no lugar do selo de marcado.
+          const soldOut = flavor.available === false
+          return (
           // A barca mostra a foto da cobertura: a lupa fica por cima da foto, fora do rótulo (um
-          // botão não pode ficar dentro do rótulo da opção).
-          <div key={flavor.id} className="relative">
+          // botão não pode ficar dentro do rótulo da opção). A pílula do vendedor fica embaixo.
+          <div key={flavor.id} className="flex flex-col" data-flavor={flavor.id}>
+            <div className="relative flex flex-1">
             <label
-              className="group relative flex h-full min-h-12 cursor-pointer items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800"
+              className={`group relative flex min-h-12 flex-1 items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800 ${
+                soldOut ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-acai-600/40 active:scale-[0.98]'
+              }`}
             >
               <input
                 type="radio"
                 name={`${product.slug}-sabor`}
                 value={flavor.id}
                 checked={cfg.selection.flavorId === flavor.id}
+                disabled={soldOut}
                 onChange={() => cfg.chooseFlavor(flavor.id)}
                 className="sr-only"
               />
               <Swatch slug={product.slug} flavorId={flavor.id} />
               <span className="font-semibold text-acai-950">{flavor.name}</span>
-              <span
-                aria-hidden="true"
-                className="ml-auto hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 group-has-checked:grid"
-              >
-                <Check className="size-3.5" />
-              </span>
+              {soldOut ? (
+                <span className="ml-auto shrink-0 rounded-md bg-red-600 px-1.5 py-0.5 text-[0.65rem] font-extrabold tracking-wide text-white uppercase">
+                  Esgotado
+                </span>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="ml-auto hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 group-has-checked:grid"
+                >
+                  <Check className="size-3.5" />
+                </span>
+              )}
             </label>
             {product.slug === 'barca-de-acai' && getTopping(flavor.id) && (
               <ZoomButton
@@ -100,8 +114,11 @@ export function FlavorStep({
                 badge="sm"
               />
             )}
+            </div>
+            <SellerFlavorToggle product={product} flavor={flavor} className="mt-1.5 self-start" />
           </div>
-        ))}
+          )
+        })}
       </div>
     </fieldset>
   )

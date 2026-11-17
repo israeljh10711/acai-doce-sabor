@@ -2,6 +2,7 @@ import { Suspense, lazy, useState } from 'react'
 import { Ban, Check, Copy, Lock, Pencil, Plus } from '../../components/ui/icons.tsx'
 import { getCatalogChanges } from '../catalog/catalogStore.ts'
 import type { ExtraItem } from '../catalog/extras.ts'
+import type { Flavor, Product } from '../catalog/menu.ts'
 import { type EditTarget, useSellerMode } from './sellerModeContext.ts'
 
 const SellerBarLazy = lazy(() => import('./SellerBar.tsx').then((module) => ({ default: module.SellerBar })))
@@ -105,14 +106,53 @@ export function SellerStockToggle({
   className?: string
 }) {
   const seller = useSellerMode()
-  const [state, setState] = useState<'idle' | 'saving' | 'failed'>('idle')
   if (!seller.active) return null
+  return (
+    <StockPill
+      available={available}
+      label={label}
+      className={className}
+      onToggle={async () => {
+        const saved = getCatalogChanges()[kind][id]
+        await seller.save(kind, id, { ...saved, available: !available })
+      }}
+    />
+  )
+}
 
+/**
+ * "Disponível / Esgotado" de um sabor no personalizador (gerenciador de sabores, 2026-11-17). Na
+ * Barca, as coberturas são as caldas: o toque grava na calda e vale nos dois lugares.
+ */
+export function SellerFlavorToggle({ product, flavor, className = '' }: { product: Product; flavor: Flavor; className?: string }) {
+  const seller = useSellerMode()
+  if (!seller.active) return null
+  const available = flavor.available !== false
+  if (product.flavorsFrom) return <SellerStockToggle kind="toppings" id={flavor.id} available={available} label={flavor.name} className={className} />
+  return (
+    <StockPill
+      available={available}
+      label={flavor.name}
+      className={className}
+      onToggle={async () => {
+        const saved = getCatalogChanges().products[product.slug]
+        const flavors = product.flavors.map((entry) => {
+          const soldOut = entry.id === flavor.id ? available : entry.available === false
+          return { id: entry.id, name: entry.name, ...(soldOut ? { available: false } : {}) }
+        })
+        await seller.save('products', product.slug, { ...saved, flavors })
+      }}
+    />
+  )
+}
+
+/** A pílula em si: um toque alterna e grava; se não gravar, avisa e deixa tocar de novo. */
+function StockPill({ available, label, className, onToggle }: { available: boolean; label: string; className: string; onToggle: () => Promise<void> }) {
+  const [state, setState] = useState<'idle' | 'saving' | 'failed'>('idle')
   const toggle = async () => {
     setState('saving')
     try {
-      const saved = getCatalogChanges()[kind][id]
-      await seller.save(kind, id, { ...saved, available: !available })
+      await onToggle()
       setState('idle')
     } catch {
       setState('failed')
