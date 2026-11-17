@@ -10,6 +10,15 @@ const changes = (partial: Partial<CatalogChanges>): CatalogChanges => ({ ...NO_C
 const item = (data: CatalogData, id: string) => data.items.find((candidate) => candidate.id === id)
 const topping = (data: CatalogData, id: string) => data.toppings.find((candidate) => candidate.id === id)
 
+describe('configurações da loja na camada de mudanças (pedido de 2026-11-17)', () => {
+  it('só o id "loja", só os campos válidos; sem nada, fica vazio', () => {
+    const parsed = parseChanges({ settings: { loja: { deliveryTime: '45–60 min', closedOrders: 'x' }, outra: { deliveryTime: '1 hora' } } })
+    expect(parsed.settings).toEqual({ loja: { deliveryTime: '45–60 min' } })
+    expect(parseChanges({}).settings).toEqual({})
+    expect(NO_CHANGES.settings).toEqual({})
+  })
+})
+
 describe('mudanças do vendedor sobre o cardápio (modo vendedor, 2026-11-16)', () => {
   it('sem mudanças, o cardápio é o do código', () => {
     const data = applyChanges(BASE, NO_CHANGES)
@@ -205,6 +214,7 @@ describe('leitura das mudanças guardadas ou vindas da rede (parseChanges)', () 
       products: { 'acai-oca': { sizePrices: { 'pote-200': 1200 } } },
       toppings: { granola: { priceCents: 300 } },
       sections: {},
+      settings: {},
     })
     expect(
       parseChanges({
@@ -217,6 +227,7 @@ describe('leitura das mudanças guardadas ou vindas da rede (parseChanges)', () 
       products: { 'acai-oca': { sizes: [{ id: 'pote-200', name: 'Pote', priceCents: 900, freeToppings: 2 }, { name: 'X', priceCents: 5, freeToppings: 20 }] } },
       toppings: {},
       sections: { bebidas: { name: 'Geladas', subtitle: 'x' }, monte: { name: 'M' } },
+      settings: {},
     })
   })
 

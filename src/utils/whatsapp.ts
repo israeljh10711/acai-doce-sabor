@@ -21,6 +21,18 @@ export function toWhatsAppNumber(phone: string): string {
 }
 
 /**
+ * Telefone brasileiro escrito como as pessoas leem: "(83) 99699-9980" (celular) ou
+ * "(83) 3333-1234" (fixo). Aceita com ou sem o código do país. `null` se não for um telefone.
+ */
+export function formatBrazilPhone(phone: string): string | null {
+  const digits = phone.replace(/\D/g, '')
+  const national = digits.startsWith(BRAZIL_COUNTRY_CODE) && digits.length > 11 ? digits.slice(BRAZIL_COUNTRY_CODE.length) : digits
+  if (national.length === 11) return `(${national.slice(0, 2)}) ${national.slice(2, 7)}-${national.slice(7)}`
+  if (national.length === 10) return `(${national.slice(0, 2)}) ${national.slice(2, 6)}-${national.slice(6)}`
+  return null
+}
+
+/**
  * Monta o link que abre uma conversa no WhatsApp, com a mensagem já preenchida
  * quando informada. O link só abre a conversa: quem envia é a pessoa.
  */

@@ -8,11 +8,11 @@ import { type CatalogBackend, type ChangeKind, dataUrlToBlob, parseBackup, withC
 import type { ChangeRow, SupabaseRest } from './supabaseRest.ts'
 
 export const CACHE_KEY = 'acai_doce_sabor_catalog_cache_v1'
-const KINDS: readonly ChangeKind[] = ['items', 'products', 'toppings', 'sections']
+const KINDS: readonly ChangeKind[] = ['items', 'products', 'toppings', 'sections', 'settings']
 
 /** Linhas da tabela `catalog_changes` → mudanças (só campos válidos). */
 export function changesFromRows(rows: readonly ChangeRow[]): CatalogChanges {
-  const raw: Record<ChangeKind, Record<string, unknown>> = { items: {}, products: {}, toppings: {}, sections: {} }
+  const raw: Record<ChangeKind, Record<string, unknown>> = { items: {}, products: {}, toppings: {}, sections: {}, settings: {} }
   for (const row of rows) {
     if (KINDS.includes(row.kind) && typeof row.id === 'string') raw[row.kind][row.id] = row.data
   }

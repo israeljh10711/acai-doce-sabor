@@ -4,7 +4,7 @@ import { getOffer } from '../offers/offerNotifications.ts'
 import { CATEGORIES } from './categories.ts'
 import { NO_CHANGES } from './catalogChanges.ts'
 import { MONTE_TITLE, navEntries } from './catalogNav.ts'
-import { catalogVersion, getCatalogChanges, setCatalogChanges, setPhotoUrls, subscribeCatalog } from './catalogStore.ts'
+import { catalogVersion, getCatalogChanges, getStoreSettings, setCatalogChanges, setPhotoUrls, subscribeCatalog } from './catalogStore.ts'
 import { EXTRA_ITEMS, getExtraItem } from './extras.ts'
 import { highlightItems } from './highlights.ts'
 import { PRODUCTS, getTopping } from './menu.ts'
@@ -17,6 +17,16 @@ afterEach(() => {
 })
 
 describe('as mudanças do vendedor chegam a todo o site (catalogStore)', () => {
+  it('configurações da loja: o padrão sem mudança, a guardada quando há, e a mesma referência enquanto nada muda', () => {
+    expect(getStoreSettings().deliveryTime).toBe('30–45 min')
+    setCatalogChanges({ ...NO_CHANGES, settings: { loja: { deliveryTime: '45–60 min' } } })
+    const first = getStoreSettings()
+    expect(first.deliveryTime).toBe('45–60 min')
+    expect(first.hours).toEqual({ opensAt: 780, closesAt: 1260 })
+    setPhotoUrls({})
+    expect(getStoreSettings()).toBe(first)
+  })
+
   it('renomear seção e o grupo "Monte do seu jeito" chega à navegação', () => {
     setCatalogChanges({ ...NO_CHANGES, sections: { bebidas: { name: 'Bebidas geladas' }, monte: { name: 'Monte o seu' } } })
     expect(navEntries(searchMenu('')).find((entry) => entry.id === 'bebidas')?.label).toBe('Bebidas geladas')

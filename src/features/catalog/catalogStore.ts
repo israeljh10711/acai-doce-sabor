@@ -9,7 +9,8 @@
  */
 import { useSyncExternalStore } from 'react'
 import { BASE_CATEGORIES, setCategories } from './categories.ts'
-import { type CatalogChanges, NO_CHANGES, applyChanges } from './catalogChanges.ts'
+import { type CatalogChanges, NO_CHANGES, STORE_SETTINGS_ID, applyChanges } from './catalogChanges.ts'
+import { type StoreSettings, type StoreSettingsChange, resolveStoreSettings } from '../store/storeSettings.ts'
 import { BASE_MONTE_TITLE, setMonteTitle } from './catalogNav.ts'
 import { BASE_DRAWERS, BASE_EXTRA_ITEMS, setDrawers, setExtraItems } from './extras.ts'
 import { BASE_PRODUCTS, BASE_TOPPINGS, setProducts, setToppings } from './menu.ts'
@@ -45,7 +46,13 @@ function withPhotos(source: CatalogChanges): CatalogChanges {
         return [id, next]
       }),
     )
-  return { items: resolve(source.items), products: resolve(source.products), toppings: resolve(source.toppings), sections: source.sections }
+  return {
+    items: resolve(source.items),
+    products: resolve(source.products),
+    toppings: resolve(source.toppings),
+    sections: source.sections,
+    settings: source.settings,
+  }
 }
 
 function publish() {
@@ -84,6 +91,23 @@ export function subscribeCatalog(listener: () => void): () => void {
 
 export function catalogVersion(): number {
   return version
+}
+
+let settingsCache: { source: StoreSettingsChange | undefined; value: StoreSettings } | null = null
+
+/**
+ * Configurações da loja em uso (pedido de 2026-11-17): o padrão com o que o vendedor mudou por
+ * cima. A mesma referência enquanto a mudança guardada não muda (para `useSyncExternalStore`).
+ */
+export function getStoreSettings(): StoreSettings {
+  const source = changes.settings[STORE_SETTINGS_ID]
+  if (!settingsCache || settingsCache.source !== source) settingsCache = { source, value: resolveStoreSettings(source) }
+  return settingsCache.value
+}
+
+/** Configurações da loja, redesenhando quando o vendedor muda alguma. */
+export function useStoreSettings(): StoreSettings {
+  return useSyncExternalStore(subscribeCatalog, getStoreSettings, getStoreSettings)
 }
 
 /**

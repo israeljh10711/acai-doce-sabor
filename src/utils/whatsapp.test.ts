@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildWhatsAppUrl, toWhatsAppNumber } from './whatsapp.ts'
+import { buildWhatsAppUrl, formatBrazilPhone, toWhatsAppNumber } from './whatsapp.ts'
 
 describe('toWhatsAppNumber', () => {
   it('remove a formatação e acrescenta o código do país', () => {
@@ -41,5 +41,18 @@ describe('buildWhatsAppUrl', () => {
 
   it('não deixa espaços nem quebras de linha crus no link', () => {
     expect(buildWhatsAppUrl('(83) 99699-9980', 'uma linha\noutra linha')).not.toMatch(/\s/)
+  })
+})
+
+describe('formatBrazilPhone', () => {
+  it('escreve o telefone no formato (DDD) número, celular ou fixo', () => {
+    expect(formatBrazilPhone('83996999980')).toBe('(83) 99699-9980')
+    expect(formatBrazilPhone('+55 (83) 99699-9980')).toBe('(83) 99699-9980')
+    expect(formatBrazilPhone('8333331234')).toBe('(83) 3333-1234')
+  })
+
+  it('telefone inválido devolve null', () => {
+    expect(formatBrazilPhone('123')).toBeNull()
+    expect(formatBrazilPhone('')).toBeNull()
   })
 })

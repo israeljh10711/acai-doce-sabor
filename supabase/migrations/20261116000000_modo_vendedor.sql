@@ -21,10 +21,11 @@ create table if not exists public.sellers (
   user_id uuid primary key references auth.users (id) on delete cascade
 );
 
--- Tipos de mudança: itens, os 4 produtos, complementos e nomes das seções (ajuste de 2026-11-16).
+-- Tipos de mudança: itens, os 4 produtos, complementos e nomes das seções (ajuste de 2026-11-16)
+-- e as configurações da loja: horário, loja aberta/fechada, prazo, frete e contato (2026-11-17).
 alter table public.catalog_changes drop constraint if exists catalog_changes_kind_check;
 alter table public.catalog_changes add constraint catalog_changes_kind_check
-  check (kind in ('items', 'products', 'toppings', 'sections'));
+  check (kind in ('items', 'products', 'toppings', 'sections', 'settings'));
 
 alter table public.catalog_changes enable row level security;
 alter table public.sellers enable row level security;

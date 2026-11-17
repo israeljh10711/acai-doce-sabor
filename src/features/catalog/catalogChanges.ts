@@ -7,6 +7,7 @@
  * recebem a base e as mudanças e devolvem o cardápio novo, sem alterar a base.
  */
 import { foldText } from '../../utils/text.ts'
+import { type StoreSettingsChange, parseStoreSettingsChange } from '../store/storeSettings.ts'
 import type { Category, CategorySlug } from './categories.ts'
 import { BASE_DRAWERS, type ChoiceGroup, type Drawer, type DrawerId, type ExtraItem } from './extras.ts'
 import type { ContainerKind, Product, ProductSize, ProductSlug, Topping, ToppingGroupId } from './menu.ts'
@@ -65,9 +66,11 @@ export type CatalogChanges = {
   products: Readonly<Record<string, ProductChange>>
   toppings: Readonly<Record<string, ToppingChange>>
   sections: Readonly<Record<string, SectionChange>>
+  /** Configurações da loja (pedido de 2026-11-17): só o id `loja`. Não mexem no cardápio. */
+  settings: Readonly<Record<string, StoreSettingsChange>>
 }
 
-export const NO_CHANGES: CatalogChanges = Object.freeze({ items: {}, products: {}, toppings: {}, sections: {} })
+export const NO_CHANGES: CatalogChanges = Object.freeze({ items: {}, products: {}, toppings: {}, sections: {}, settings: {} })
 
 export type CatalogData = {
   items: readonly ExtraItem[]
@@ -389,6 +392,9 @@ function parseSection<T extends object>(
   return result
 }
 
+/** Id da única mudança do tipo `settings`: as configurações da loja. */
+export const STORE_SETTINGS_ID = 'loja'
+
 /** As mudanças guardadas no aparelho ou lidas do Supabase, só com campos válidos. */
 export function parseChanges(raw: unknown): CatalogChanges {
   if (!isRecord(raw)) return NO_CHANGES
@@ -397,5 +403,6 @@ export function parseChanges(raw: unknown): CatalogChanges {
     products: parseSection(raw.products, parseProduct, (slug) => CATEGORY_SLUGS.has(slug)),
     toppings: parseSection(raw.toppings, parseTopping),
     sections: parseSection(raw.sections, parseSectionChange, (id) => SECTION_IDS.has(id)),
+    settings: parseSection(raw.settings, parseStoreSettingsChange, (id) => id === STORE_SETTINGS_ID),
   }
 }

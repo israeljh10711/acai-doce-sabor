@@ -15,9 +15,10 @@ import {
   type ToppingChange,
   parseChanges,
 } from '../features/catalog/catalogChanges.ts'
+import type { StoreSettingsChange } from '../features/store/storeSettings.ts'
 
-export type ChangeKind = 'items' | 'products' | 'toppings' | 'sections'
-export type AnyChange = ItemChange | ProductChange | ToppingChange | SectionChange
+export type ChangeKind = 'items' | 'products' | 'toppings' | 'sections' | 'settings'
+export type AnyChange = ItemChange | ProductChange | ToppingChange | SectionChange | StoreSettingsChange
 
 export type CatalogBackend = {
   kind: 'local' | 'supabase'
