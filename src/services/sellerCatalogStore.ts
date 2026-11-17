@@ -38,7 +38,31 @@ export type CatalogBackend = {
   isSignedIn(): boolean
   exportBackup(): Promise<string>
   importBackup(json: string): Promise<CatalogChanges>
+  /**
+   * Só no aparelho (pedido de 2026-11-17): apaga as fotos que nenhuma mudança usa e que têm mais de
+   * 1 hora (uma recém-enviada por outra aba ainda vai ser gravada). Devolve as referências apagadas.
+   */
+  pruneUnusedPhotos?(now: number): Promise<string[]>
 }
+
+/** Fotos do aparelho (`idb:`) que alguma mudança usa. */
+export function usedPhotoRefs(changes: CatalogChanges): Set<string> {
+  return new Set(
+    [...Object.values(changes.items), ...Object.values(changes.products), ...Object.values(changes.toppings)]
+      .map((change) => change.image as string | undefined)
+      .filter((image): image is string => Boolean(image?.startsWith('idb:'))),
+  )
+}
+
+/** Quando a foto foi enviada, pelo id que o navegador gera (`foto-<ms em base 36>-...`). */
+export function photoTime(id: string): number | null {
+  const match = /^foto-([0-9a-z]+)-/.exec(id)
+  if (!match) return null
+  const ms = parseInt(match[1], 36)
+  return Number.isFinite(ms) ? ms : null
+}
+
+const PRUNE_AFTER_MS = 3_600_000
 
 export const CATALOG_KEY = 'acai_doce_sabor_seller_catalog_v1'
 export const IMAGES_DB = 'acai_doce_sabor_seller_images'
@@ -101,7 +125,13 @@ export function parseBackup(json: string): Backup {
 
 export type LocalDeps = {
   store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
-  images: { put(id: string, blob: Blob): Promise<void>; all(): Promise<[string, Blob][]> }
+  images: {
+    put(id: string, blob: Blob): Promise<void>
+    all(): Promise<[string, Blob][]>
+    /** Só os ids (sem carregar as fotos). */
+    ids(): Promise<string[]>
+    delete(id: string): Promise<void>
+  }
   hash(text: string): Promise<string>
   objectUrl(blob: Blob): string
   newId(): string
@@ -158,13 +188,20 @@ export function createLocalBackend(deps: LocalDeps): CatalogBackend {
       return true
     },
     isSignedIn: () => store.getItem(SESSION_KEY) === '1',
+    async pruneUnusedPhotos(now) {
+      const used = usedPhotoRefs(read())
+      const removed: string[] = []
+      for (const id of await deps.images.ids()) {
+        const sentAt = photoTime(id)
+        if (used.has(`idb:${id}`) || sentAt === null || now - sentAt < PRUNE_AFTER_MS) continue
+        await deps.images.delete(id)
+        removed.push(`idb:${id}`)
+      }
+      return removed
+    },
     async exportBackup() {
       const changes = read()
-      const used = new Set(
-        [...Object.values(changes.items), ...Object.values(changes.products), ...Object.values(changes.toppings)]
-          .map((change) => change.image as string | undefined)
-          .filter((image): image is string => Boolean(image?.startsWith('idb:'))),
-      )
+      const used = usedPhotoRefs(changes)
       const photos: Record<string, string> = {}
       for (const [id, blob] of await deps.images.all()) {
         if (used.has(`idb:${id}`)) photos[`idb:${id}`] = await blobToDataUrl(blob)
@@ -220,6 +257,27 @@ export function browserLocalDeps(): LocalDeps {
         })
         db.close()
         return entries
+      },
+      async ids() {
+        const db = await openImages()
+        const keys = await new Promise<string[]>((resolve, reject) => {
+          const tx = db.transaction('fotos', 'readonly')
+          const request = tx.objectStore('fotos').getAllKeys()
+          tx.oncomplete = () => resolve(request.result.map(String))
+          tx.onerror = () => reject(tx.error)
+        })
+        db.close()
+        return keys
+      },
+      async delete(id) {
+        const db = await openImages()
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('fotos', 'readwrite')
+          tx.objectStore('fotos').delete(id)
+          tx.oncomplete = () => resolve()
+          tx.onerror = () => reject(tx.error)
+        })
+        db.close()
       },
     },
     async hash(text) {

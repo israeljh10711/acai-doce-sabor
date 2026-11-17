@@ -1,6 +1,6 @@
 import { type ReactNode, Suspense, lazy, useMemo, useState } from 'react'
 import { setCatalogChanges, setPhotoUrls } from '../catalog/catalogStore.ts'
-import { addPhotoUrl, getSellerBackend } from './sellerBackend.ts'
+import { addPhotoUrl, cleanupPhotos, getSellerBackend } from './sellerBackend.ts'
 import { type EditTarget, type SellerMode, SellerModeContext } from './sellerModeContext.ts'
 
 // As telas do vendedor só carregam quando alguém abre (o cliente não baixa nada disso).
@@ -41,6 +41,7 @@ export function SellerModeProvider({ children }: { children: ReactNode }) {
       changePassword: (next) => backend.changePassword(next),
       async save(kind, id, change) {
         setCatalogChanges(await backend.save(kind, id, change))
+        void cleanupPhotos()
       },
       async uploadPhoto(blob) {
         const ref = await backend.uploadPhoto(blob)
@@ -51,6 +52,7 @@ export function SellerModeProvider({ children }: { children: ReactNode }) {
       async importBackup(json) {
         setCatalogChanges(await backend.importBackup(json))
         setPhotoUrls(await backend.loadPhotoUrls())
+        void cleanupPhotos()
       },
       edit: (next) => setTarget(next),
     }),

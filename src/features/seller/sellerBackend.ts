@@ -48,6 +48,29 @@ export function addPhotoUrl(ref: string, blob: Blob): void {
   setPhotoUrls(photoUrls)
 }
 
+/**
+ * Depois de gravar ou restaurar (no aparelho): apaga as fotos que ninguém usa mais e libera o
+ * endereço temporário delas (pedido de 2026-11-17). Falha aqui não atrapalha o vendedor.
+ */
+export async function cleanupPhotos(): Promise<void> {
+  const current = getSellerBackend()
+  if (!current.pruneUnusedPhotos) return
+  try {
+    const removed = await current.pruneUnusedPhotos(Date.now())
+    const known = removed.filter((ref) => photoUrls[ref])
+    if (known.length === 0) return
+    const next = { ...photoUrls }
+    for (const ref of known) {
+      URL.revokeObjectURL(next[ref])
+      delete next[ref]
+    }
+    photoUrls = next
+    setPhotoUrls(photoUrls)
+  } catch {
+    // Sem acesso às fotos do aparelho agora: tenta de novo na próxima gravação.
+  }
+}
+
 /** Lê de novo do Supabase e aplica, se mudou. Erro de rede: fica o que já está na tela. */
 async function refresh(current: CatalogBackend): Promise<void> {
   try {

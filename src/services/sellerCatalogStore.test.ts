@@ -18,6 +18,8 @@ function fakeDeps(): LocalDeps & { storage: Map<string, string>; blobs: Map<stri
     images: {
       put: async (id, blob) => void blobs.set(id, blob),
       all: async () => [...blobs.entries()],
+      ids: async () => [...blobs.keys()],
+      delete: async (id) => void blobs.delete(id),
     },
     hash: async (text) => {
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
@@ -107,5 +109,35 @@ describe('gravação no aparelho (modo vendedor sem Supabase)', () => {
 
   it('sem nada guardado, sem mudanças', () => {
     expect(createLocalBackend(fakeDeps()).loadSync()).toEqual(NO_CHANGES)
+  })
+})
+
+describe('fotos do aparelho que ninguém usa mais (pedido de 2026-11-17)', () => {
+  const HOUR = 3_600_000
+  const NOW = Date.parse('2026-11-17T20:00:00Z')
+  /** Id de foto com a hora em que foi enviada, como o navegador gera. */
+  const photoId = (msAgo: number, tail: string) => `foto-${(NOW - msAgo).toString(36)}-${tail}`
+
+  it('apaga só as sem uso e com mais de 1 hora; devolve as referências apagadas', async () => {
+    const deps = fakeDeps()
+    const backend = createLocalBackend(deps)
+    const usada = photoId(5 * HOUR, 'usada')
+    const velha = photoId(2 * HOUR, 'velha')
+    const nova = photoId(10 * 60_000, 'nova')
+    for (const id of [usada, velha, nova, 'formato-estranho']) await deps.images.put(id, new Blob(['x']))
+    await backend.save('items', 'jujuba', { image: `idb:${usada}` })
+    expect(await backend.pruneUnusedPhotos!(NOW)).toEqual([`idb:${velha}`])
+    expect([...deps.blobs.keys()].sort()).toEqual([usada, nova, 'formato-estranho'].sort())
+  })
+
+  it('a foto de um complemento ou de um produto também conta como usada', async () => {
+    const deps = fakeDeps()
+    const backend = createLocalBackend(deps)
+    const a = photoId(3 * HOUR, 'a')
+    const b = photoId(3 * HOUR, 'b')
+    for (const id of [a, b]) await deps.images.put(id, new Blob(['x']))
+    await backend.save('toppings', 'granola', { image: `idb:${a}` })
+    await backend.save('products', 'acai-oca', { image: `idb:${b}` })
+    expect(await backend.pruneUnusedPhotos!(NOW)).toEqual([])
   })
 })
