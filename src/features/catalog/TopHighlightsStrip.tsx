@@ -2,7 +2,7 @@ import type { ComponentPropsWithoutRef } from 'react'
 import { Flame } from '../../components/ui/icons.tsx'
 import type { ExtraItem } from './extras.ts'
 import { type ChooseItem, ItemActionButton, ItemPrice } from './ItemActions.tsx'
-import { SellerEditButton } from '../seller/SellerAccess.tsx'
+import { SellerDuplicateButton, SellerEditButton, SellerStockToggle } from '../seller/SellerAccess.tsx'
 import { SoldOut } from './CatalogSections.tsx'
 import { ExtraVisual } from './ItemVisual.tsx'
 
@@ -58,6 +58,7 @@ function HighlightCard({ item, level, onChoose }: { item: ExtraItem; level: 3 | 
         <ExtraVisual item={item} size="fill" zoom sizes="(min-width: 80rem) 170px, (min-width: 40rem) 30vw, 46vw" />
         <SoldOut available={item.available !== false} />
         <SellerEditButton target={{ kind: 'item', id: item.id }} label={item.name} className="absolute top-1.5 left-1.5 z-20" />
+        <SellerStockToggle kind="items" id={item.id} available={item.available !== false} label={item.name} className="absolute right-1.5 bottom-1.5 z-20" />
       </div>
       <Heading level={level} id={nameId} className="mt-2.5 font-display text-sm leading-snug font-black text-acai-800 sm:text-base">
         {item.name}
@@ -66,6 +67,7 @@ function HighlightCard({ item, level, onChoose }: { item: ExtraItem; level: 3 | 
         <ItemPrice item={item} size="base" />
       </div>
       <ItemActionButton item={item} onChoose={onChoose} label="Pedir" className="mt-2.5 w-full" />
+      <SellerDuplicateButton item={item} className="mt-2 self-end" />
     </article>
   )
 }

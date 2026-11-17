@@ -1,5 +1,7 @@
-import { Suspense, lazy } from 'react'
-import { Check, Lock, Pencil, Plus } from '../../components/ui/icons.tsx'
+import { Suspense, lazy, useState } from 'react'
+import { Ban, Check, Copy, Lock, Pencil, Plus } from '../../components/ui/icons.tsx'
+import { getCatalogChanges } from '../catalog/catalogStore.ts'
+import type { ExtraItem } from '../catalog/extras.ts'
 import { type EditTarget, useSellerMode } from './sellerModeContext.ts'
 
 const SellerBarLazy = lazy(() => import('./SellerBar.tsx').then((module) => ({ default: module.SellerBar })))
@@ -80,6 +82,77 @@ export function SellerAddButton({ target, text, className = '' }: { target: Edit
     <button type="button" data-seller-add="" onClick={() => seller.edit(target)} className={`${editClass} min-h-10 px-3 ${className}`}>
       <Plus className="size-4" />
       {text.replace(/^\+\s*/, '')}
+    </button>
+  )
+}
+
+/**
+ * "Disponível" / "Esgotado" em 1 toque, sem abrir o formulário (pedido de 2026-11-17): grava na
+ * hora (aparelho ou Supabase). Verde um tom mais escuro que o pedido, para o texto branco passar
+ * no contraste mínimo.
+ */
+export function SellerStockToggle({
+  kind,
+  id,
+  available,
+  label,
+  className = '',
+}: {
+  kind: 'items' | 'products' | 'toppings'
+  id: string
+  available: boolean
+  label: string
+  className?: string
+}) {
+  const seller = useSellerMode()
+  const [state, setState] = useState<'idle' | 'saving' | 'failed'>('idle')
+  if (!seller.active) return null
+
+  const toggle = async () => {
+    setState('saving')
+    try {
+      const saved = getCatalogChanges()[kind][id]
+      await seller.save(kind, id, { ...saved, available: !available })
+      setState('idle')
+    } catch {
+      setState('failed')
+    }
+  }
+  return (
+    <button
+      type="button"
+      data-seller-stock={available ? 'disponivel' : 'esgotado'}
+      disabled={state === 'saving'}
+      onClick={() => void toggle()}
+      className={`inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow ring-1 ring-black/10 transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-wait disabled:opacity-70 ${
+        available ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-red-600 hover:bg-red-700'
+      } ${className}`}
+    >
+      {available ? <Check className="size-3.5" /> : <Ban className="size-3.5" />}
+      {state === 'failed' ? 'Não salvou, toque de novo' : available ? 'Disponível' : 'Esgotado'}
+      <span className="sr-only">
+        : {label}. Toque para marcar como {available ? 'esgotado' : 'disponível'}.
+      </span>
+    </button>
+  )
+}
+
+/**
+ * "Duplicar" discreto (pedido de 2026-11-17), longe do "Editar": abre o cadastro já preenchido com
+ * o item, para o vendedor só trocar a foto e o nome. Pote 1 L e Barca não (abrem o personalizador).
+ */
+export function SellerDuplicateButton({ item, className = '' }: { item: ExtraItem; className?: string }) {
+  const seller = useSellerMode()
+  if (!seller.active || item.action.type === 'customizer') return null
+  return (
+    <button
+      type="button"
+      data-seller-duplicate=""
+      onClick={() => seller.edit({ kind: 'item', id: null, drawer: item.drawer, copyOf: item.id })}
+      className={`inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg border border-gray-200/80 bg-gray-100/90 px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-200/80 hover:text-[#4A0E36] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${className}`}
+    >
+      <Copy className="size-3.5" />
+      Duplicar<span className="sr-only">: {item.name}</span>
     </button>
   )
 }

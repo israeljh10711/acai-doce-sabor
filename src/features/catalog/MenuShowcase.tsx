@@ -9,7 +9,7 @@ import { PRODUCTS } from './menu.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
 import { productLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
-import { SellerEditButton } from '../seller/SellerAccess.tsx'
+import { SellerEditButton, SellerStockToggle } from '../seller/SellerAccess.tsx'
 import { isProductAvailable } from './availability.ts'
 import { SoldOut } from './CatalogSections.tsx'
 import { startingPriceCents } from './showcase.ts'
@@ -106,6 +106,7 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
         <ZoomButton image={productLightbox(category.slug)} />
         <SoldOut available={available} />
         <SellerEditButton target={{ kind: 'product', id: category.slug }} label={category.name} className="absolute top-3 left-3 z-20" />
+        <SellerStockToggle kind="products" id={category.slug} available={available} label={category.name} className="absolute top-3 right-3 z-20" />
       </div>
       <div className="flex flex-col justify-center gap-5 p-6 sm:p-10">
         <Badges category={category} />
@@ -162,6 +163,7 @@ function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' 
         <ZoomButton image={productLightbox(category.slug)} />
         <SoldOut available={available} />
         <SellerEditButton target={{ kind: 'product', id: category.slug }} label={category.name} className="absolute top-4 left-4 z-20" />
+        <SellerStockToggle kind="products" id={category.slug} available={available} label={category.name} className="absolute top-14 left-4 z-20" />
         <p className="nums absolute top-4 right-4 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
           <span className="font-semibold">a partir de </span>
           {formatBRL(startingPriceCents(category.slug))}

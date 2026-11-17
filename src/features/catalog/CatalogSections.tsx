@@ -4,7 +4,7 @@ import { ChevronDown } from '../../components/ui/icons.tsx'
 import { type Drawer, type DrawerId, type ExtraItem, flavorCount } from './extras.ts'
 import { type ChooseItem, ItemActionButton, ItemPrice } from './ItemActions.tsx'
 import { ExtraVisual } from './ItemVisual.tsx'
-import { SellerAddButton, SellerEditButton, SellerRenameButton } from '../seller/SellerAccess.tsx'
+import { SellerAddButton, SellerDuplicateButton, SellerEditButton, SellerRenameButton, SellerStockToggle } from '../seller/SellerAccess.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
 
 type Level = 2 | 3 | 4 | 5
@@ -192,6 +192,7 @@ function SectionItemCard({ item, level, onChoose }: { item: ExtraItem; level: Le
         <ExtraVisual item={item} size="fill" zoom sizes="(min-width: 80rem) 300px, (min-width: 40rem) 45vw, 112px" />
         <SoldOut available={item.available !== false} />
         <SellerEditButton target={{ kind: 'item', id: item.id }} label={item.name} className="absolute top-1.5 left-1.5 z-20" />
+        <SellerStockToggle kind="items" id={item.id} available={item.available !== false} label={item.name} className="absolute right-1.5 bottom-1.5 z-20 sm:top-1.5 sm:bottom-auto" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         {(item.badge || flavors > 0) && (
@@ -217,6 +218,7 @@ function SectionItemCard({ item, level, onChoose }: { item: ExtraItem; level: Le
           <ItemPrice item={item} />
           <ItemActionButton item={item} onChoose={onChoose} />
         </div>
+        <SellerDuplicateButton item={item} className="mt-2 self-end" />
       </div>
     </article>
   )

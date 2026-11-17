@@ -1,5 +1,5 @@
 import { m } from 'motion/react'
-import { SellerAddButton, SellerEditButton } from '../seller/SellerAccess.tsx'
+import { SellerAddButton, SellerEditButton, SellerStockToggle } from '../seller/SellerAccess.tsx'
 import { Check } from '../../components/ui/icons.tsx'
 import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppingsOf } from '../catalog/menu.ts'
 import { ingredientPhoto } from '../catalog/photos.ts'
@@ -172,6 +172,8 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {topping.priceCents > 0 ? <PriceBadge cents={topping.priceCents} /> : <FreeBadge />}
+      {/* Esgotado em 1 toque (modo vendedor, 2026-11-17): por cima do botão que cobre o cartão. */}
+      <SellerStockToggle kind="toppings" id={topping.id} available={topping.available !== false} label={toppingLabel(topping)} className="relative z-20" />
       {/* Selo de marcado no canto, como nos tamanhos: o nome fica com a largura toda. */}
       <m.span
         aria-hidden="true"
@@ -206,6 +208,7 @@ function StepperCard({
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {paid ? <PriceBadge cents={topping.priceCents} each /> : <FreeBadge />}
+      <SellerStockToggle kind="toppings" id={topping.id} available={topping.available !== false} label={toppingLabel(topping)} className="relative z-20" />
       <QuantityStepper
         label={topping.name}
         quantity={quantity}

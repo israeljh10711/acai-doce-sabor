@@ -1,20 +1,22 @@
 import { useRef, useState } from 'react'
-import { Download, LockOpen, Upload } from '../../components/ui/icons.tsx'
+import { Clock, Download, LockOpen, Scooter, Upload } from '../../components/ui/icons.tsx'
 import { MIN_PASSWORD_LENGTH } from '../../services/sellerCatalogStore.ts'
+import { DeliverySettingsModal } from './DeliverySettingsModal.tsx'
 import { SellerDialog } from './SellerDialog.tsx'
 import { useSellerMode } from './sellerModeContext.ts'
-
-const barButton =
-  'inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-white ring-1 ring-white/30 transition hover:bg-white/10 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-gold-400 sm:text-sm'
+import { barButton } from './sellerStyles.ts'
+import { DeliveryTimeButton, StoreSwitch } from './StoreControls.tsx'
+import { StoreHoursContactModal } from './StoreHoursContactModal.tsx'
 
 /**
  * Faixa do modo vendedor no topo de todas as páginas (pedido de 2026-11-16): o aviso de como
  * editar, onde as mudanças ficam salvas e os botões "Alterar senha", "Backup / Restaurar" e
- * "Sair do Modo Vendedor".
+ * "Sair do Modo Vendedor". Desde 2026-11-17, a linha de operação da loja: "Loja Aberta / Fechada",
+ * "Tempo", "Entrega / Frete" e "Horários e Contato".
  */
 export function SellerBar() {
   const seller = useSellerMode()
-  const [open, setOpen] = useState<'password' | 'backup' | null>(null)
+  const [open, setOpen] = useState<'password' | 'backup' | 'delivery' | 'hours' | null>(null)
 
   return (
     <div data-seller-bar="" className="border-b-2 border-gold-400 bg-acai-800 text-white">
@@ -22,8 +24,8 @@ export function SellerBar() {
         <p className="flex min-w-0 items-start gap-2">
           <LockOpen className="mt-0.5 size-4 text-gold-400" />
           <span>
-            <strong className="font-extrabold">Modo Vendedor Ativo</strong> — Toque em "Editar" em qualquer item ou "+ Adicionar" em
-            qualquer categoria.{' '}
+            <strong className="font-extrabold">Modo Vendedor Ativo</strong> — Toque em "Editar" em qualquer item, em "Disponível" para
+            esgotar num toque, ou em "+ Adicionar" em qualquer categoria.{' '}
             <span className={`font-bold ${seller.backendKind === 'supabase' ? 'text-gold-300' : 'text-gold-400'}`}>
               {seller.backendKind === 'supabase'
                 ? 'Salvo na nuvem: vale para todos os clientes.'
@@ -43,8 +45,28 @@ export function SellerBar() {
           </button>
         </div>
       </div>
+      <div className="border-t border-white/15">
+        <div
+          role="group"
+          aria-label="Operação da loja"
+          className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-4 py-2 text-xs sm:px-6 sm:text-sm"
+        >
+          <StoreSwitch />
+          <DeliveryTimeButton />
+          <button type="button" data-delivery-settings="" aria-haspopup="dialog" className={barButton} onClick={() => setOpen('delivery')}>
+            <Scooter className="size-4" />
+            Entrega / Frete
+          </button>
+          <button type="button" data-hours-contact="" aria-haspopup="dialog" className={barButton} onClick={() => setOpen('hours')}>
+            <Clock className="size-4" />
+            Horários e Contato
+          </button>
+        </div>
+      </div>
       {open === 'password' && <ChangePassword onClose={() => setOpen(null)} />}
       {open === 'backup' && <BackupRestore onClose={() => setOpen(null)} />}
+      {open === 'delivery' && <DeliverySettingsModal onClose={() => setOpen(null)} />}
+      {open === 'hours' && <StoreHoursContactModal onClose={() => setOpen(null)} />}
     </div>
   )
 }

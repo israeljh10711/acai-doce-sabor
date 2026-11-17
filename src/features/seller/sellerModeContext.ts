@@ -3,7 +3,8 @@ import type { AnyChange, ChangeKind } from '../../services/sellerCatalogStore.ts
 
 /** O que o vendedor pode editar: um item das seções, um dos 4 produtos ou um complemento. */
 export type EditTarget =
-  | { kind: 'item'; id: string | null; drawer?: string }
+  /** `copyOf`: "Duplicar" (pedido de 2026-11-17), cadastro novo preenchido com esse item. */
+  | { kind: 'item'; id: string | null; drawer?: string; copyOf?: string }
   | { kind: 'product'; id: string }
   | { kind: 'topping'; id: string | null; group?: string }
   /** Nome (e subtítulo) de uma seção, ou o título do grupo "Monte do seu jeito" (`monte`). */

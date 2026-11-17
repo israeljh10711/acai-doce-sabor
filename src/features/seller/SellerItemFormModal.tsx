@@ -5,7 +5,7 @@ import { BASE_CATEGORIES, findCategoryBySlug } from '../catalog/categories.ts'
 import type { ItemChange, ProductChange, ProductSizeEntry, SectionChange, SizeEntry, ToppingChange } from '../catalog/catalogChanges.ts'
 import { MONTE_TITLE } from '../catalog/catalogNav.ts'
 import { getCatalogChanges } from '../catalog/catalogStore.ts'
-import { BASE_EXTRA_ITEMS, DRAWERS, type DrawerId, drawerById, getExtraItem } from '../catalog/extras.ts'
+import { BASE_EXTRA_ITEMS, DRAWERS, type DrawerId, type ExtraItem, drawerById, getExtraItem } from '../catalog/extras.ts'
 import { BASE_TOPPINGS, PRODUCTS, TOPPING_GROUPS, type ToppingGroupId, getTopping } from '../catalog/menu.ts'
 import { catalogPhotoSrc, ingredientPhoto } from '../catalog/photos.ts'
 import { compressPhoto } from './photo.ts'
@@ -30,7 +30,7 @@ export function SellerItemFormModal({ target, onClose }: { target: EditTarget; o
   if (target.kind === 'product') return <ProductForm slug={target.id} onClose={onClose} />
   if (target.kind === 'topping') return <ToppingForm id={target.id} group={target.group} onClose={onClose} />
   if (target.kind === 'section') return <SectionForm id={target.id} onClose={onClose} />
-  return <ItemForm id={target.id} drawer={target.drawer} onClose={onClose} />
+  return <ItemForm id={target.id} drawer={target.drawer} copyOf={target.copyOf} onClose={onClose} />
 }
 
 /* "Tamanhos e Preços (Opcional)": linhas de nome e preço (e, nos açaís, adicionais grátis). */
@@ -286,33 +286,46 @@ function DangerZone({ canDelete, canRestore, onDelete, onRestore, busy }: { canD
 
 /* Item das seções (e os 5 destaques) */
 
-function ItemForm({ id, drawer, onClose }: { id: string | null; drawer?: string; onClose: () => void }) {
+const flavorGroupOf = (entry?: ExtraItem) => (entry?.action.type === 'flavor_modal' ? entry.action.choices.find((group) => !group.prices) : undefined)
+const sizeGroupOf = (entry?: ExtraItem) => (entry?.action.type === 'flavor_modal' ? entry.action.choices.find((group) => group.prices) : undefined)
+
+function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?: string; copyOf?: string; onClose: () => void }) {
   const seller = useSellerMode()
   const uid = useId()
   const item = id ? getExtraItem(id) : undefined
+  // "Duplicar" (pedido de 2026-11-17): cadastro novo, preenchido com o item de origem, sem a foto.
+  const copy = !item && copyOf ? getExtraItem(copyOf) : undefined
+  const source = item ?? copy
   const saved = id ? getCatalogChanges().items[id] : undefined
   const isBase = id ? BASE_EXTRA_ITEMS.some((candidate) => candidate.id === id) : false
   const customizer = item?.action.type === 'customizer'
-  const firstGroup = item?.action.type === 'flavor_modal' ? item.action.choices.find((group) => !group.prices) : undefined
+  // Para saber o que mudou, compara com o próprio item (num item novo, grava tudo o que tiver).
+  const firstGroup = flavorGroupOf(item)
+  const sizeGroup = sizeGroupOf(item)
+  const startSizes = sizeGroupOf(source)
 
-  const [name, setName] = useState(item?.name ?? '')
-  const [price, setPrice] = useState(item ? formatPriceInput(item.priceCents) : '')
-  const [oldPrice, setOldPrice] = useState(item?.originalPriceCents ? formatPriceInput(item.originalPriceCents) : '')
-  const [description, setDescription] = useState(item?.description ?? '')
-  const [section, setSection] = useState<DrawerId>((item?.drawer ?? drawer ?? DRAWERS[0].id) as DrawerId)
-  const [flavors, setFlavors] = useState(firstGroup?.options.join(', ') ?? '')
-  const [available, setAvailable] = useState(item?.available !== false)
+  const [name, setName] = useState(item?.name ?? (copy ? `${copy.name} (Cópia)` : ''))
+  const [price, setPrice] = useState(source ? formatPriceInput(source.priceCents) : '')
+  const [oldPrice, setOldPrice] = useState(source?.originalPriceCents ? formatPriceInput(source.originalPriceCents) : '')
+  const [description, setDescription] = useState(source?.description ?? '')
+  const [section, setSection] = useState<DrawerId>((source?.drawer ?? drawer ?? DRAWERS[0].id) as DrawerId)
+  const [flavors, setFlavors] = useState(flavorGroupOf(source)?.options.join(', ') ?? '')
+  const [available, setAvailable] = useState(source?.available !== false)
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [errors, setErrors] = useState<{ name?: string; price?: string; oldPrice?: string; sizes?: string }>({})
-  const sizeGroup = item?.action.type === 'flavor_modal' ? item.action.choices.find((group) => group.prices) : undefined
   const [sizeRows, setSizeRows] = useState<SizeRow[]>(() =>
-    (sizeGroup?.options ?? []).map((option) => ({ key: rowKey(), name: option, price: formatPriceInput(sizeGroup?.prices?.[option] ?? 0), free: '0' })),
+    (startSizes?.options ?? []).map((option) => ({ key: rowKey(), name: option, price: formatPriceInput(startSizes?.prices?.[option] ?? 0), free: '0' })),
   )
   const hasSizes = sizeRows.length > 0
   const submit = useSubmit(onClose)
 
   return (
-    <SellerDialog title={item ? `Editar: ${item.name}` : 'Adicionar produto'} titleId={`${uid}-titulo`} onClose={onClose} wide>
+    <SellerDialog
+      title={item ? `Editar: ${item.name}` : copy ? `Duplicar Item — ${copy.name} (Cópia)` : 'Adicionar produto'}
+      titleId={`${uid}-titulo`}
+      onClose={onClose}
+      wide
+    >
       <form
         noValidate
         className="flex flex-col gap-4 pb-2"
