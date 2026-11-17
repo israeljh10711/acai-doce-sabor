@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PRODUCTS } from '../catalog/menu.ts'
+import { PRODUCTS, getTopping } from '../catalog/menu.ts'
 import { EMPTY_SELECTION, applyComplete, chooseFlavor, chooseSize, removeTopping } from '../catalog/selection.ts'
 import { productSummary } from '../configurator-core/confirmSummary.ts'
 import { buildOrderMessage } from '../orders/orderMessage.ts'
@@ -27,10 +27,10 @@ describe('Completo no carrinho, na confirmação e no WhatsApp (pedido de 2026-1
   })
 
   it('sem a marca do Completo, a revalidação aplica a cota de sempre (carrinho antigo continua igual)', () => {
-    const { complete: _ignored, ...plain } = ocaCompleta()
-    const normalized = normalizeSelection('acai-oca', plain)!
+    const normalized = normalizeSelection('acai-oca', { ...ocaCompleta(), complete: undefined })!
     expect(normalized.complete).toBeFalsy()
-    expect(Object.entries(normalized.toppings).filter(([id]) => PRODUCTS['acai-oca'].groups && ['leite-em-po', 'granola', 'pacoca'].includes(id))).toHaveLength(2)
+    // O pote de 200 ml tem 2 adicionais grátis: só os 2 primeiros ficam.
+    expect(Object.keys(normalized.toppings).filter((id) => getTopping(id)?.group === 'dry')).toEqual(['leite-em-po', 'granola'])
   })
 
   it('resumo: "COMPLETO (todos os acompanhamentos)", e os cremes sem "+ R$ 3,00"', () => {
