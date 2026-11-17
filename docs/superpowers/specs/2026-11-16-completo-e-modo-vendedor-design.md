@@ -128,3 +128,33 @@ Pedidos de 2026-11-16, em três mensagens:
   - complemento novo que entra no Completo;
   - preço editado chegando ao carrinho e ao WhatsApp;
   - esgotado e backup.
+
+## Decisões tomadas na execução
+
+- **Ordem do Completo:** `applyComplete` põe primeiro os itens pagos já escolhidos e depois os do Completo. A mensagem segue a ordem do cardápio, então a ordem guardada não muda nada.
+- **Subtítulo da barra com o Completo ligado:** "Pelo preço do tamanho, sem custo extra." O aviso pedido vem logo abaixo, sem repetir o texto.
+- **Tipo `Category`:** deixou de ser `as const`, porque nome e descrição passaram a ser editáveis. Os slugs e os selos continuam literais.
+- **Ofertas:** o sorteio usa a lista base de ids, e o texto é refeito com o cardápio atual. A oferta de item excluído ou esgotado não aparece.
+- **Senha:**
+  - local, com no mínimo 4 caracteres (a inicial do pedido tem 4);
+  - no Supabase, no mínimo 6 caracteres.
+- **"+ Adicionar produto":** só nas 5 seções. Nos 4 produtos montáveis há só "Editar".
+- **Nome da chave:** aceita `VITE_SUPABASE_ANON_KEY` (o pedido) ou `VITE_SUPABASE_PUBLISHABLE_KEY` (o `.env.example` da Fase 0).
+- **SQL:** fica em `supabase/migrations/`, pasta que já existia.
+- **Login do Supabase:** confere também a tabela `sellers`. Uma conta que não é de vendedor não entra, mesmo com a senha certa.
+- **Restaurar backup no Supabase:** sobe as fotos do aparelho e deixa o banco igual ao backup.
+
+## Ajuste pedido em 2026-11-16 (manhã): "Completo sem caldas e cremes; senha vendedor2026; tamanhos e nomes de categoria"
+
+- **Completo, nova regra:** marca só os adicionais e as frutas sem custo (preço 0 e disponíveis). Caldas, cremes e itens pagos ficam de fora.
+  - O pedido cita "Leite Condensado" entre as caldas: o adicional leite condensado também fica fora do Completo.
+  - Calda, creme ou item pago marcado pelo cliente soma o preço dele também no Completo. Exemplo: tamanho de R$ 15,00 + Completo + creme de avelã + creme de ninho = R$ 21,00.
+- **Montagem no carrinho e no WhatsApp:**
+  - "Montagem: COMPLETO" ou "COMPLETO (SEM: …)", depois a lista do que está incluído;
+  - em seguida, "Extras / Cremes e Caldas pagos: …" com o valor de cada item pago.
+- **Senha:** a senha inicial do modo vendedor passa a ser a nova do pedido. Uma senha antiga guardada no aparelho é trocada pela nova.
+- **Tamanhos em qualquer produto (seção "Tamanhos e Preços (Opcional)"):**
+  - itens das seções: cada linha tem nome e preço, com "+ Adicionar tamanho" e a lixeira; viram a escolha "Tamanho" com preço por opção. O cartão mostra "a partir de"; sem tamanhos, vale o preço único;
+  - os 4 produtos: nome, preço e (nos açaís) adicionais grátis. O recipiente vem do nome ("Copo…", "Isopor…", "Barca…") ou, sem ele, do recipiente dos tamanhos que já existem;
+  - Pote 1 L e Barca continuam com um tamanho só (o preço do item).
+- **Renomear categorias:** "Renomear" ao lado do título das 5 seções e do grupo "Monte do seu jeito", com nome e subtítulo. O novo nome aparece no título, na barra lateral, nos botões do celular e no menu. Gravado como mudança do tipo `sections` (aparelho ou Supabase).

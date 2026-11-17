@@ -197,3 +197,42 @@
   - sair.
 - [ ] As conferências antigas continuam passando.
 - [ ] `npm run lint`, `npm test`, `npm run build`, commit, Obsidian e servidor no ar. Dizer onde colar a URL e a chave.
+
+## Ajuste de 2026-11-16 (manhã): tarefas 10 a 14
+
+### Task 10: Completo v2
+`selection.ts`:
+- `COMPLETE_GROUPS = ['dry', 'fruit']`, só preço 0 e disponível, sem `leite-condensado`;
+- no Completo, caldas e cremes são cobrados normalmente; o limite de 1 por item vale só para os itens do Completo;
+- `completeLabel` passa a dar "COMPLETO" ou "COMPLETO (SEM: …)".
+
+Testes em `completo.test.ts`, `configurator.test.ts` e `cartCompleto.test.ts`:
+- Barca: 15 itens;
+- Oca 200 ml: 15 itens;
+- 15,00 + Completo + avelã + ninho = 21,00.
+
+### Task 11: Extras no carrinho e no WhatsApp
+- `summarizeSelection` e `describeItem` do Completo: a lista dos pagos fica à parte.
+- A mensagem traz "• Extras / Cremes e Caldas pagos: Creme de avelã (+ R$ 3,00), …".
+
+### Task 12: Senha nova
+- `INITIAL_PASSWORD_HASH` da senha nova.
+- Migração: um hash antigo guardado igual ao da senha anterior é apagado.
+- Testes.
+
+### Task 13: Tamanhos
+- `ItemChange.sizes` vira a escolha "tamanho" com `prices`, e o `priceCents` passa a ser o menor preço.
+- `ProductChange.sizes` (id, nome, preço, grátis, recipiente) troca a lista de tamanhos, mantendo os ids.
+- Formulário com "Tamanhos e Preços (Opcional)".
+- Testes.
+
+### Task 14: Renomear categorias
+- Tipo `sections` (seção e `monte`).
+- `DRAWERS` vira ligação viva; o título do grupo "Monte do seu jeito" fica editável.
+- Botão "Renomear" e mini-janela.
+- SQL aceita `sections`.
+- Testes.
+
+### Task 15: Conferências e fechamento
+- `check-completo` e `check-vendedor` atualizados.
+- Suíte inteira, build, Obsidian, servidor.
