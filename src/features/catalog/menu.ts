@@ -56,6 +56,11 @@ export type Topping = {
   look?: string
   /** Só estes produtos oferecem o item, mesmo que aceitem o grupo dele. */
   onlyIn?: readonly ProductSlug[]
+  /**
+   * `false` quando o vendedor marcou o item como esgotado (modo vendedor, 2026-11-16): ele aparece
+   * desligado no personalizador e o Completo não o marca. Sem o campo, disponível.
+   */
+  available?: boolean
 }
 
 export type Flavor = {
@@ -94,6 +99,11 @@ export type Product = {
    * Sem limite, todos os do grupo.
    */
   groupLimits?: Partial<Readonly<Record<ToppingGroupId, number>>>
+  /**
+   * Tem o botão "Completo" (pedido de 2026-11-16): marca todos os adicionais, frutas e caldas e
+   * cremes pelo preço do tamanho. Só os 4 açaís montáveis.
+   */
+  completo?: true
 }
 
 /**
@@ -186,6 +196,7 @@ const ACAI_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit', 'syrup', 'paid']
 export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
   'acai-oca': {
     slug: 'acai-oca',
+    completo: true,
     name: 'Açaí Oca',
     groups: ACAI_GROUPS,
     flavors: [],
@@ -203,6 +214,7 @@ export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
 
   'acai-tradicional': {
     slug: 'acai-tradicional',
+    completo: true,
     name: 'Açaí Tradicional',
     groups: ACAI_GROUPS,
     flavors: [],
@@ -266,6 +278,7 @@ export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
   // R$ 30,00 (antes R$ 33,00). Os mesmos grupos de ingredientes dos outros açaís.
   'pote-de-acai-1-litro': {
     slug: 'pote-de-acai-1-litro',
+    completo: true,
     name: 'Pote de Açaí 1 Litro Montado',
     groups: ACAI_GROUPS,
     flavors: [],
@@ -277,6 +290,7 @@ export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
   // pagos continuam à parte, como antes.
   'barca-de-acai': {
     slug: 'barca-de-acai',
+    completo: true,
     name: 'Barca de Açaí',
     groups: ['dry', 'fruit', 'paid'],
     groupLimits: { fruit: 2 },

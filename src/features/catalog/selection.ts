@@ -22,6 +22,11 @@ export type Selection = {
   flavorId: string | null
   /** Unidades de cada ingrediente, na ordem em que foram escolhidos. */
   toppings: Readonly<Record<string, number>>
+  /**
+   * Montagem "Completo" (pedido de 2026-11-16): todos os adicionais, frutas e caldas e cremes, 1 de
+   * cada, pelo preço do tamanho, sem cota. Sem o campo (ou `false`), valem as regras de sempre.
+   */
+  complete?: boolean
 }
 
 export const EMPTY_SELECTION: Selection = Object.freeze({
@@ -91,6 +96,9 @@ export function addBlocker(
   if (!topping || !offers(product, topping)) return 'not-in-product'
 
   const quantity = quantityOf(selection, toppingId)
+  // Completo: os grupos dele vão 1 de cada, sem cota nem limite do grupo.
+  if (selection.complete && inComplete(product, topping)) return quantity >= 1 ? 'item-max' : null
+
   switch (ruleOf(topping)) {
     case 'limited':
       if (quantity >= MAX_PAID_UNITS) return 'item-max'
@@ -141,6 +149,8 @@ export function chooseSize(
 ): { selection: Selection; removed: RemovedTopping[] } {
   const size = product.sizes.find((candidate) => candidate.id === sizeId)
   if (!size) return { selection, removed: [] }
+  // No Completo não há cota: nada sai ao trocar de tamanho.
+  if (selection.complete) return { selection: { ...selection, sizeId }, removed: [] }
 
   const toppings = { ...selection.toppings }
   const removed: RemovedTopping[] = []
@@ -210,7 +220,9 @@ export function priceOf(product: Product, selection: Selection): Price | null {
   if (!size) return null
 
   // Todo item com preço entra: os adicionais pagos, os do batido e os cremes das caldas e cremes.
-  const paidLines = product.groups.flatMap((group) =>
+  // No Completo, os grupos dele (com os cremes) já estão no preço do tamanho.
+  const charged = selection.complete ? product.groups.filter((group) => !COMPLETE_GROUPS.includes(group)) : product.groups
+  const paidLines = charged.flatMap((group) =>
     pricedByGroup(product, selection, group).map(({ topping, quantity }) => ({
       toppingId: topping.id,
       name: topping.name,
@@ -234,4 +246,64 @@ export function missingChoices(product: Product, selection: Selection): MissingC
     missing.push('flavor')
   }
   return missing
+}
+
+/*
+ * Botão "Completo" (pedido de 2026-11-16): na loja, o cliente pede "completo", paga o preço do
+ * tamanho e diz o que não quer. Só nos produtos com `completo` (Oca, Tradicional, Pote 1 L e Barca).
+ */
+
+/** Grupos que o Completo marca: adicionais, frutas e caldas e cremes. Os pagos ficam de fora. */
+export const COMPLETE_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit', 'syrup']
+
+const inComplete = (product: Product, topping: Topping) =>
+  Boolean(product.completo) && COMPLETE_GROUPS.includes(topping.group)
+
+/** O que o Completo marca no produto, na ordem do cardápio: tudo dos grupos dele, menos o esgotado. */
+export function completeToppings(product: Product): readonly Topping[] {
+  if (!product.completo) return []
+  return COMPLETE_GROUPS.flatMap((group) => toppingsOf(product, group)).filter((topping) => topping.available !== false)
+}
+
+/**
+ * Marca tudo (1 de cada) e liga o modo Completo. Mantém tamanho, sabor e os itens pagos já
+ * escolhidos; também serve para "Marcar tudo novamente".
+ */
+export function applyComplete(product: Product, selection: Selection): Selection {
+  if (!product.completo) return selection
+  const marked = new Set(completeToppings(product).map((topping) => topping.id))
+  const toppings: Record<string, number> = {}
+  // Primeiro os itens pagos já escolhidos (fora do Completo), depois tudo o que ele marca.
+  for (const [id, quantity] of Object.entries(selection.toppings)) {
+    const topping = getTopping(id)
+    if (topping && !inComplete(product, topping)) toppings[id] = quantity
+  }
+  for (const id of marked) toppings[id] = 1
+  return { ...selection, toppings, complete: true }
+}
+
+/** "Limpar": tira os acompanhamentos (e os pagos) e volta ao modo normal; tamanho e sabor ficam. */
+export function clearToppings(selection: Selection): Selection {
+  return { ...selection, toppings: {}, complete: false }
+}
+
+/** Desliga o modo Completo quando o cliente tirou tudo o que ele marcou. */
+export function settleComplete(product: Product, selection: Selection): Selection {
+  if (!selection.complete) return selection
+  const left = Object.keys(selection.toppings).some((id) => {
+    const topping = getTopping(id)
+    return topping !== undefined && inComplete(product, topping)
+  })
+  return left ? selection : { ...selection, complete: false }
+}
+
+/** O que o cliente tirou do Completo ("COMPLETO (SEM: Farinha láctea)"), na ordem do cardápio. */
+export function completeOmitted(product: Product, selection: Selection): readonly Topping[] {
+  if (!selection.complete) return []
+  return completeToppings(product).filter((topping) => quantityOf(selection, topping.id) === 0)
+}
+
+/** Tudo o que o Completo marca está marcado (o botão vira "Completo aplicado"). */
+export function isCompleteFull(product: Product, selection: Selection): boolean {
+  return Boolean(selection.complete) && completeOmitted(product, selection).length === 0
 }
