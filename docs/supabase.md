@@ -1,6 +1,10 @@
 # Ligar o modo vendedor ao Supabase
 
-Com o Supabase ligado, o que o vendedor muda no site (preço, foto, esgotado, produto ou complemento novo) chega a todos os clientes. Sem ele, as mudanças ficam só no aparelho em que foram feitas.
+Com o Supabase ligado, o que o vendedor muda no site chega a todos os clientes:
+- preço, foto, esgotado, produto ou complemento novo;
+- desde 2026-11-17, também loja aberta ou fechada, tempo de entrega, entrega e frete, e horários e contato.
+
+Sem ele, as mudanças ficam só no aparelho em que foram feitas.
 
 O plano gratuito do Supabase basta. Não cadastre cartão de crédito.
 
@@ -14,6 +18,8 @@ O plano gratuito do Supabase basta. Não cadastre cartão de crédito.
 
 1. No menu da esquerda, abra **SQL Editor** e clique em **New query**.
 2. Copie todo o arquivo `supabase/migrations/20261116000000_modo_vendedor.sql` deste projeto, cole e clique em **Run**. Deve aparecer "Success".
+
+Se você já rodou este arquivo antes de 2026-11-17, rode de novo: ele passou a aceitar as configurações da loja (o tipo `settings`). Rodar de novo não apaga nada.
 
 ## 3. Criar a conta do vendedor
 
@@ -55,6 +61,7 @@ O `.env.local` não vai para o Git. Depois de salvar, reinicie o site (`npm run 
 1. Abra o cardápio, clique em **Senha para vendedor** e entre com a senha do passo 3.3.
 2. A faixa do topo deve dizer "Salvo na nuvem: vale para todos os clientes".
 3. Mude o preço de um item e abra o site em outro aparelho: o preço novo aparece. Em quem já está com a página aberta, aparece em até 1 minuto ou ao voltar para a aba.
+4. Toque em **Loja Aberta** para fechar a loja: no outro aparelho, o topo passa a mostrar "Loja fechada no momento". Toque de novo para abrir.
 
 ## Se algo der errado
 

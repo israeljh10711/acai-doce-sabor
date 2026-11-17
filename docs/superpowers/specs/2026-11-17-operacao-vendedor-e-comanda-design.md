@@ -193,3 +193,28 @@ Exemplo com entrega, dinheiro com troco e Completo sem Farinha láctea:
   - **Item com duas ou mais escolhas** (ex.: sorvete com sabor e cobertura): as escolhas vão em linhas abaixo do título; com uma escolha só, vai entre parênteses.
   - **Achado:** o carrinho era lido antes das mudanças do vendedor serem aplicadas, e item criado pelo vendedor sumia do carrinho ao recarregar a página. Agora o carrinho é lido na primeira vez que a tela pede.
   - **Item ou complemento que esgota com o cliente no carrinho:** continua no carrinho, marcado, até o cliente tirar ou editar. Antes, o complemento sumia sem aviso ao recarregar.
+
+## Decisões tomadas na construção
+
+- **Cores com contraste:**
+  - o verde de "Disponível" e de "Loja Aberta" é um tom mais escuro que o pedido (emerald-700 no lugar de 600 e 500);
+  - o texto do "Duplicar" também (gray-600 no lugar de 500);
+  - nos tons pedidos, o texto não passa no contraste mínimo de leitura (AA).
+- **Selo do cabeçalho:**
+  - dentro da barra só a partir de 1024 px;
+  - abaixo disso, na linha fina embaixo do cabeçalho, porque a 768 px a logo, o selo e o menu não cabem lado a lado.
+- **Posição da pílula "Disponível / Esgotado":**
+  - nos itens, no canto de baixo à direita da foto no celular, e no de cima a partir de 640 px;
+  - nos 4 produtos, ao lado ou abaixo do "Editar", porque o canto de cima à direita já tem o preço;
+  - nos complementos, abaixo do nome.
+- **"Tempo":** abre uma janela com os 4 prazos (1 toque em cada) e o campo de outro prazo. Na faixa do celular não cabem 5 botões soltos.
+- **"Com a loja fechada" (antecipado ou bloquear):** fica em "Horários e Contato", junto com o horário.
+- **Interruptor:**
+  - mostra até quando vale ("Fechada até amanhã às 13h");
+  - tocar em "Abrir" dentro do horário só volta ao horário.
+- **Tamanho dos botões:**
+  - "+ Observação" e os botões do aviso de esgotado no carrinho têm 44 px de altura, o padrão de toque do projeto;
+  - as ferramentas só do vendedor seguem o tamanho dos outros botões do vendedor.
+- **Correção encontrada no caminho:** o carrinho guardado era lido antes das mudanças do vendedor, e um item criado pelo vendedor sumia do carrinho ao recarregar. Agora o carrinho é lido na primeira vez que a tela pede.
+- **Supabase:** o SQL de `supabase/migrations/` passou a aceitar o tipo `settings`. Quem já rodou o arquivo roda de novo; isso não apaga nada.
+
