@@ -28,6 +28,9 @@ export type OrderMessageInfo = {
   code?: string
 }
 
+/** Linha dos itens pagos de uma montagem Completo (ajuste de 2026-11-16). */
+const PAID_EXTRAS_LABEL = 'Extras / Cremes e Caldas pagos'
+
 export function buildOrderMessage(cart: Cart, payment: Payment, { code }: OrderMessageInfo = {}): string {
   const totalCents = cartTotalCents(cart)
   const lines: string[] = ['*NOVO PEDIDO — AÇAÍ DOCE SABOR* 🍨']
@@ -64,6 +67,18 @@ function itemLines(item: CartItem): string[] {
   // Completo (pedido de 2026-11-16): logo abaixo do título, com o que o cliente tirou.
   if (summary.montagem) lines.push(`• Montagem: ${summary.montagem}`)
   if (summary.flavorName) lines.push(`• ${summary.flavorLabel}: ${summary.flavorName}`)
+  if (summary.montagem) {
+    // Completo (ajuste de 2026-11-16): o que está incluído por grupo e, à parte, cada item pago
+    // com o valor dele, para a equipe montar e cobrar certo.
+    const paid: string[] = []
+    for (const section of summary.sections) {
+      const free = section.items.filter((choice) => choice.totalCents === 0)
+      paid.push(...section.items.filter((choice) => choice.totalCents > 0).map(choiceText))
+      if (free.length > 0) lines.push(`• ${MESSAGE_GROUP_LABELS[section.group] ?? section.label}: ${free.map(choiceText).join(', ')}`)
+    }
+    if (paid.length > 0) lines.push(`• ${PAID_EXTRAS_LABEL}: ${paid.join(', ')}`)
+    return lines
+  }
   for (const section of summary.sections) {
     const label = MESSAGE_GROUP_LABELS[section.group] ?? section.label
     lines.push(`• ${label}: ${section.items.map(choiceText).join(', ')}`)

@@ -93,15 +93,15 @@ describe('Completo e Limpar no personalizador (pedido de 2026-11-16)', () => {
   it('"Completo" marca tudo, não fecha nada e anuncia quantos itens', () => {
     const state = run(barca, [{ type: 'size', sizeId: 'barca' }, { type: 'complete' }])
     expect(state.selection.complete).toBe(true)
-    expect(Object.keys(state.selection.toppings)).toHaveLength(16)
-    expect(state.announcement).toBe('Completo aplicado: 16 itens marcados, pelo preço do tamanho.')
+    expect(Object.keys(state.selection.toppings)).toHaveLength(15)
+    expect(state.announcement).toBe('Completo aplicado: 15 itens marcados, pelo preço do tamanho.')
   })
 
   it('tirar a Farinha láctea depois do Completo mantém o Completo e os outros itens', () => {
     const state = run(barca, [{ type: 'complete' }, { type: 'remove', toppingId: 'farinha-lactea' }])
     expect(state.selection.complete).toBe(true)
     expect(state.selection.toppings['farinha-lactea']).toBeUndefined()
-    expect(Object.keys(state.selection.toppings)).toHaveLength(15)
+    expect(Object.keys(state.selection.toppings)).toHaveLength(14)
     expect(state.announcement).toBe('Você tirou Farinha láctea. O Completo continua, sem Farinha láctea.')
   })
 

@@ -4,8 +4,8 @@ import type { ConfiguratorApi } from './useConfigurator.ts'
 /**
  * Barra "Quer rechear tudo de uma vez?" (pedido de 2026-11-16), acima dos ingredientes da Barca,
  * do Pote 1 L Montado, do Açaí Oca e do Açaí Tradicional:
- * - "Completo" marca todos os adicionais, frutas e caldas e cremes (1 de cada) pelo preço do
- *   tamanho, e o cliente continua aqui para tirar o que não quiser;
+ * - "Completo" marca os adicionais e as frutas sem custo (1 de cada) pelo preço do tamanho, e o
+ *   cliente continua aqui para tirar o que não quiser; caldas, cremes e pagos somam à parte;
  * - depois de tirar algo, o botão vira "Marcar tudo novamente";
  * - "Limpar" tira tudo e volta ao modo normal, com a cota de sempre.
  */
@@ -25,7 +25,9 @@ export function CompleteBar({ cfg }: { cfg: ConfiguratorApi }) {
             Quer rechear tudo de uma vez?
           </h2>
           <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">
-            {active ? 'Pelo preço do tamanho, sem custo extra.' : 'Toque em Completo para marcar tudo e depois tire o que não quiser.'}
+            {active
+              ? 'Adicionais e frutas no preço do tamanho; caldas, cremes e itens pagos somam à parte.'
+              : 'Toque em Completo para marcar tudo e depois tire o que não quiser.'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

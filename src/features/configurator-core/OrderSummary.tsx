@@ -7,7 +7,7 @@ import { cartActions } from '../cart/cartStore.ts'
 import { ProductVisual } from '../catalog/ItemVisual.tsx'
 import { type Product, TOPPING_GROUPS, flavorTermOf } from '../catalog/menu.ts'
 import { productInfo } from '../catalog/productInfo.ts'
-import { COMPLETE_GROUPS, freeByGroup, selectedByGroup } from '../catalog/selection.ts'
+import { freeByGroup } from '../catalog/selection.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import { ConfirmItemDialog } from './ConfirmItemDialog.tsx'
 import { productSummary } from './confirmSummary.ts'
@@ -64,11 +64,7 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
             )}
 
             {freeGroups.map((group) => {
-              // No Completo, os cremes também entram sem custo.
-              const items =
-                cfg.selection.complete && COMPLETE_GROUPS.includes(group)
-                  ? selectedByGroup(product, cfg.selection, group)
-                  : freeByGroup(product, cfg.selection, group)
+              const items = freeByGroup(product, cfg.selection, group)
               if (items.length === 0) return null
               return (
                 <p key={group} className="text-sm text-ink-soft">

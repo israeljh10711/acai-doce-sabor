@@ -19,18 +19,35 @@ export type ConfirmSummary = {
   unitCents: number
 }
 
+/**
+ * Completo (pedido de 2026-11-16, ajustado no mesmo dia): a montagem primeiro, depois o que está
+ * incluído por grupo e, à parte, os itens pagos com o valor de cada um.
+ */
+function completoRows(summary: ReturnType<typeof summarizeSelection>): { label: string; value: string }[] {
+  const rows = [{ label: 'Montagem', value: summary.montagem ?? '' }]
+  if (summary.flavorName) rows.push({ label: summary.flavorLabel, value: summary.flavorName })
+  const paid: string[] = []
+  for (const section of summary.sections) {
+    const free = section.items.filter((choice) => choice.totalCents === 0)
+    paid.push(...section.items.filter((choice) => choice.totalCents > 0).map(choiceText))
+    if (free.length > 0) rows.push({ label: section.label, value: list.format(free.map(choiceText)) })
+  }
+  if (paid.length > 0) rows.push({ label: 'Extras / Cremes e Caldas pagos', value: list.format(paid) })
+  return rows
+}
+
 /** Resumo de um produto montado no personalizador. */
 export function productSummary(slug: ProductSlug, selection: Selection): ConfirmSummary {
   const summary = summarizeSelection(slug, selection)
   return {
     eyebrow: summary.sizeLabel ? 'Produto e tamanho' : 'Produto',
     title: summary.sizeLabel ? `${summary.productName} — ${summary.sizeLabel}` : summary.productName,
-    rows: [
-      // Completo (pedido de 2026-11-16): a montagem vem primeiro, para a equipe não errar.
-      ...(summary.montagem ? [{ label: 'Montagem', value: summary.montagem }] : []),
-      ...(summary.flavorName ? [{ label: summary.flavorLabel, value: summary.flavorName }] : []),
-      ...summary.sections.map((section) => ({ label: section.label, value: list.format(section.items.map(choiceText)) })),
-    ],
+    rows: summary.montagem
+      ? completoRows(summary)
+      : [
+          ...(summary.flavorName ? [{ label: summary.flavorLabel, value: summary.flavorName }] : []),
+          ...summary.sections.map((section) => ({ label: section.label, value: list.format(section.items.map(choiceText)) })),
+        ],
     emptyText: 'Sem adicionais, frutas nem caldas.',
     unitCents: summary.unitCents,
   }

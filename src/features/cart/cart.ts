@@ -27,7 +27,6 @@ import {
   EMPTY_SELECTION,
   type PriceLine,
   type Selection,
-  COMPLETE_GROUPS,
   addTopping,
   chooseFlavor,
   chooseSize,
@@ -253,11 +252,7 @@ export function describeItem(item: ProductCartItem): ItemDescription {
     included: freeGroups
       .map((group) => ({
         group: TOPPING_GROUPS[group].name,
-        // No Completo, os cremes também entram sem custo.
-        items: (item.selection.complete && COMPLETE_GROUPS.includes(group)
-          ? selectedByGroup(product, item.selection, group)
-          : freeByGroup(product, item.selection, group)
-        ).map(({ topping, quantity }) =>
+        items: freeByGroup(product, item.selection, group).map(({ topping, quantity }) =>
           quantity > 1 ? `${quantity}x ${topping.name}` : topping.name,
         ),
       }))
@@ -323,8 +318,7 @@ export function summarizeSelection(slug: ProductSlug, selection: Selection): Sel
         items: selectedByGroup(product, selection, group).map(({ topping, quantity }) => ({
           name: topping.name,
           quantity,
-          // No Completo, os grupos dele já estão no preço do tamanho (os cremes também).
-          totalCents: selection.complete && COMPLETE_GROUPS.includes(group) ? 0 : topping.priceCents * quantity,
+          totalCents: topping.priceCents * quantity,
         })),
       }))
       .filter((section) => section.items.length > 0),

@@ -142,6 +142,9 @@ function ProductLine({ item, onRemove }: { item: ProductCartItem; onRemove: () =
           <span className="font-semibold text-acai-800">{group}:</span> {items.join(', ')}
         </p>
       ))}
+      {description.montagem && description.paid.length > 0 && (
+        <p className="mt-1 text-sm font-semibold text-acai-800">Extras / Cremes e Caldas pagos:</p>
+      )}
       {description.paid.map((line) => (
         <p key={line.toppingId} className="mt-0.5 flex justify-between gap-3 text-sm text-ink-soft">
           <span>

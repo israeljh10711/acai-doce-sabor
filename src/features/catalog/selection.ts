@@ -23,8 +23,9 @@ export type Selection = {
   /** Unidades de cada ingrediente, na ordem em que foram escolhidos. */
   toppings: Readonly<Record<string, number>>
   /**
-   * Montagem "Completo" (pedido de 2026-11-16): todos os adicionais, frutas e caldas e cremes, 1 de
-   * cada, pelo preço do tamanho, sem cota. Sem o campo (ou `false`), valem as regras de sempre.
+   * Montagem "Completo" (pedido de 2026-11-16, ajustado no mesmo dia): os adicionais e as frutas sem
+   * custo, 1 de cada, pelo preço do tamanho, sem cota. Caldas, cremes e itens pagos são cobrados à
+   * parte, como sempre. Sem o campo (ou `false`), valem as regras de sempre.
    */
   complete?: boolean
 }
@@ -98,7 +99,7 @@ export function addBlocker(
   if (topping.available === false) return 'unavailable'
 
   const quantity = quantityOf(selection, toppingId)
-  // Completo: os grupos dele vão 1 de cada, sem cota nem limite do grupo.
+  // Completo: adicionais e frutas vão 1 de cada, sem cota nem limite do grupo.
   if (selection.complete && inComplete(product, topping)) return quantity >= 1 ? 'item-max' : null
 
   switch (ruleOf(topping)) {
@@ -221,10 +222,9 @@ export function priceOf(product: Product, selection: Selection): Price | null {
   const size = selectedSize(product, selection)
   if (!size) return null
 
-  // Todo item com preço entra: os adicionais pagos, os do batido e os cremes das caldas e cremes.
-  // No Completo, os grupos dele (com os cremes) já estão no preço do tamanho.
-  const charged = selection.complete ? product.groups.filter((group) => !COMPLETE_GROUPS.includes(group)) : product.groups
-  const paidLines = charged.flatMap((group) =>
+  // Todo item com preço entra: os adicionais pagos, os do batido e os cremes das caldas e cremes,
+  // também no Completo (ajuste de 2026-11-16: marcar item pago soma o preço dele).
+  const paidLines = product.groups.flatMap((group) =>
     pricedByGroup(product, selection, group).map(({ topping, quantity }) => ({
       toppingId: topping.id,
       name: topping.name,
@@ -255,16 +255,25 @@ export function missingChoices(product: Product, selection: Selection): MissingC
  * tamanho e diz o que não quer. Só nos produtos com `completo` (Oca, Tradicional, Pote 1 L e Barca).
  */
 
-/** Grupos que o Completo marca: adicionais, frutas e caldas e cremes. Os pagos ficam de fora. */
-export const COMPLETE_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit', 'syrup']
+/** Grupos do Completo: adicionais e frutas. Caldas, cremes e itens pagos ficam de fora. */
+export const COMPLETE_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit']
 
+/** O ajuste de 2026-11-16 cita o leite condensado entre as caldas: o Completo não o marca. */
+const OUTSIDE_COMPLETE: ReadonlySet<string> = new Set(['leite-condensado'])
+
+/** No Completo, os itens destes grupos vão 1 de cada e sem cota (marcados por ele ou à parte). */
 const inComplete = (product: Product, topping: Topping) =>
   Boolean(product.completo) && COMPLETE_GROUPS.includes(topping.group)
 
-/** O que o Completo marca no produto, na ordem do cardápio: tudo dos grupos dele, menos o esgotado. */
+/**
+ * O que o Completo marca no produto, na ordem do cardápio: os adicionais e as frutas sem custo,
+ * menos os esgotados e o leite condensado.
+ */
 export function completeToppings(product: Product): readonly Topping[] {
   if (!product.completo) return []
-  return COMPLETE_GROUPS.flatMap((group) => toppingsOf(product, group)).filter((topping) => topping.available !== false)
+  return COMPLETE_GROUPS.flatMap((group) => toppingsOf(product, group)).filter(
+    (topping) => topping.available !== false && topping.priceCents === 0 && !OUTSIDE_COMPLETE.has(topping.id),
+  )
 }
 
 /**
@@ -275,10 +284,12 @@ export function applyComplete(product: Product, selection: Selection): Selection
   if (!product.completo) return selection
   const marked = new Set(completeToppings(product).map((topping) => topping.id))
   const toppings: Record<string, number> = {}
-  // Primeiro os itens pagos já escolhidos (fora do Completo), depois tudo o que ele marca.
+  // Primeiro o que já estava escolhido e o Completo não marca (caldas, cremes, pagos, leite
+  // condensado), com no máximo 1 nos adicionais e frutas; depois tudo o que ele marca.
   for (const [id, quantity] of Object.entries(selection.toppings)) {
     const topping = getTopping(id)
-    if (topping && !inComplete(product, topping)) toppings[id] = quantity
+    if (!topping || marked.has(id)) continue
+    toppings[id] = inComplete(product, topping) ? Math.min(quantity, 1) : quantity
   }
   for (const id of marked) toppings[id] = 1
   return { ...selection, toppings, complete: true }
@@ -292,10 +303,7 @@ export function clearToppings(selection: Selection): Selection {
 /** Desliga o modo Completo quando o cliente tirou tudo o que ele marcou. */
 export function settleComplete(product: Product, selection: Selection): Selection {
   if (!selection.complete) return selection
-  const left = Object.keys(selection.toppings).some((id) => {
-    const topping = getTopping(id)
-    return topping !== undefined && inComplete(product, topping)
-  })
+  const left = completeToppings(product).some((topping) => quantityOf(selection, topping.id) > 0)
   return left ? selection : { ...selection, complete: false }
 }
 
@@ -311,14 +319,13 @@ export function isCompleteFull(product: Product, selection: Selection): boolean 
 }
 
 /**
- * Linha da montagem no resumo, na confirmação, no carrinho e no WhatsApp:
- * "COMPLETO (todos os acompanhamentos)" ou "COMPLETO (SEM: Farinha láctea, Granola)".
- * Fora do Completo, `null`.
+ * Linha da montagem no resumo, na confirmação, no carrinho e no WhatsApp: "COMPLETO" ou
+ * "COMPLETO (SEM: Farinha láctea, Granola)". Fora do Completo, `null`.
  */
 export function completeLabel(product: Product, selection: Selection): string | null {
   if (!selection.complete) return null
   const omitted = completeOmitted(product, selection).map((topping) => topping.name)
-  return omitted.length === 0 ? 'COMPLETO (todos os acompanhamentos)' : `COMPLETO (SEM: ${omitted.join(', ')})`
+  return omitted.length === 0 ? 'COMPLETO' : `COMPLETO (SEM: ${omitted.join(', ')})`
 }
 
 /** Quantas unidades de ingredientes estão escolhidas ("18 itens selecionados"). */
