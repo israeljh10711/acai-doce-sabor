@@ -52,7 +52,8 @@ export type Drawer = {
   keywords: readonly string[]
 }
 
-export const DRAWERS: readonly Drawer[] = [
+/** As seções como estão no código (a base das mudanças do vendedor). */
+export const BASE_DRAWERS: readonly Drawer[] = [
   {
     id: 'combos-e-ofertas',
     title: 'Combos e Ofertas',
@@ -730,7 +731,15 @@ export const BASE_EXTRA_ITEMS: readonly ExtraItem[] = [
  */
 export let EXTRA_ITEMS: readonly ExtraItem[] = BASE_EXTRA_ITEMS
 
-const drawersById = new Map(DRAWERS.map((drawer) => [drawer.id, drawer]))
+/** As seções como aparecem agora (o vendedor pode renomear). Ligação viva. */
+export let DRAWERS: readonly Drawer[] = BASE_DRAWERS
+let drawersById = new Map(DRAWERS.map((drawer) => [drawer.id, drawer]))
+
+/** Troca as seções (só `catalogStore.ts` chama). */
+export function setDrawers(drawers: readonly Drawer[]): void {
+  DRAWERS = drawers
+  drawersById = new Map(drawers.map((drawer) => [drawer.id, drawer]))
+}
 let itemsById = new Map(EXTRA_ITEMS.map((item) => [item.id, item]))
 
 /** Troca os itens (só `catalogStore.ts` chama). */

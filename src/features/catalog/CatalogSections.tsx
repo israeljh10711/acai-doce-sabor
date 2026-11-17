@@ -4,7 +4,7 @@ import { ChevronDown } from '../../components/ui/icons.tsx'
 import { type Drawer, type DrawerId, type ExtraItem, flavorCount } from './extras.ts'
 import { type ChooseItem, ItemActionButton, ItemPrice } from './ItemActions.tsx'
 import { ExtraVisual } from './ItemVisual.tsx'
-import { SellerAddButton, SellerEditButton } from '../seller/SellerAccess.tsx'
+import { SellerAddButton, SellerEditButton, SellerRenameButton } from '../seller/SellerAccess.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
 
 type Level = 2 | 3 | 4 | 5
@@ -117,6 +117,7 @@ function CatalogSection({
             <Heading level={level} id={titleId} className="font-display text-xl leading-tight font-black tracking-tight text-acai-800 sm:text-2xl">
               {drawer.title}
             </Heading>
+            <SellerRenameButton id={drawer.id} label={drawer.title} />
             <span className="nums rounded-full bg-acai-100 px-2.5 py-0.5 text-xs font-bold whitespace-nowrap text-acai-800">
               {countText(items.length, searching)}
             </span>

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { BASE_CATEGORIES } from './categories.ts'
+import { BASE_DRAWERS } from './extras.ts'
 import { type CatalogChanges, type CatalogData, NO_CHANGES, applyChanges, parseChanges } from './catalogChanges.ts'
 import { BASE_EXTRA_ITEMS } from './extras.ts'
 import { BASE_PRODUCTS, BASE_TOPPINGS } from './menu.ts'
 
-const BASE: CatalogData = { items: BASE_EXTRA_ITEMS, toppings: BASE_TOPPINGS, products: BASE_PRODUCTS, categories: BASE_CATEGORIES }
+const BASE: CatalogData = { items: BASE_EXTRA_ITEMS, toppings: BASE_TOPPINGS, products: BASE_PRODUCTS, categories: BASE_CATEGORIES, drawers: BASE_DRAWERS, groupTitles: {} }
 const changes = (partial: Partial<CatalogChanges>): CatalogChanges => ({ ...NO_CHANGES, ...partial })
 const item = (data: CatalogData, id: string) => data.items.find((candidate) => candidate.id === id)
 const topping = (data: CatalogData, id: string) => data.toppings.find((candidate) => candidate.id === id)
@@ -134,6 +135,60 @@ describe('mudanças do vendedor sobre o cardápio (modo vendedor, 2026-11-16)', 
   })
 })
 
+describe('tamanhos e nomes de categoria (ajuste de 2026-11-16)', () => {
+  it('item com tamanhos: vira a escolha "Tamanho" com o preço de cada um; o preço do cartão é o menor; o sabor continua depois', () => {
+    const data = applyChanges(BASE, changes({ items: { sundae: { sizes: [{ name: '300 ml', priceCents: 700 }, { name: '500 ml', priceCents: 1000 }] } } }))
+    const sundae = item(data, 'sundae')!
+    expect(sundae.priceCents).toBe(700)
+    expect(sundae.action.type === 'flavor_modal' && sundae.action.choices.map((group) => [group.id, group.options, group.prices ?? null])).toEqual([
+      ['tamanho', ['300 ml', '500 ml'], { '300 ml': 700, '500 ml': 1000 }],
+      ['sabor', ['Morango', 'Chocolate', 'Caramelo'], null],
+    ])
+  })
+
+  it('lista de tamanhos vazia volta ao preço único; o Açaí do Oca perde os tamanhos e fica direto', () => {
+    const data = applyChanges(BASE, changes({ items: { 'acai-do-oca-pronto': { sizes: [], priceCents: 1700 } } }))
+    expect(item(data, 'acai-do-oca-pronto')!.action).toEqual({ type: 'direct_confirm' })
+    expect(item(data, 'acai-do-oca-pronto')!.priceCents).toBe(1700)
+  })
+
+  it('item novo com tamanhos', () => {
+    const data = applyChanges(
+      BASE,
+      changes({ items: { 'novo-milkshake-grande': { created: true, drawer: 'bebidas', name: 'Suco', priceCents: 0, sizes: [{ name: 'P', priceCents: 500 }, { name: 'G', priceCents: 800 }] } } }),
+    )
+    const suco = item(data, 'novo-milkshake-grande')!
+    expect([suco.priceCents, suco.action.type]).toEqual([500, 'flavor_modal'])
+  })
+
+  it('produto principal: tamanhos trocados, novos com id próprio e o recipiente pelo nome (ou o dos outros tamanhos)', () => {
+    const data = applyChanges(
+      BASE,
+      changes({
+        products: {
+          'acai-oca': { sizes: [{ id: 'pote-200', name: 'Pote 200 ml', priceCents: 1100, freeToppings: 2 }, { name: 'Copo 700 ml', priceCents: 2500, freeToppings: 5 }] },
+          'milk-shake': { sizes: [{ id: '400-ml', name: '400 ml', priceCents: 1000, freeToppings: 0 }, { name: '700 ml', priceCents: 1600, freeToppings: 0 }] },
+        },
+      }),
+    )
+    expect(data.products['acai-oca'].sizes.map((size) => [size.id, size.name, size.container, size.priceCents, size.freeToppings])).toEqual([
+      ['pote-200', 'Pote 200 ml', 'pote', 1100, 2],
+      ['novo-copo-700-ml', 'Copo 700 ml', 'copo', 2500, 5],
+    ])
+    expect(data.products['milk-shake'].sizes.map((size) => [size.id, size.container])).toEqual([
+      ['400-ml', 'copo'],
+      ['novo-700-ml', 'copo'],
+    ])
+  })
+
+  it('renomear seção e o grupo "Monte do seu jeito"', () => {
+    const data = applyChanges(BASE, changes({ sections: { bebidas: { name: 'Bebidas geladas', subtitle: 'Lata e água.' }, monte: { name: 'Monte o seu' } } }))
+    const bebidas = data.drawers.find((drawer) => drawer.id === 'bebidas')!
+    expect([bebidas.title, bebidas.navLabel, bebidas.pillLabel, bebidas.subtitle, bebidas.anchor]).toEqual(['Bebidas geladas', 'Bebidas geladas', 'Bebidas geladas', 'Lata e água.', 'secao-bebidas'])
+    expect(data.groupTitles).toEqual({ monte: 'Monte o seu' })
+  })
+})
+
 describe('leitura das mudanças guardadas ou vindas da rede (parseChanges)', () => {
   it('aceita só campos válidos e ignora o resto', () => {
     const parsed = parseChanges({
@@ -149,6 +204,19 @@ describe('leitura das mudanças guardadas ou vindas da rede (parseChanges)', () 
       items: { sundae: { name: 'Ok', flavors: ['A', 'B'] } },
       products: { 'acai-oca': { sizePrices: { 'pote-200': 1200 } } },
       toppings: { granola: { priceCents: 300 } },
+      sections: {},
+    })
+    expect(
+      parseChanges({
+        items: { a: { sizes: [{ name: ' P ', priceCents: 300 }, { name: '', priceCents: 1 }, { name: 'G', priceCents: -1 }] } },
+        products: { 'acai-oca': { sizes: [{ id: 'pote-200', name: 'Pote', priceCents: 900, freeToppings: 2 }, { name: 'X', priceCents: 5, freeToppings: 99 }] } },
+        sections: { bebidas: { name: 'Geladas', subtitle: 'x' }, inexistente: { name: 'y' }, monte: { name: 'M' } },
+      }),
+    ).toEqual({
+      items: { a: { sizes: [{ name: 'P', priceCents: 300 }] } },
+      products: { 'acai-oca': { sizes: [{ id: 'pote-200', name: 'Pote', priceCents: 900, freeToppings: 2 }, { name: 'X', priceCents: 5, freeToppings: 20 }] } },
+      toppings: {},
+      sections: { bebidas: { name: 'Geladas', subtitle: 'x' }, monte: { name: 'M' } },
     })
   })
 

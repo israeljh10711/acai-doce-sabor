@@ -59,7 +59,7 @@ export function ItemActionButton({
             Adicionar
           </>
         ) : groups.length > 1 ? (
-          'Escolher sabores'
+          groups.some((group) => group.prices) ? 'Escolher tamanho e sabor' : 'Escolher sabores'
         ) : groups[0].prices ? (
           'Escolher tamanho'
         ) : (

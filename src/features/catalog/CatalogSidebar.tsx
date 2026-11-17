@@ -1,6 +1,6 @@
 import { ArrowRight, Flame } from '../../components/ui/icons.tsx'
-import { type NavEntry, OFFERS_ANCHOR } from './catalogNav.ts'
-import { SellerAccessButton } from '../seller/SellerAccess.tsx'
+import { MONTE_TITLE, type NavEntry, OFFERS_ANCHOR } from './catalogNav.ts'
+import { SellerAccessButton, SellerRenameButton } from '../seller/SellerAccess.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
 
 type NavProps = {
@@ -10,10 +10,9 @@ type NavProps = {
   onGo: (anchor: string) => void
 }
 
-const GROUPS = [
-  { id: 'monte', title: 'Monte do seu jeito' },
-  { id: 'catalogo', title: 'Catálogo completo' },
-] as const
+const GROUPS = ['monte', 'catalogo'] as const
+/** Título de cada grupo: o de "Monte do seu jeito" pode ser renomeado pelo vendedor. */
+const groupTitle = (group: (typeof GROUPS)[number]) => (group === 'monte' ? MONTE_TITLE : 'Catálogo completo')
 
 /**
  * Barra lateral fixa do cardápio no computador (pedido de 2026-11-16): o atalho de ofertas e as 9
@@ -65,13 +64,16 @@ export function OffersShortcut({ onGo }: { onGo: (anchor: string) => void }) {
 export function CategoryList({ entries, current, onGo, idPrefix }: NavProps & { idPrefix: string }) {
   // A barra lateral e o menu do celular estão na mesma página: cada lista tem os seus ids.
   return GROUPS.map((group, index) => (
-    <div key={group.id} className={index > 0 ? 'mt-3 border-t border-line pt-3' : ''}>
-      <p id={`${idPrefix}-grupo-${group.id}`} className="mb-1.5 px-2 text-[11px] font-extrabold tracking-wider text-ink-soft uppercase">
-        {group.title}
-      </p>
-      <ul aria-labelledby={`${idPrefix}-grupo-${group.id}`} className="flex flex-col gap-1">
+    <div key={group} className={index > 0 ? 'mt-3 border-t border-line pt-3' : ''}>
+      <div className="mb-1.5 flex items-center justify-between gap-2 px-2">
+        <p id={`${idPrefix}-grupo-${group}`} className="text-[11px] font-extrabold tracking-wider text-ink-soft uppercase">
+          {groupTitle(group)}
+        </p>
+        {group === 'monte' && <SellerRenameButton id="monte" label={groupTitle(group)} />}
+      </div>
+      <ul aria-labelledby={`${idPrefix}-grupo-${group}`} className="flex flex-col gap-1">
         {entries
-          .filter((entry) => entry.group === group.id)
+          .filter((entry) => entry.group === group)
           .map((entry) => (
             <li key={entry.anchor}>
               <a

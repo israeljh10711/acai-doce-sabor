@@ -8,11 +8,11 @@ import { type CatalogBackend, type ChangeKind, dataUrlToBlob, parseBackup, withC
 import type { ChangeRow, SupabaseRest } from './supabaseRest.ts'
 
 export const CACHE_KEY = 'acai_doce_sabor_catalog_cache_v1'
-const KINDS: readonly ChangeKind[] = ['items', 'products', 'toppings']
+const KINDS: readonly ChangeKind[] = ['items', 'products', 'toppings', 'sections']
 
 /** Linhas da tabela `catalog_changes` → mudanças (só campos válidos). */
 export function changesFromRows(rows: readonly ChangeRow[]): CatalogChanges {
-  const raw: Record<ChangeKind, Record<string, unknown>> = { items: {}, products: {}, toppings: {} }
+  const raw: Record<ChangeKind, Record<string, unknown>> = { items: {}, products: {}, toppings: {}, sections: {} }
   for (const row of rows) {
     if (KINDS.includes(row.kind) && typeof row.id === 'string') raw[row.kind][row.id] = row.data
   }
@@ -63,8 +63,10 @@ export function createSupabaseBackend(rest: SupabaseRest, store: Pick<Storage, '
         const blob = dataUrlToBlob(data)
         if (blob) uploaded[ref] = await rest.upload(blob)
       }
-      const fix = <T extends { image?: string }>(change: T): T =>
-        change.image && uploaded[change.image] ? { ...change, image: uploaded[change.image] } : change
+      const fix = <T extends object>(change: T): T => {
+        const image = (change as { image?: string }).image
+        return image && uploaded[image] ? { ...change, image: uploaded[image] } : change
+      }
       // O banco fica igual ao backup: grava tudo dele e apaga o que não está nele.
       for (const kind of KINDS) {
         for (const [id, change] of Object.entries(backup.changes[kind])) await rest.upsert(kind, id, fix(change))

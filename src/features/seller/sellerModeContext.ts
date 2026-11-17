@@ -6,6 +6,8 @@ export type EditTarget =
   | { kind: 'item'; id: string | null; drawer?: string }
   | { kind: 'product'; id: string }
   | { kind: 'topping'; id: string | null; group?: string }
+  /** Nome (e subtítulo) de uma seção, ou o título do grupo "Monte do seu jeito" (`monte`). */
+  | { kind: 'section'; id: string }
 
 export type SellerMode = {
   /** Onde as mudanças ficam: no Supabase (para todos) ou só neste aparelho. */

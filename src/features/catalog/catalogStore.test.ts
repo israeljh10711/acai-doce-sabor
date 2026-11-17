@@ -3,7 +3,7 @@ import { EMPTY_CART, addExtraItem, addItem, parseCart, serializeCart } from '../
 import { getOffer } from '../offers/offerNotifications.ts'
 import { CATEGORIES } from './categories.ts'
 import { NO_CHANGES } from './catalogChanges.ts'
-import { navEntries } from './catalogNav.ts'
+import { MONTE_TITLE, navEntries } from './catalogNav.ts'
 import { catalogVersion, getCatalogChanges, setCatalogChanges, setPhotoUrls, subscribeCatalog } from './catalogStore.ts'
 import { EXTRA_ITEMS, getExtraItem } from './extras.ts'
 import { highlightItems } from './highlights.ts'
@@ -17,6 +17,14 @@ afterEach(() => {
 })
 
 describe('as mudanças do vendedor chegam a todo o site (catalogStore)', () => {
+  it('renomear seção e o grupo "Monte do seu jeito" chega à navegação', () => {
+    setCatalogChanges({ ...NO_CHANGES, sections: { bebidas: { name: 'Bebidas geladas' }, monte: { name: 'Monte o seu' } } })
+    expect(navEntries(searchMenu('')).find((entry) => entry.id === 'bebidas')?.label).toBe('Bebidas geladas')
+    expect(MONTE_TITLE).toBe('Monte o seu')
+    setCatalogChanges(NO_CHANGES)
+    expect(MONTE_TITLE).toBe('Monte do seu jeito')
+  })
+
   it('troca os dados que todo o site lê e avisa quem está ouvindo', () => {
     let calls = 0
     const stop = subscribeCatalog(() => calls++)
@@ -79,7 +87,9 @@ describe('as mudanças do vendedor chegam a todo o site (catalogStore)', () => {
     const names = completeToppings(oca).map((topping) => topping.name)
     expect(names).toContain('Ovomaltine')
     expect(names).not.toContain('Farinha láctea')
-    expect(Object.keys(applyComplete(oca, EMPTY_SELECTION).toppings)).toHaveLength(24)
+    // Completo (ajuste de 2026-11-16): 12 adicionais sem o leite condensado, menos a Farinha láctea
+    // esgotada, mais a Ovomaltine nova, e as 3 frutas.
+    expect(Object.keys(applyComplete(oca, EMPTY_SELECTION).toppings)).toHaveLength(15)
     expect(addBlocker(oca, EMPTY_SELECTION, 'farinha-lactea')).toBe('unavailable')
     expect(getTopping('novo-ovomaltine')?.name).toBe('Ovomaltine')
   })

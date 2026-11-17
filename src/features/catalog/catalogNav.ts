@@ -31,6 +31,15 @@ export type NavEntry = {
   available: boolean
 }
 
+/** Título do grupo dos 4 produtos (o vendedor pode renomear). Ligação viva. */
+export let MONTE_TITLE = 'Monte do seu jeito'
+export const BASE_MONTE_TITLE = MONTE_TITLE
+
+/** Troca o título do grupo (só `catalogStore.ts` chama). */
+export function setMonteTitle(title: string): void {
+  MONTE_TITLE = title
+}
+
 export const MAIN_ANCHORS: Readonly<Record<CategorySlug, string>> = {
   'acai-oca': 'secao-acai-oca',
   'acai-tradicional': 'secao-acai-tradicional',

@@ -83,3 +83,21 @@ export function SellerAddButton({ target, text, className = '' }: { target: Edit
     </button>
   )
 }
+
+/** "Renomear" ao lado do título de uma seção ou do grupo "Monte do seu jeito" (modo vendedor). */
+export function SellerRenameButton({ id, label, className = '' }: { id: string; label: string; className?: string }) {
+  const seller = useSellerMode()
+  if (!seller.active) return null
+  return (
+    <button
+      type="button"
+      data-seller-rename={id}
+      onClick={() => seller.edit({ kind: 'section', id })}
+      className={`inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full px-2 text-xs font-bold text-acai-800 ring-1 ring-acai-800/25 transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${className}`}
+    >
+      <Pencil className="size-3.5" />
+      Renomear
+      <span className="sr-only">: {label}</span>
+    </button>
+  )
+}

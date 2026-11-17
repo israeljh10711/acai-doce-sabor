@@ -11,12 +11,13 @@ import {
   type ItemChange,
   NO_CHANGES,
   type ProductChange,
+  type SectionChange,
   type ToppingChange,
   parseChanges,
 } from '../features/catalog/catalogChanges.ts'
 
-export type ChangeKind = 'items' | 'products' | 'toppings'
-export type AnyChange = ItemChange | ProductChange | ToppingChange
+export type ChangeKind = 'items' | 'products' | 'toppings' | 'sections'
+export type AnyChange = ItemChange | ProductChange | ToppingChange | SectionChange
 
 export type CatalogBackend = {
   kind: 'local' | 'supabase'
@@ -160,7 +161,7 @@ export function createLocalBackend(deps: LocalDeps): CatalogBackend {
       const changes = read()
       const used = new Set(
         [...Object.values(changes.items), ...Object.values(changes.products), ...Object.values(changes.toppings)]
-          .map((change) => change.image)
+          .map((change) => change.image as string | undefined)
           .filter((image): image is string => Boolean(image?.startsWith('idb:'))),
       )
       const photos: Record<string, string> = {}

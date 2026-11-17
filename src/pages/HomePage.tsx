@@ -4,7 +4,8 @@ import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { Depth, TiltStage } from '../components/ui/TiltStage.tsx'
 import { ArrowRight, Camera, Chat, Clock, Crown, Pin } from '../components/ui/icons.tsx'
-import { LEGACY_ANCHORS } from '../features/catalog/catalogNav.ts'
+import { LEGACY_ANCHORS, MONTE_TITLE } from '../features/catalog/catalogNav.ts'
+import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { HOURS_TEXT } from '../features/store-hours/hours.ts'
@@ -23,6 +24,8 @@ const rise = (delay: number) => ({
 })
 
 export function HomePage() {
+  // O título "Monte do seu jeito" pode ser renomeado pelo vendedor com a página aberta.
+  useCatalogVersion()
   usePageTitle()
   useHashScroll(LEGACY_ANCHORS)
 
@@ -39,7 +42,7 @@ export function HomePage() {
         intro={
           <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:mb-12 sm:flex-row sm:items-end">
             <div>
-              <p className="text-sm font-extrabold tracking-[0.16em] text-acai-600 uppercase">Monte do seu jeito</p>
+              <p className="text-sm font-extrabold tracking-[0.16em] text-acai-600 uppercase">{MONTE_TITLE}</p>
               <h2 id="cardapio-titulo" className="mt-1 font-display text-4xl font-black tracking-tight text-acai-800 uppercase sm:text-5xl">
                 Cardápio
               </h2>

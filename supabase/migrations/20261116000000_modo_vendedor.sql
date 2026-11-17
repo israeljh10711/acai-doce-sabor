@@ -10,7 +10,7 @@
 -- * bucket "catalogo": as fotos enviadas pelo vendedor, públicas para leitura.
 
 create table if not exists public.catalog_changes (
-  kind text not null check (kind in ('items', 'products', 'toppings')),
+  kind text not null,
   id text not null check (char_length(id) between 1 and 80),
   data jsonb not null default '{}'::jsonb check (jsonb_typeof(data) = 'object' and pg_column_size(data) < 20000),
   updated_at timestamptz not null default now(),
@@ -20,6 +20,11 @@ create table if not exists public.catalog_changes (
 create table if not exists public.sellers (
   user_id uuid primary key references auth.users (id) on delete cascade
 );
+
+-- Tipos de mudança: itens, os 4 produtos, complementos e nomes das seções (ajuste de 2026-11-16).
+alter table public.catalog_changes drop constraint if exists catalog_changes_kind_check;
+alter table public.catalog_changes add constraint catalog_changes_kind_check
+  check (kind in ('items', 'products', 'toppings', 'sections'));
 
 alter table public.catalog_changes enable row level security;
 alter table public.sellers enable row level security;

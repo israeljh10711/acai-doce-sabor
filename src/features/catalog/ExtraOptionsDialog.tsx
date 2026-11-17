@@ -117,7 +117,13 @@ export function ExtraOptionsDialog({ open, item, draft, onChange, onContinue, on
             id="opcoes-item-titulo"
             className="bg-acai-800 px-5 py-4 font-display text-xl leading-tight font-black tracking-tight text-white uppercase"
           >
-            {groups.length > 1 ? 'Escolha os sabores' : groups[0]?.prices ? 'Escolha o tamanho' : 'Escolha o sabor'}
+            {groups.length > 1
+              ? groups.some((group) => group.prices)
+                ? 'Escolha o tamanho e o sabor'
+                : 'Escolha os sabores'
+              : groups[0]?.prices
+                ? 'Escolha o tamanho'
+                : 'Escolha o sabor'}
           </h2>
 
           <div className="overflow-y-auto px-5 pt-5 pb-4">

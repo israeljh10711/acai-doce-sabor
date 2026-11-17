@@ -10,10 +10,18 @@
 import { useSyncExternalStore } from 'react'
 import { BASE_CATEGORIES, setCategories } from './categories.ts'
 import { type CatalogChanges, NO_CHANGES, applyChanges } from './catalogChanges.ts'
-import { BASE_EXTRA_ITEMS, setExtraItems } from './extras.ts'
+import { BASE_MONTE_TITLE, setMonteTitle } from './catalogNav.ts'
+import { BASE_DRAWERS, BASE_EXTRA_ITEMS, setDrawers, setExtraItems } from './extras.ts'
 import { BASE_PRODUCTS, BASE_TOPPINGS, setProducts, setToppings } from './menu.ts'
 
-const BASE = { items: BASE_EXTRA_ITEMS, toppings: BASE_TOPPINGS, products: BASE_PRODUCTS, categories: BASE_CATEGORIES }
+const BASE = {
+  items: BASE_EXTRA_ITEMS,
+  toppings: BASE_TOPPINGS,
+  products: BASE_PRODUCTS,
+  categories: BASE_CATEGORIES,
+  drawers: BASE_DRAWERS,
+  groupTitles: {},
+}
 
 let changes: CatalogChanges = NO_CHANGES
 /** Fotos guardadas no aparelho (`idb:<id>`) e o endereço temporário (`blob:`) de cada uma. */
@@ -37,7 +45,7 @@ function withPhotos(source: CatalogChanges): CatalogChanges {
         return [id, next]
       }),
     )
-  return { items: resolve(source.items), products: resolve(source.products), toppings: resolve(source.toppings) }
+  return { items: resolve(source.items), products: resolve(source.products), toppings: resolve(source.toppings), sections: source.sections }
 }
 
 function publish() {
@@ -46,6 +54,8 @@ function publish() {
   setToppings(data.toppings)
   setProducts(data.products)
   setCategories(data.categories)
+  setDrawers(data.drawers)
+  setMonteTitle(data.groupTitles.monte ?? BASE_MONTE_TITLE)
   version += 1
   for (const listener of listeners) listener()
 }

@@ -1,10 +1,11 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
-import { Camera, RotateCcw, Trash } from '../../components/ui/icons.tsx'
+import { Camera, Plus, RotateCcw, Trash } from '../../components/ui/icons.tsx'
 import { formatBRL } from '../../utils/money.ts'
 import { BASE_CATEGORIES, findCategoryBySlug } from '../catalog/categories.ts'
-import type { ItemChange, ProductChange, ToppingChange } from '../catalog/catalogChanges.ts'
+import type { ItemChange, ProductChange, ProductSizeEntry, SectionChange, SizeEntry, ToppingChange } from '../catalog/catalogChanges.ts'
+import { MONTE_TITLE } from '../catalog/catalogNav.ts'
 import { getCatalogChanges } from '../catalog/catalogStore.ts'
-import { BASE_EXTRA_ITEMS, DRAWERS, type DrawerId, getExtraItem } from '../catalog/extras.ts'
+import { BASE_EXTRA_ITEMS, DRAWERS, type DrawerId, drawerById, getExtraItem } from '../catalog/extras.ts'
 import { BASE_TOPPINGS, PRODUCTS, TOPPING_GROUPS, type ToppingGroupId, getTopping } from '../catalog/menu.ts'
 import { catalogPhotoSrc, ingredientPhoto } from '../catalog/photos.ts'
 import { compressPhoto } from './photo.ts'
@@ -28,7 +29,87 @@ const quietButton =
 export function SellerItemFormModal({ target, onClose }: { target: EditTarget; onClose: () => void }) {
   if (target.kind === 'product') return <ProductForm slug={target.id} onClose={onClose} />
   if (target.kind === 'topping') return <ToppingForm id={target.id} group={target.group} onClose={onClose} />
+  if (target.kind === 'section') return <SectionForm id={target.id} onClose={onClose} />
   return <ItemForm id={target.id} drawer={target.drawer} onClose={onClose} />
+}
+
+/* "Tamanhos e Preços (Opcional)": linhas de nome e preço (e, nos açaís, adicionais grátis). */
+
+type SizeRow = { key: string; id?: string; name: string; price: string; free: string }
+
+let rowCount = 0
+const rowKey = () => `linha-${++rowCount}`
+
+function SizesEditor({
+  rows,
+  onChange,
+  withFree,
+  title = 'Tamanhos e Preços (Opcional)',
+  hint,
+}: {
+  rows: SizeRow[]
+  onChange: (rows: SizeRow[]) => void
+  withFree: boolean
+  title?: string
+  hint?: string
+}) {
+  const update = (key: string, patch: Partial<SizeRow>) => onChange(rows.map((row) => (row.key === key ? { ...row, ...patch } : row)))
+  return (
+    <fieldset className="flex flex-col gap-2" data-sizes-editor="">
+      <legend className={`${labelClass} mb-1.5`}>{title}</legend>
+      {hint && <p className="text-xs text-ink-soft">{hint}</p>}
+      {rows.map((row, index) => (
+        <div key={row.key} className={`grid items-end gap-2 ${withFree ? 'grid-cols-[1fr_6.5rem_4.5rem_auto]' : 'grid-cols-[1fr_7rem_auto]'}`}>
+          <label className="flex flex-col gap-1 text-xs font-semibold text-ink-soft">
+            Nome do tamanho
+            <input className={inputClass} value={row.name} maxLength={40} data-size-name={index} placeholder="Ex.: 500ml" onChange={(event) => update(row.key, { name: event.target.value })} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold text-ink-soft">
+            Preço (R$)
+            <input className={inputClass} inputMode="decimal" value={row.price} data-size-price={index} placeholder="0,00" onChange={(event) => update(row.key, { price: event.target.value })} />
+          </label>
+          {withFree && (
+            <label className="flex flex-col gap-1 text-xs font-semibold text-ink-soft">
+              Grátis
+              <input className={inputClass} inputMode="numeric" value={row.free} data-size-free={index} onChange={(event) => update(row.key, { free: event.target.value })} />
+            </label>
+          )}
+          <button
+            type="button"
+            aria-label={`Remover o tamanho ${row.name || index + 1}`}
+            onClick={() => onChange(rows.filter((candidate) => candidate.key !== row.key))}
+            className="grid size-12 cursor-pointer place-items-center rounded-xl text-red-700 ring-1 ring-red-200 transition hover:bg-red-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+          >
+            <Trash className="size-5" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        data-add-size=""
+        onClick={() => onChange([...rows, { key: rowKey(), name: '', price: '', free: '0' }])}
+        className={`${quietButton} self-start text-acai-800 ring-line hover:bg-acai-100`}
+      >
+        <Plus className="size-4" />
+        Adicionar tamanho
+      </button>
+    </fieldset>
+  )
+}
+
+/** Linhas preenchidas → tamanhos; `null` quando alguma linha tem nome ou preço inválido. */
+function readSizes(rows: readonly SizeRow[]): { name: string; priceCents: number; id?: string; freeToppings: number }[] | null {
+  const sizes = []
+  for (const row of rows) {
+    const name = row.name.trim()
+    if (!name && !row.price.trim()) continue
+    const priceCents = parsePriceInput(row.price)
+    const free = row.free.trim() === '' ? 0 : Number(row.free)
+    if (!name || priceCents === null || !Number.isInteger(free) || free < 0 || free > 20) return null
+    sizes.push({ ...(row.id ? { id: row.id } : {}), name, priceCents, freeToppings: free })
+  }
+  const names = sizes.map((size) => size.name.toLocaleLowerCase('pt-BR'))
+  return new Set(names).size === names.length ? sizes : null
 }
 
 /* Peças comuns */
@@ -222,7 +303,12 @@ function ItemForm({ id, drawer, onClose }: { id: string | null; drawer?: string;
   const [flavors, setFlavors] = useState(firstGroup?.options.join(', ') ?? '')
   const [available, setAvailable] = useState(item?.available !== false)
   const [photo, setPhoto] = useState<Blob | null>(null)
-  const [errors, setErrors] = useState<{ name?: string; price?: string; oldPrice?: string }>({})
+  const [errors, setErrors] = useState<{ name?: string; price?: string; oldPrice?: string; sizes?: string }>({})
+  const sizeGroup = item?.action.type === 'flavor_modal' ? item.action.choices.find((group) => group.prices) : undefined
+  const [sizeRows, setSizeRows] = useState<SizeRow[]>(() =>
+    (sizeGroup?.options ?? []).map((option) => ({ key: rowKey(), name: option, price: formatPriceInput(sizeGroup?.prices?.[option] ?? 0), free: '0' })),
+  )
+  const hasSizes = sizeRows.length > 0
   const submit = useSubmit(onClose)
 
   return (
@@ -233,17 +319,24 @@ function ItemForm({ id, drawer, onClose }: { id: string | null; drawer?: string;
         onSubmit={(event) => {
           event.preventDefault()
           const form = event.currentTarget
-          const priceCents = parsePriceInput(price)
-          const oldCents = oldPrice.trim() ? parsePriceInput(oldPrice) : null
+          const sizes = customizer ? [] : readSizes(sizeRows)
+          const priceCents = sizes && sizes.length > 0 ? Math.min(...sizes.map((size) => size.priceCents)) : parsePriceInput(price)
+          const oldCents = !hasSizes && oldPrice.trim() ? parsePriceInput(oldPrice) : null
           const next = {
             name: name.trim() ? undefined : 'Escreva o nome.',
             price: priceCents === null ? 'Escreva o preço, por exemplo 3,00.' : undefined,
-            oldPrice: oldPrice.trim() && oldCents === null ? 'Preço antigo inválido.' : undefined,
+            oldPrice: !hasSizes && oldPrice.trim() && oldCents === null ? 'Preço antigo inválido.' : undefined,
+            sizes: sizes === null ? 'Confira os tamanhos: cada um com nome (sem repetir) e preço.' : undefined,
           }
           setErrors(next)
-          if (next.name || next.price || next.oldPrice) return
+          if (next.name || next.price || next.oldPrice || next.sizes) return
           void submit.run(async () => {
             const change: ItemChange = { ...saved, name: name.trim(), priceCents: priceCents!, originalPriceCents: oldCents, description: description.trim(), available, drawer: section }
+            if (!customizer) {
+              const entries: SizeEntry[] = (sizes ?? []).map((size) => ({ name: size.name, priceCents: size.priceCents }))
+              const before = (sizeGroup?.options ?? []).map((option) => `${option}=${sizeGroup?.prices?.[option]}`).join('|')
+              if (entries.map((size) => `${size.name}=${size.priceCents}`).join('|') !== before) change.sizes = entries
+            }
             const parsed = parseFlavors(flavors)
             if (!customizer && parsed.join('|') !== (firstGroup?.options ?? []).join('|')) change.flavors = parsed
             if (photo) change.image = await seller.uploadPhoto(photo)
@@ -258,14 +351,30 @@ function ItemForm({ id, drawer, onClose }: { id: string | null; drawer?: string;
         <Field id={`${uid}-nome`} label="Nome do produto" error={errors.name}>
           <input id={`${uid}-nome`} className={inputClass} value={name} maxLength={80} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? `${uid}-nome-erro` : undefined} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Picolé trufado" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field id={`${uid}-preco`} label="Preço (R$)" error={errors.price}>
-            <input id={`${uid}-preco`} className={inputClass} inputMode="decimal" value={price} aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? `${uid}-preco-erro` : undefined} onChange={(event) => setPrice(event.target.value)} placeholder="3,00" />
-          </Field>
-          <Field id={`${uid}-antigo`} label="Preço antigo riscado (R$)" error={errors.oldPrice}>
-            <input id={`${uid}-antigo`} className={inputClass} inputMode="decimal" value={oldPrice} aria-invalid={Boolean(errors.oldPrice)} onChange={(event) => setOldPrice(event.target.value)} placeholder="opcional" />
-          </Field>
-        </div>
+        {hasSizes ? (
+          <p className="rounded-xl bg-acai-50 px-3 py-2 text-sm text-ink-soft ring-1 ring-line">
+            Com tamanhos, o cardápio mostra "a partir de" o menor preço, e o cliente escolhe o tamanho ao pedir.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Field id={`${uid}-preco`} label="Preço (R$)" error={errors.price}>
+              <input id={`${uid}-preco`} className={inputClass} inputMode="decimal" value={price} aria-invalid={Boolean(errors.price)} aria-describedby={errors.price ? `${uid}-preco-erro` : undefined} onChange={(event) => setPrice(event.target.value)} placeholder="3,00" />
+            </Field>
+            <Field id={`${uid}-antigo`} label="Preço antigo riscado (R$)" error={errors.oldPrice}>
+              <input id={`${uid}-antigo`} className={inputClass} inputMode="decimal" value={oldPrice} aria-invalid={Boolean(errors.oldPrice)} onChange={(event) => setOldPrice(event.target.value)} placeholder="opcional" />
+            </Field>
+          </div>
+        )}
+        {!customizer && (
+          <>
+            <SizesEditor rows={sizeRows} onChange={setSizeRows} withFree={false} hint="Sem tamanhos, vale o preço único acima." />
+            {errors.sizes && (
+              <p role="alert" className="text-sm font-semibold text-red-700">
+                {errors.sizes}
+              </p>
+            )}
+          </>
+        )}
         <Field id={`${uid}-descricao`} label="Descrição">
           <textarea id={`${uid}-descricao`} className={`${inputClass} min-h-24 py-3`} value={description} maxLength={300} onChange={(event) => setDescription(event.target.value)} placeholder="Ex.: Picolé trufado sabor chocolate" />
         </Field>
@@ -321,7 +430,10 @@ function ProductForm({ slug, onClose }: { slug: string; onClose: () => void }) {
   const saved = getCatalogChanges().products[slug]
   const [name, setName] = useState(category?.name ?? '')
   const [description, setDescription] = useState(category?.tagline ?? '')
-  const [prices, setPrices] = useState<Record<string, string>>(() => Object.fromEntries(product.sizes.map((size) => [size.id, formatPriceInput(size.priceCents)])))
+  const [rows, setRows] = useState<SizeRow[]>(() =>
+    product.sizes.map((size) => ({ key: rowKey(), id: size.id, name: size.name, price: formatPriceInput(size.priceCents), free: String(size.freeToppings) })),
+  )
+  const withFree = product.groups.includes('dry')
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [error, setError] = useState<string | null>(null)
   const submit = useSubmit(onClose)
@@ -336,16 +448,15 @@ function ProductForm({ slug, onClose }: { slug: string; onClose: () => void }) {
         onSubmit={(event) => {
           event.preventDefault()
           const form = event.currentTarget
-          const sizePrices: Record<string, number> = {}
-          for (const size of product.sizes) {
-            const cents = parsePriceInput(prices[size.id] ?? '')
-            if (cents === null) return setError(`Preço inválido em ${size.name}.`)
-            sizePrices[size.id] = cents
-          }
+          const sizes = readSizes(rows)
+          if (sizes === null) return setError('Confira os tamanhos: cada um com nome (sem repetir), preço e grátis de 0 a 20.')
+          if (sizes.length === 0) return setError('Deixe pelo menos um tamanho.')
           if (!name.trim()) return setError('Escreva o nome.')
           setError(null)
           void submit.run(async () => {
-            const change: ProductChange = { ...saved, name: name.trim(), description: description.trim(), sizePrices }
+            const entries: ProductSizeEntry[] = sizes.map((size) => ({ ...(size.id ? { id: size.id } : {}), name: size.name, priceCents: size.priceCents, freeToppings: size.freeToppings }))
+            const change: ProductChange = { ...saved, name: name.trim(), description: description.trim(), sizes: entries }
+            delete change.sizePrices
             if (photo) change.image = await seller.uploadPhoto(photo)
             await seller.save('products', category.slug, change)
             closeDialog(form)
@@ -359,23 +470,13 @@ function ProductForm({ slug, onClose }: { slug: string; onClose: () => void }) {
         <Field id={`${uid}-descricao`} label="Descrição">
           <textarea id={`${uid}-descricao`} className={`${inputClass} min-h-24 py-3`} value={description} maxLength={300} onChange={(event) => setDescription(event.target.value)} />
         </Field>
-        <fieldset className="flex flex-col gap-2">
-          <legend className={`${labelClass} mb-1.5`}>Preço de cada tamanho (R$)</legend>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {product.sizes.map((size) => (
-              <label key={size.id} className="flex flex-col gap-1 text-xs font-semibold text-ink-soft">
-                {size.name}
-                <input
-                  className={inputClass}
-                  inputMode="decimal"
-                  data-size={size.id}
-                  value={prices[size.id] ?? ''}
-                  onChange={(event) => setPrices((current) => ({ ...current, [size.id]: event.target.value }))}
-                />
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <SizesEditor
+          rows={rows}
+          onChange={setRows}
+          withFree={withFree}
+          title="Tamanhos e Preços"
+          hint={withFree ? '"Grátis": quantos adicionais grátis o tamanho inclui. Tamanho novo com "Copo", "Isopor" ou "Pote" no nome entra nesse grupo.' : undefined}
+        />
         {(error || submit.error) && (
           <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200">
             {error ?? submit.error}
@@ -468,6 +569,58 @@ function ToppingForm({ id, group, onClose }: { id: string | null; group?: string
             onRestore={() => void submit.run(() => seller.save('toppings', topping.id, null))}
           />
         )}
+      </form>
+    </SellerDialog>
+  )
+}
+
+/* Renomear uma seção (ou o grupo "Monte do seu jeito") */
+
+function SectionForm({ id, onClose }: { id: string; onClose: () => void }) {
+  const seller = useSellerMode()
+  const uid = useId()
+  const isGroup = id === 'monte'
+  const drawer = isGroup ? undefined : drawerById(id as DrawerId)
+  const saved = getCatalogChanges().sections[id]
+  const [name, setName] = useState(isGroup ? MONTE_TITLE : (drawer?.title ?? ''))
+  const [subtitle, setSubtitle] = useState(drawer?.subtitle ?? '')
+  const [error, setError] = useState<string | null>(null)
+  const submit = useSubmit(onClose)
+
+  return (
+    <SellerDialog title="Renomear categoria" titleId={`${uid}-titulo`} onClose={onClose}>
+      <form
+        noValidate
+        className="flex flex-col gap-4 pb-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          const form = event.currentTarget
+          if (!name.trim()) return setError('Escreva o nome da categoria.')
+          setError(null)
+          void submit.run(async () => {
+            const change: SectionChange = { name: name.trim(), ...(isGroup ? {} : { subtitle: subtitle.trim() }) }
+            await seller.save('sections', id, change)
+            closeDialog(form)
+          })
+        }}
+      >
+        <Field id={`${uid}-nome`} label="Nome da categoria" error={error}>
+          <input id={`${uid}-nome`} className={inputClass} value={name} maxLength={60} onChange={(event) => setName(event.target.value)} />
+        </Field>
+        {!isGroup && (
+          <Field id={`${uid}-subtitulo`} label="Subtítulo (opcional)">
+            <input id={`${uid}-subtitulo`} className={inputClass} value={subtitle} maxLength={160} onChange={(event) => setSubtitle(event.target.value)} />
+          </Field>
+        )}
+        {submit.error && (
+          <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200">
+            {submit.error}
+          </p>
+        )}
+        <button type="submit" disabled={submit.busy} className={primaryButton}>
+          {submit.busy ? 'Salvando…' : 'Salvar nome'}
+        </button>
+        <DangerZone busy={submit.busy} canDelete={false} canRestore={saved !== undefined} onDelete={() => {}} onRestore={() => void submit.run(() => seller.save('sections', id, null))} />
       </form>
     </SellerDialog>
   )
