@@ -1,3 +1,4 @@
+import { Camera } from '../../components/ui/icons.tsx'
 import { findCategoryBySlug } from './categories.ts'
 import { type ExtraItem, extraForProduct, extraPhoto } from './extras.ts'
 import type { ExtraProductSlug, ProductSlug } from './menu.ts'
@@ -74,6 +75,20 @@ type ExtraPhotoProps = Required<Pick<ExtraVisualProps, 'item' | 'size' | 'decora
 function ExtraPhoto({ item, size, sizes, decorative, priority, choices }: ExtraPhotoProps) {
   const { image, alt } = extraPhoto(item, choices)
   const contain = catalogPhotoFit(image) === 'contain'
+  // Item novo do vendedor ainda sem foto: um quadro com a câmera, do mesmo tamanho.
+  if (!image) {
+    return (
+      <span
+        role={decorative ? undefined : 'img'}
+        aria-label={decorative ? undefined : `${item.name}, sem foto`}
+        aria-hidden={decorative ? true : undefined}
+        data-item-photo={item.id}
+        className={`grid shrink-0 place-items-center bg-acai-50 text-acai-600/60 ring-1 ring-line ${BOX[size]}`}
+      >
+        <Camera className="size-1/3 max-h-10 max-w-10" />
+      </span>
+    )
+  }
   return (
     <img
       // A chave troca a imagem inteira ao mudar de sabor: nada da foto anterior fica na tela.

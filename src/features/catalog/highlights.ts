@@ -13,11 +13,13 @@ export const HIGHLIGHT_IDS = [
   'pote-de-acai-2-litros',
 ] as const
 
-const HIGHLIGHTS: readonly ExtraItem[] = HIGHLIGHT_IDS.map((id) => getExtraItem(id)!)
-
-/** Os 5 destaques ou, na busca, só os encontrados. */
+/** Os 5 destaques (os que o vendedor não excluiu) ou, na busca, só os encontrados. */
 export function highlightItems(result: SearchResult): readonly ExtraItem[] {
-  if (result.query === '') return HIGHLIGHTS
+  const highlights = HIGHLIGHT_IDS.flatMap((id) => {
+    const item = getExtraItem(id)
+    return item ? [item] : []
+  })
+  if (result.query === '') return highlights
   const found = new Set([...result.drawers.values()].flat().map((item) => item.id))
-  return HIGHLIGHTS.filter((item) => found.has(item.id))
+  return highlights.filter((item) => found.has(item.id))
 }

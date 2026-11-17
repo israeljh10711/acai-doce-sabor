@@ -1,4 +1,5 @@
 import { useParams, useSearchParams } from 'react-router'
+import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
 import { findProduct } from '../features/catalog/menu.ts'
 import { Configurator } from '../features/configurator-core/Configurator.tsx'
 import { NotFoundPage } from './NotFoundPage.tsx'
@@ -10,6 +11,8 @@ import { NotFoundPage } from './NotFoundPage.tsx'
 export function ConfiguratorPage() {
   const { categoria } = useParams()
   const [searchParams] = useSearchParams()
+  // Preço ou complemento mudado pelo vendedor com a página aberta: redesenha com o produto novo.
+  useCatalogVersion()
   const product = findProduct(categoria)
 
   if (!product) {

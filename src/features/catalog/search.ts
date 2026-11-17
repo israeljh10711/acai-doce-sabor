@@ -13,7 +13,7 @@
 import { foldText } from '../../utils/text.ts'
 import { CATEGORIES, type CategorySlug } from './categories.ts'
 import { DRAWERS, type DrawerId, EXTRA_ITEMS, type ExtraItem, choiceGroupsOf, drawerById } from './extras.ts'
-import { PRODUCTS, toppingsOf } from './menu.ts'
+import { PRODUCTS, TOPPINGS, toppingsOf } from './menu.ts'
 
 /** Texto pronto para comparar: sem acentos, minúsculo, só letras, números e o ponto de "1.5". */
 export function normalizeSearch(text: string): string {
@@ -38,7 +38,8 @@ export function matchesQuery(fields: readonly string[], query: string): boolean 
 
 const fieldsOf = (texts: readonly string[]) => texts.map(normalizeSearch).filter(Boolean)
 
-const MAIN_FIELDS: ReadonlyMap<CategorySlug, readonly string[]> = new Map(
+const buildMainFields = (): ReadonlyMap<CategorySlug, readonly string[]> =>
+  new Map(
   CATEGORIES.map((category) => {
     const product = PRODUCTS[category.slug]
     return [
@@ -56,7 +57,8 @@ const MAIN_FIELDS: ReadonlyMap<CategorySlug, readonly string[]> = new Map(
   }),
 )
 
-const EXTRA_FIELDS: ReadonlyMap<string, readonly string[]> = new Map(
+const buildExtraFields = (): ReadonlyMap<string, readonly string[]> =>
+  new Map(
   EXTRA_ITEMS.map((item) => [
     item.id,
     fieldsOf([
@@ -68,6 +70,19 @@ const EXTRA_FIELDS: ReadonlyMap<string, readonly string[]> = new Map(
     ]),
   ]),
 )
+
+/**
+ * Índices da busca, refeitos quando o cardápio muda (modo vendedor, 2026-11-16): o vendedor pode
+ * renomear, criar e excluir itens e complementos.
+ */
+let cache: { key: readonly unknown[]; main: ReadonlyMap<CategorySlug, readonly string[]>; extra: ReadonlyMap<string, readonly string[]> } | null = null
+function indexes() {
+  const key = [CATEGORIES, PRODUCTS, EXTRA_ITEMS, TOPPINGS]
+  if (!cache || cache.key.some((part, index) => part !== key[index])) {
+    cache = { key, main: buildMainFields(), extra: buildExtraFields() }
+  }
+  return cache
+}
 
 export type SearchResult = {
   /** A busca normalizada. Vazia: mostra tudo. */
@@ -81,10 +96,10 @@ export type SearchResult = {
 
 export function searchMenu(rawQuery: string): SearchResult {
   const query = normalizeSearch(rawQuery)
-  const main = CATEGORIES.map((category) => category.slug).filter((slug) => matchesQuery(MAIN_FIELDS.get(slug)!, query))
+  const main = CATEGORIES.map((category) => category.slug).filter((slug) => matchesQuery(indexes().main.get(slug)!, query))
   const drawers = new Map<DrawerId, readonly ExtraItem[]>()
   for (const drawer of DRAWERS) {
-    const items = EXTRA_ITEMS.filter((item) => item.drawer === drawer.id && matchesQuery(EXTRA_FIELDS.get(item.id)!, query))
+    const items = EXTRA_ITEMS.filter((item) => item.drawer === drawer.id && matchesQuery(indexes().extra.get(item.id)!, query))
     if (items.length > 0) drawers.set(drawer.id, items)
   }
   const total = main.length + [...drawers.values()].reduce((sum, items) => sum + items.length, 0)

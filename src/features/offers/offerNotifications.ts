@@ -7,7 +7,8 @@
  */
 import { formatBRL } from '../../utils/money.ts'
 import type { CategorySlug } from '../catalog/categories.ts'
-import { type ExtraItem, getExtraItem } from '../catalog/extras.ts'
+import { EXTRA_ITEMS, type ExtraItem, getExtraItem } from '../catalog/extras.ts'
+import { PRODUCTS } from '../catalog/menu.ts'
 import { catalogPhotoSrc, productPhoto, productPhotoSrc } from '../catalog/photos.ts'
 import { startingPriceCents } from '../catalog/showcase.ts'
 
@@ -220,8 +221,27 @@ export const FEATURED_OFFER_NOTIFICATIONS: readonly OfferNotification[] = OFFERS
   (offer) => !offer.item || !NEVER_IN_OFFERS.includes(offer.item.id),
 )
 
-const offersById = new Map(FEATURED_OFFER_NOTIFICATIONS.map((offer) => [offer.id, offer]))
+/*
+ * A oferta na tela é refeita com o cardápio atual (modo vendedor, 2026-11-16): preço novo chega ao
+ * texto; item excluído ou esgotado deixa de aparecer.
+ */
+let current: { key: readonly unknown[]; offers: ReadonlyMap<string, OfferNotification> } | null = null
+
+function currentOffers(): ReadonlyMap<string, OfferNotification> {
+  const key = [EXTRA_ITEMS, PRODUCTS]
+  if (!current || current.key.some((part, index) => part !== key[index])) {
+    const offers = OFFERS.flatMap((config) => {
+      if (config.target.kind === 'extra') {
+        const item = getExtraItem(config.target.itemId)
+        if (!item || item.available === false || NEVER_IN_OFFERS.includes(item.id)) return []
+      }
+      return [resolve(config)]
+    })
+    current = { key, offers: new Map(offers.map((offer) => [offer.id, offer])) }
+  }
+  return current.offers
+}
 
 export function getOffer(id: string | null): OfferNotification | undefined {
-  return id ? offersById.get(id) : undefined
+  return id ? currentOffers().get(id) : undefined
 }

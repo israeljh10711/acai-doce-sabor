@@ -1,4 +1,5 @@
 import type { CategorySlug } from './categories.ts'
+import { findCategoryBySlug } from './categories.ts'
 import { productPhoto, productPhotoSrc } from './photos.ts'
 
 type ProductPhotoProps = {
@@ -20,6 +21,20 @@ type ProductPhotoProps = {
  */
 export function ProductPhoto({ slug, sizes, className = '', priority = false, decorative = false }: ProductPhotoProps) {
   const photo = productPhoto(slug)
+  // Foto enviada pelo vendedor (modo vendedor, 2026-11-16): um endereço, sem cópias de tamanho.
+  const uploaded = findCategoryBySlug(slug)?.photo
+  if (uploaded) {
+    return (
+      <img
+        src={uploaded}
+        alt={decorative ? '' : (findCategoryBySlug(slug)?.name ?? photo.alt)}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        data-product-photo={photo.name}
+        className={`aspect-square bg-white object-cover ${className}`}
+      />
+    )
+  }
   return (
     <img
       src={productPhotoSrc(photo.name)}

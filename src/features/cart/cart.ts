@@ -142,7 +142,8 @@ export function addExtraItem(
   id: string = newItemId(),
 ): { cart: Cart; item: ExtraCartItem | null } {
   const extra = getExtraItem(itemId)
-  const normalized = extra ? normalizeChoices(extra, choices) : null
+  // Item excluído ou esgotado pelo vendedor não entra.
+  const normalized = extra && isOrderableExtra(extra) ? normalizeChoices(extra, choices) : null
   if (!normalized) return { cart, item: null }
 
   const index = cart.items.findIndex(

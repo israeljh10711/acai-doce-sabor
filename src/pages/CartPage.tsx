@@ -22,12 +22,15 @@ import { ILLUSTRATIVE_NOTICE } from '../features/catalog/notices.ts'
 import { CheckoutPanel } from '../features/checkout/CheckoutPanel.tsx'
 import { getExtraItem } from '../features/catalog/extras.ts'
 import { ExtraVisual, ProductVisual } from '../features/catalog/ItemVisual.tsx'
+import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
 import { formatBRL } from '../utils/money.ts'
 
 /** Carrinho: cada item com a foto do que foi montado, as escolhas, a quantidade e os valores. */
 export function CartPage() {
+  // Preço ou item mudado pelo vendedor com a página aberta: redesenha.
+  useCatalogVersion()
   usePageTitle('Carrinho', { noindex: true })
   const cart = useCart()
   const [announcement, setAnnouncement] = useState('')

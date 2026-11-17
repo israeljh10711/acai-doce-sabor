@@ -29,6 +29,8 @@ export function blockerText(blocker: AddBlocker, limit: number): string {
       return 'Limite do grupo atingido'
     case 'not-in-product':
       return 'Indisponível neste produto'
+    case 'unavailable':
+      return 'Esgotado'
   }
 }
 

@@ -61,6 +61,8 @@ export type Topping = {
    * desligado no personalizador e o Completo não o marca. Sem o campo, disponível.
    */
   available?: boolean
+  /** Foto enviada pelo vendedor (endereço). Sem ela, a foto do ingrediente pelo id. */
+  image?: string
 }
 
 export type Flavor = {
@@ -139,7 +141,8 @@ const paid = (id: string, name: string, priceCents: number, group: ToppingGroupI
 })
 
 /** Todos os ingredientes, na ordem do cardápio. */
-export const TOPPINGS: readonly Topping[] = [
+/** Os ingredientes como estão no código (a base das mudanças do vendedor). */
+export const BASE_TOPPINGS: readonly Topping[] = [
   free('dry', 'leite-em-po', 'Leite em pó'),
   free('dry', 'granola', 'Granola'),
   free('dry', 'pacoca', 'Paçoca'),
@@ -183,6 +186,9 @@ export const TOPPINGS: readonly Topping[] = [
   paid('batido-ovomaltine', 'Ovomaltine', 300, 'batido', 'ovomaltine'),
 ]
 
+/** Os ingredientes como aparecem agora (base com as mudanças do vendedor). Ligação viva. */
+export let TOPPINGS: readonly Topping[] = BASE_TOPPINGS
+
 const size = (
   id: string,
   name: string,
@@ -193,7 +199,8 @@ const size = (
 
 const ACAI_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit', 'syrup', 'paid']
 
-export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
+/** Os produtos como estão no código (a base das mudanças do vendedor). */
+export const BASE_PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
   'acai-oca': {
     slug: 'acai-oca',
     completo: true,
@@ -303,7 +310,21 @@ export const PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
   },
 }
 
-const toppingsById = new Map(TOPPINGS.map((topping) => [topping.id, topping]))
+/** Os produtos como aparecem agora (base com as mudanças do vendedor). Ligação viva. */
+export let PRODUCTS: Readonly<Record<ProductSlug, Product>> = BASE_PRODUCTS
+
+let toppingsById = new Map(TOPPINGS.map((topping) => [topping.id, topping]))
+
+/** Troca os ingredientes (só `catalogStore.ts` chama). */
+export function setToppings(toppings: readonly Topping[]): void {
+  TOPPINGS = toppings
+  toppingsById = new Map(toppings.map((topping) => [topping.id, topping]))
+}
+
+/** Troca os produtos (só `catalogStore.ts` chama). */
+export function setProducts(products: Readonly<Record<ProductSlug, Product>>): void {
+  PRODUCTS = products
+}
 
 export function getTopping(id: string): Topping | undefined {
   return toppingsById.get(id)

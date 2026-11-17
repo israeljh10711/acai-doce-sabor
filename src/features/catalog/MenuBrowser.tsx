@@ -27,6 +27,7 @@ import { ILLUSTRATIVE_NOTICE } from './notices.ts'
 import { SearchBar, SearchSummary } from './SearchBar.tsx'
 import { searchMenu } from './search.ts'
 import { TopHighlightsStrip } from './TopHighlightsStrip.tsx'
+import { useCatalogVersion } from './catalogStore.ts'
 import { useScrollSpy, whenScrollSettles } from './useScrollSpy.ts'
 
 const drawerOfAnchor = (anchor: string): DrawerId | null => DRAWERS.find((drawer) => drawer.anchor === anchor)?.id ?? null
@@ -70,7 +71,10 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
 
   /* Busca */
   const [query, setQuery] = useState('')
-  const result = useMemo(() => searchMenu(query), [query])
+  // O cardápio pode mudar com a página aberta (modo vendedor): a busca é refeita junto.
+  const catalogVersion = useCatalogVersion()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- a versão refaz a busca quando o cardápio muda
+  const result = useMemo(() => searchMenu(query), [query, catalogVersion])
   const searching = result.query !== ''
   const entries = useMemo(() => navEntries(result), [result])
 

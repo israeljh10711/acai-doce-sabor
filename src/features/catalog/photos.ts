@@ -66,7 +66,9 @@ export function ingredientFile(topping: Pick<Topping, 'id' | 'look'>): string | 
   return INGREDIENT_FILES[lookOf(topping)]?.[0]
 }
 
-export function ingredientPhoto(topping: Pick<Topping, 'id' | 'look'>): IngredientPhoto | undefined {
+export function ingredientPhoto(topping: Pick<Topping, 'id' | 'look' | 'image'>): IngredientPhoto | undefined {
+  // Foto enviada pelo vendedor no lugar da foto do ingrediente.
+  if (topping.image) return { src: topping.image, fit: 'cover' }
   const entry = INGREDIENT_FILES[lookOf(topping)]
   return entry && { src: `${base}ingredientes/${entry[0]}`, fit: entry[1] }
 }
@@ -80,7 +82,8 @@ export function ingredientZoomFile(topping: Pick<Topping, 'id' | 'look'>): strin
   return file?.endsWith('.webp') ? file.replace(/\.webp$/, '-grande.webp') : file
 }
 
-export const ingredientZoomSrc = (topping: Pick<Topping, 'id' | 'look'>) => {
+export const ingredientZoomSrc = (topping: Pick<Topping, 'id' | 'look' | 'image'>) => {
+  if (topping.image) return topping.image
   const file = ingredientZoomFile(topping)
   return file && `${base}ingredientes/${file}`
 }
@@ -152,7 +155,10 @@ const catalogInfo = (image: string): CatalogPhotoInfo | undefined => CATALOG_PHO
  * 480 ou 960 px de largura que fica ao lado do arquivo de referência (`sundae-480.webp`).
  */
 export const catalogPhotoSrc = (image: string, width: 480 | 960) =>
-  `${import.meta.env.BASE_URL}${image.replace(/\.(jpg|png)$/, `-${width}.webp`)}`
+  isUploadedPhoto(image) ? image : `${import.meta.env.BASE_URL}${image.replace(/\.(jpg|png)$/, `-${width}.webp`)}`
+
+/** Foto enviada pelo vendedor (modo vendedor, 2026-11-16): um endereço pronto, sem cópias de tamanho. */
+export const isUploadedPhoto = (image: string): boolean => /^(https?:|blob:|data:)/.test(image)
 
 /** As cópias com a largura de verdade, para o navegador escolher pelo tamanho em que a foto aparece. */
 export function catalogPhotoSrcSet(image: string): string | undefined {

@@ -148,6 +148,8 @@ export type ExtraItem = {
   /** O que a foto mostra (para leitores de tela, quando a foto é o assunto principal). */
   imageAlt: string
   action: ExtraAction
+  /** `false` quando o vendedor marcou como esgotado: aparece, mas não dá para pedir. */
+  available?: boolean
 }
 
 /*
@@ -209,7 +211,8 @@ const kitChoices: ExtraAction = {
 const inDrawer = (drawer: DrawerId, items: Omit<ExtraItem, 'drawer'>[]): ExtraItem[] =>
   items.map((item) => ({ ...item, drawer }))
 
-export const EXTRA_ITEMS: readonly ExtraItem[] = [
+/** O cardápio das seções como está no código (a base das mudanças do vendedor). */
+export const BASE_EXTRA_ITEMS: readonly ExtraItem[] = [
   // Gavetas "Combos e Ofertas" e "Barcas e Potes": nomes, preços, sabores e fotos do pedido de
   // 2026-11-16 (catálogo do WhatsApp da loja).
   ...inDrawer('combos-e-ofertas', [
@@ -721,8 +724,20 @@ export const EXTRA_ITEMS: readonly ExtraItem[] = [
   ]),
 ]
 
+/**
+ * Os itens como aparecem agora: a base com as mudanças do vendedor (`catalogStore.ts`). É uma
+ * ligação viva: quem importa vê a troca feita por `setExtraItems`.
+ */
+export let EXTRA_ITEMS: readonly ExtraItem[] = BASE_EXTRA_ITEMS
+
 const drawersById = new Map(DRAWERS.map((drawer) => [drawer.id, drawer]))
-const itemsById = new Map(EXTRA_ITEMS.map((item) => [item.id, item]))
+let itemsById = new Map(EXTRA_ITEMS.map((item) => [item.id, item]))
+
+/** Troca os itens (só `catalogStore.ts` chama). */
+export function setExtraItems(items: readonly ExtraItem[]): void {
+  EXTRA_ITEMS = items
+  itemsById = new Map(items.map((item) => [item.id, item]))
+}
 
 export function drawerById(id: DrawerId): Drawer {
   return drawersById.get(id)!
@@ -749,7 +764,7 @@ export function choiceGroupsOf(item: ExtraItem): readonly ChoiceGroup[] {
 
 /** Vai para o carrinho direto da gaveta (com ou sem escolha de sabor), sem personalizador. */
 export function isOrderableExtra(item: ExtraItem): boolean {
-  return item.action.type !== 'customizer'
+  return item.action.type !== 'customizer' && item.available !== false
 }
 
 /* "Outro sabor" escrito pelo cliente. */

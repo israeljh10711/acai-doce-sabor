@@ -85,7 +85,7 @@ export function freeUsed(selection: Selection): number {
  *   adicionais pagos e nos adicionais grátis);
  * - `group-limit`: o grupo já tem o número de ingredientes que o produto aceita (na barca, 2 frutas).
  */
-export type AddBlocker = 'not-in-product' | 'free-limit' | 'item-max' | 'group-limit'
+export type AddBlocker = 'not-in-product' | 'unavailable' | 'free-limit' | 'item-max' | 'group-limit'
 
 export function addBlocker(
   product: Product,
@@ -94,6 +94,8 @@ export function addBlocker(
 ): AddBlocker | null {
   const topping = getTopping(toppingId)
   if (!topping || !offers(product, topping)) return 'not-in-product'
+  // Esgotado pelo vendedor (modo vendedor, 2026-11-16).
+  if (topping.available === false) return 'unavailable'
 
   const quantity = quantityOf(selection, toppingId)
   // Completo: os grupos dele vão 1 de cada, sem cota nem limite do grupo.

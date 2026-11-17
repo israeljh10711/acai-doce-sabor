@@ -10,7 +10,7 @@
  * - `keywords` são sinônimos para a busca do cardápio (pedido de 2026-11-15: "batida" acha o
  *   Açaí Batido).
  */
-export const CATEGORIES = [
+const BASE = [
   {
     slug: 'acai-oca',
     name: 'Açaí Oca',
@@ -49,8 +49,31 @@ export const CATEGORIES = [
   },
 ] as const
 
-export type Category = (typeof CATEGORIES)[number]
-export type CategorySlug = Category['slug']
+export type CategorySlug = (typeof BASE)[number]['slug']
+export type CategoryBadge = (typeof BASE)[number]['badges'][number]
+
+export type Category = {
+  slug: CategorySlug
+  name: string
+  summary: string
+  tagline: string
+  actionLabel: string
+  badges: readonly CategoryBadge[]
+  keywords: readonly string[]
+  /** Foto enviada pelo vendedor (endereço), no lugar da foto da loja (modo vendedor, 2026-11-16). */
+  photo?: string
+}
+
+/** As categorias como estão no código (a base das mudanças do vendedor). */
+export const BASE_CATEGORIES: readonly Category[] = BASE
+
+/** As categorias como aparecem agora (base com as mudanças do vendedor). Ligação viva. */
+export let CATEGORIES: readonly Category[] = BASE_CATEGORIES
+
+/** Troca as categorias (só `catalogStore.ts` chama). */
+export function setCategories(categories: readonly Category[]): void {
+  CATEGORIES = categories
+}
 
 export function findCategoryBySlug(slug: string | undefined): Category | undefined {
   return CATEGORIES.find((category) => category.slug === slug)
