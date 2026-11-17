@@ -3,12 +3,21 @@ import { PRODUCTS, getTopping } from '../catalog/menu.ts'
 import { EMPTY_SELECTION, addTopping, applyComplete, chooseFlavor, chooseSize, removeTopping } from '../catalog/selection.ts'
 import { productSummary } from '../configurator-core/confirmSummary.ts'
 import { buildOrderMessage } from '../orders/orderMessage.ts'
-import { EMPTY_CART, addItem, describeItem, normalizeSelection, parseCart, serializeCart, summarizeSelection, unitPriceCents } from './cart.ts'
+import { type Cart, EMPTY_CART, addItem, describeItem, normalizeSelection, parseCart, serializeCart, summarizeSelection, unitPriceCents } from './cart.ts'
 
 const oca = PRODUCTS['acai-oca']
 const barca = PRODUCTS['barca-de-acai']
 const NEWLINE = String.fromCharCode(10)
 const PIX = { method: 'pix' } as const
+/** Comanda de 2026-11-17: cliente que retira na loja, pagando com Pix. */
+const message = (cart: Cart) =>
+  buildOrderMessage({
+    cart,
+    customer: { name: 'Ana', phone: null, fulfillment: { kind: 'retirada' }, fee: { kind: 'retirada' } },
+    payment: PIX,
+    sentAt: Date.parse('2026-11-17T15:00:00-03:00'),
+    antecipado: false,
+  })
 
 const ocaCompleta = () => applyComplete(oca, chooseSize(oca, EMPTY_SELECTION, 'pote-200').selection)
 const semFarinha = () => removeTopping(ocaCompleta(), 'farinha-lactea')
@@ -55,24 +64,24 @@ describe('Completo no carrinho, na confirmação e no WhatsApp (pedido de 2026-1
     expect(describeItem(item).included.map((entry) => entry.group)).toEqual(['Adicionais', 'Frutas'])
   })
 
-  it('WhatsApp: "• Montagem: COMPLETO (SEM: Farinha láctea)" logo abaixo do título, a Farinha láctea fora da lista e os pagos à parte', () => {
+  it('WhatsApp: "COMPLETO" e "RETIRAR (SEM): Farinha láctea" logo abaixo do título, a Farinha láctea fora da lista e os pagos à parte', () => {
     const selection = addTopping(oca, addTopping(oca, addTopping(oca, semFarinha(), 'creme-de-avela'), 'creme-de-ninho'), 'calda-chocolate')
     const { cart } = addItem(EMPTY_CART, 'acai-oca', selection)
-    const lines = buildOrderMessage(cart, PIX).split(NEWLINE)
-    const title = lines.findIndex((line) => line.startsWith('*1x Açaí Oca'))
+    const lines = message(cart).split(NEWLINE)
+    const title = lines.findIndex((line) => line.startsWith('1️⃣ *1x Açaí Oca'))
     expect(lines[title]).toContain('R$ 16,00')
-    expect(lines[title + 1]).toBe('• Montagem: COMPLETO (SEM: Farinha láctea)')
-    expect(lines.some((line) => line.includes('Farinha láctea') && !line.includes('SEM'))).toBe(false)
-    // Na mensagem, o grupo se chama "Caldas/Cremes" (modelo do pedido de 2026-11-14).
-    expect(lines).toContain('• Caldas/Cremes: Chocolate')
-    expect(lines).toContain('• Extras / Cremes e Caldas pagos: Creme de ninho (+ R$ 3,00), Creme de avelã (+ R$ 3,00)')
+    expect(lines.slice(title + 1, title + 3)).toEqual(['   ✨ *Montagem:* COMPLETO', '   🚫 *RETIRAR (SEM):* Farinha láctea'])
+    expect(lines.some((line) => line.includes('Farinha láctea') && !line.includes('RETIRAR'))).toBe(false)
+    // A cobertura grátis fica nos acompanhamentos, com o nome do grupo do personalizador.
+    expect(lines).toContain('      • Caldas e cremes: Chocolate')
+    expect(lines).toContain('   ➕ *Cremes / Extras Pagos:* Creme de ninho (+R$ 3,00), Creme de avelã (+R$ 3,00)')
   })
 
-  it('WhatsApp da Barca completa com a cobertura: "COMPLETO", sem extras', () => {
+  it('WhatsApp da Barca completa com a cobertura: "COMPLETO (todos os acompanhamentos)", sem extras', () => {
     const selection = applyComplete(barca, chooseFlavor(barca, chooseSize(barca, EMPTY_SELECTION, 'barca').selection, 'calda-chocolate'))
-    const message = buildOrderMessage(addItem(EMPTY_CART, 'barca-de-acai', selection).cart, PIX)
-    expect(message).toContain('• Montagem: COMPLETO')
-    expect(message).not.toContain('Extras / Cremes e Caldas pagos')
-    expect(message).toContain('R$ 30,00')
+    const text = message(addItem(EMPTY_CART, 'barca-de-acai', selection).cart)
+    expect(text).toContain('✨ *Montagem:* COMPLETO (todos os acompanhamentos)')
+    expect(text).not.toContain('Extras Pagos')
+    expect(text).toContain('R$ 30,00')
   })
 })
