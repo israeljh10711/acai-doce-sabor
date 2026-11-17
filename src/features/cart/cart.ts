@@ -14,7 +14,7 @@
  * conta.
  */
 import { isProductAvailable } from '../catalog/availability.ts'
-import { choiceRows, extraPriceCents, getExtraItem, isOrderableExtra, normalizeChoices } from '../catalog/extras.ts'
+import { choiceGroupsOf, choiceRows, extraPriceCents, getExtraItem, isOrderableExtra, normalizeChoices } from '../catalog/extras.ts'
 import {
   type Product,
   type ProductSlug,
@@ -113,7 +113,7 @@ export function normalizeSelection(slug: string, selection: Selection): Selectio
   // O Completo (pedido de 2026-11-16) muda as regras: liga antes de refazer os ingredientes.
   const start: Selection = selection.complete === true && product.completo ? { ...EMPTY_SELECTION, complete: true } : EMPTY_SELECTION
   let rebuilt = selection.sizeId ? chooseSize(product, start, selection.sizeId).selection : start
-  if (selection.flavorId) rebuilt = chooseFlavor(product, rebuilt, selection.flavorId)
+  if (selection.flavorId) rebuilt = chooseFlavor(product, rebuilt, selection.flavorId, { ignoreStock: true })
   for (const [toppingId, quantity] of Object.entries(selection.toppings)) {
     const units = Number.isInteger(quantity) ? Math.min(quantity, 100) : 0
     // Sem olhar o esgotado: o complemento que esgotou fica e o carrinho avisa (2026-11-17).
@@ -121,7 +121,7 @@ export function normalizeSelection(slug: string, selection: Selection): Selectio
   }
   rebuilt = settleComplete(product, rebuilt)
 
-  if (missingChoices(product, rebuilt).length > 0) return null
+  if (missingChoices(product, rebuilt, { ignoreStock: true }).length > 0) return null
   return freezeSelection(rebuilt)
 }
 
@@ -228,13 +228,28 @@ export type CartItemProblem = { kind: 'item' } | { kind: 'toppings'; names: stri
 export function cartItemProblem(item: CartItem): CartItemProblem | null {
   if (item.kind === 'extra') {
     const extra = getExtraItem(item.itemId)
-    return !extra || extra.available === false ? { kind: 'item' } : null
+    if (!extra || extra.available === false) return { kind: 'item' }
+    // Escolhas (sabores) esgotadas, ou que saíram da lista (2026-11-17).
+    const names: string[] = []
+    for (const group of choiceGroupsOf(extra)) {
+      const value = item.choices[group.id]
+      if (value === undefined || (!group.options.includes(value) && !group.allowOther)) return { kind: 'item' }
+      if (group.unavailable?.includes(value)) names.push(value)
+    }
+    return names.length > 0 ? { kind: 'toppings', names } : null
   }
   if (!isProductAvailable(item.slug)) return { kind: 'item' }
-  const names = Object.keys(item.selection.toppings).flatMap((id) => {
+  const product = PRODUCTS[item.slug]
+  const names: string[] = []
+  if (product.flavors.length > 0) {
+    const flavor = product.flavors.find((candidate) => candidate.id === item.selection.flavorId)
+    if (!flavor) return { kind: 'item' }
+    if (flavor.available === false) names.push(flavor.name)
+  }
+  for (const id of Object.keys(item.selection.toppings)) {
     const topping = getTopping(id)
-    return topping?.available === false ? [topping.name] : []
-  })
+    if (topping?.available === false) names.push(topping.name)
+  }
   return names.length > 0 ? { kind: 'toppings', names } : null
 }
 

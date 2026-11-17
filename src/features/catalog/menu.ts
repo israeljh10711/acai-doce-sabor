@@ -68,6 +68,8 @@ export type Topping = {
 export type Flavor = {
   id: string
   name: string
+  /** `false` quando o vendedor marcou o sabor como esgotado (pedido de 2026-11-17). */
+  available?: boolean
 }
 
 /**
@@ -111,6 +113,18 @@ export type Product = {
    * mostra a tarja e o personalizador não deixa pedir. Sem o campo, disponível.
    */
   available?: boolean
+  /**
+   * Os sabores são os complementos sem custo deste grupo (a Barca: as caldas são as coberturas).
+   * Esgotar, renomear ou criar a calda vale também aqui (pedido de 2026-11-17).
+   */
+  flavorsFrom?: ToppingGroupId
+}
+
+/** Sabores tirados de um grupo de complementos: os sem custo e que não são só de um produto. */
+export function flavorsFromToppings(toppings: readonly Topping[], group: ToppingGroupId): Flavor[] {
+  return toppings
+    .filter((topping) => topping.group === group && topping.priceCents === 0 && !topping.onlyIn)
+    .map((topping) => ({ id: topping.id, name: topping.name, ...(topping.available === false ? { available: false } : {}) }))
 }
 
 /**
@@ -308,9 +322,8 @@ export const BASE_PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
     groupLimits: { fruit: 2 },
     flavorTerm: { label: 'Cobertura', missing: 'a cobertura' },
     flavorHint: '1 inclusa no preço',
-    flavors: TOPPINGS.filter((topping) => topping.group === 'syrup' && topping.priceCents === 0 && !topping.onlyIn).map(
-      (topping) => ({ id: topping.id, name: topping.name }),
-    ),
+    flavorsFrom: 'syrup',
+    flavors: flavorsFromToppings(TOPPINGS, 'syrup'),
     sizes: [size('barca', 'Barca', 'barca', 3000, 7)],
   },
 }

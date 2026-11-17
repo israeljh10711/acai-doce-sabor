@@ -10,10 +10,16 @@ import { foldText } from '../../utils/text.ts'
 import { type StoreSettingsChange, parseStoreSettingsChange } from '../store/storeSettings.ts'
 import type { Category, CategorySlug } from './categories.ts'
 import { BASE_DRAWERS, type ChoiceGroup, type Drawer, type DrawerId, type ExtraItem } from './extras.ts'
-import type { ContainerKind, Product, ProductSize, ProductSlug, Topping, ToppingGroupId } from './menu.ts'
+import { type ContainerKind, type Flavor, type Product, type ProductSize, type ProductSlug, type Topping, type ToppingGroupId, flavorsFromToppings } from './menu.ts'
 
 /** Um tamanho de item das seções: vira uma opção da escolha "Tamanho", com o preço dela. */
 export type SizeEntry = { name: string; priceCents: number }
+
+/** Um sabor de um produto do personalizador: sem `id`, é novo (pedido de 2026-11-17). */
+export type FlavorEntry = { id?: string; name: string; available?: boolean }
+
+/** Uma escolha de um item (ex.: "Sabor"), com as opções: sem `id`, é nova (pedido de 2026-11-17). */
+export type ChoiceGroupEntry = { id?: string; label: string; options: { name: string; available?: boolean }[] }
 
 /** Um tamanho de um dos 4 produtos (personalizador): sem `id`, é novo. */
 export type ProductSizeEntry = { id?: string; name: string; priceCents: number; freeToppings: number }
@@ -30,6 +36,11 @@ export type ItemChange = {
   flavors?: string[]
   /** Tamanhos e preços (ajuste de 2026-11-16): lista vazia volta ao preço único. */
   sizes?: SizeEntry[]
+  /**
+   * Todas as escolhas sem preço do item, com as opções e o esgotado (gerenciador de sabores,
+   * 2026-11-17). Quando existe, vale no lugar de `flavors`. Lista vazia: sem escolha.
+   */
+  groups?: ChoiceGroupEntry[]
   available?: boolean
   drawer?: DrawerId
   deleted?: boolean
@@ -45,6 +56,8 @@ export type ProductChange = {
   sizePrices?: Record<string, number>
   /** A lista inteira de tamanhos (ajuste de 2026-11-16); quando existe, vale no lugar de `sizePrices`. */
   sizes?: ProductSizeEntry[]
+  /** A lista inteira de sabores, com o esgotado (gerenciador de sabores, 2026-11-17). */
+  flavors?: FlavorEntry[]
   /** Esgotado em 1 toque (pedido de 2026-11-17): `false` desliga o produto. */
   available?: boolean
 }
@@ -150,6 +163,51 @@ function withFlavors(item: ExtraItem, flavors: readonly string[]): ExtraItem['ac
   return next.length === 0 ? { type: 'direct_confirm' } : { type: 'flavor_modal', choices: next }
 }
 
+/**
+ * As escolhas sem preço de um item, pelo gerenciador de sabores (2026-11-17). A escolha de tamanho
+ * continua primeiro; as que já existiam mantêm o id, o "Outro sabor" e as fotos das opções.
+ */
+function withGroups(item: ExtraItem, entries: readonly ChoiceGroupEntry[]): ExtraItem['action'] {
+  if (item.action.type === 'customizer') return item.action
+  const current: readonly ChoiceGroup[] = item.action.type === 'flavor_modal' ? item.action.choices : []
+  const priced = current.filter((group) => group.prices)
+  const used = new Set(priced.map((group) => group.id))
+  let counter = 0
+  const groups = entries.map((entry): ChoiceGroup => {
+    const known = entry.id ? current.find((group) => group.id === entry.id && !group.prices) : undefined
+    let id = entry.id && !used.has(entry.id) ? entry.id : ''
+    while (!id || used.has(id)) id = `escolha-${++counter}`
+    used.add(id)
+    const unavailable = entry.options.filter((option) => option.available === false).map((option) => option.name)
+    return {
+      id,
+      label: entry.label,
+      options: entry.options.map((option) => option.name),
+      ...(unavailable.length > 0 ? { unavailable } : {}),
+      ...(known?.allowOther ? { allowOther: true } : {}),
+      ...(known?.photos ? { photos: known.photos } : {}),
+      ...(known?.photoAlt ? { photoAlt: known.photoAlt } : {}),
+    }
+  })
+  const next = [...priced, ...groups]
+  return next.length === 0 ? { type: 'direct_confirm' } : { type: 'flavor_modal', choices: next }
+}
+
+/** Os sabores de um produto pelo gerenciador: id guardado continua; sabor novo ganha `novo-<nome>`. */
+function productFlavors(entries: readonly FlavorEntry[]): Flavor[] {
+  const used = new Set(entries.flatMap((entry) => (entry.id ? [entry.id] : [])))
+  return entries.map((entry) => {
+    let id = entry.id
+    if (!id) {
+      const base = `novo-${slugOf(entry.name) || 'sabor'}`
+      id = base
+      for (let suffix = 2; used.has(id); suffix++) id = `${base}-${suffix}`
+      used.add(id)
+    }
+    return { id, name: entry.name, ...(entry.available === false ? { available: false } : {}) }
+  })
+}
+
 function changeItem(item: ExtraItem, change: ItemChange): ExtraItem {
   const next: ExtraItem = { ...item }
   if (change.name !== undefined) next.name = change.name
@@ -162,7 +220,8 @@ function changeItem(item: ExtraItem, change: ItemChange): ExtraItem {
   if (!next.image.startsWith('images/')) next.imageAlt = next.name
   if (change.available !== undefined) next.available = change.available
   if (change.drawer !== undefined) next.drawer = change.drawer
-  if (change.flavors !== undefined) next.action = withFlavors(next, change.flavors)
+  if (change.groups !== undefined) next.action = withGroups(next, change.groups)
+  else if (change.flavors !== undefined) next.action = withFlavors(next, change.flavors)
   if (change.sizes !== undefined) Object.assign(next, withSizes(next, change.sizes))
   return next
 }
@@ -223,6 +282,7 @@ export function applyChanges(base: CatalogData, changes: CatalogChanges): Catalo
       ...product,
       name: change.name ?? product.name,
       ...(change.available !== undefined ? { available: change.available } : {}),
+      ...(change.flavors !== undefined && !product.flavorsFrom ? { flavors: productFlavors(change.flavors) } : {}),
       sizes:
         change.sizes && change.sizes.length > 0
           ? productSizes(product, change.sizes)
@@ -282,6 +342,11 @@ export function applyChanges(base: CatalogData, changes: CatalogChanges): Catalo
   const monte = sections.monte?.name?.trim()
   const groupTitles = monte ? { ...base.groupTitles, monte } : base.groupTitles
 
+  // Sabores tirados dos complementos (a Barca e as caldas) acompanham as mudanças deles (2026-11-17).
+  for (const [slug, product] of Object.entries(products)) {
+    if (product.flavorsFrom) products[slug] = { ...product, flavors: flavorsFromToppings(toppings, product.flavorsFrom) }
+  }
+
   return { items, toppings, products: products as Record<ProductSlug, Product>, categories, drawers, groupTitles }
 }
 
@@ -322,6 +387,7 @@ function parseItem(raw: Record<string, unknown>): ItemChange {
       })
       .slice(0, 12)
   }
+  if (Array.isArray(raw.groups)) change.groups = parseGroups(raw.groups)
   if (typeof raw.available === 'boolean') change.available = raw.available
   if (typeof raw.drawer === 'string' && DRAWER_IDS.has(raw.drawer)) change.drawer = raw.drawer as DrawerId
   if (raw.deleted === true) change.deleted = true
@@ -355,7 +421,47 @@ function parseProduct(raw: Record<string, unknown>): ProductChange {
     if (sizes.length > 0) change.sizes = sizes
   }
   if (typeof raw.available === 'boolean') change.available = raw.available
+  if (Array.isArray(raw.flavors)) change.flavors = parseOptions(raw.flavors, true) as FlavorEntry[]
   return change
+}
+
+const MAX_OPTIONS = 40
+const MAX_GROUPS = 3
+const optionId = (value: unknown) => {
+  const id = text(value, 40)
+  return id && /^[a-z0-9-]+$/.test(id) ? id : undefined
+}
+
+/** Opções (ou sabores) com nome, sem repetir o nome, até 40; o esgotado só quando `false`. */
+function parseOptions(raw: readonly unknown[], withId: boolean): { id?: string; name: string; available?: boolean }[] {
+  const seen = new Set<string>()
+  const options: { id?: string; name: string; available?: boolean }[] = []
+  for (const entry of raw) {
+    if (!isRecord(entry)) continue
+    const name = text(entry.name, 60)
+    const key = name ? foldText(name).toLowerCase() : ''
+    if (!name || seen.has(key)) continue
+    seen.add(key)
+    const id = withId ? optionId(entry.id) : undefined
+    options.push({ ...(id ? { id } : {}), name, ...(entry.available === false ? { available: false } : {}) })
+    if (options.length === MAX_OPTIONS) break
+  }
+  return options
+}
+
+/** Escolhas de um item: até 3, cada uma com nome e pelo menos uma opção. */
+function parseGroups(raw: readonly unknown[]): ChoiceGroupEntry[] {
+  const groups: ChoiceGroupEntry[] = []
+  for (const entry of raw) {
+    if (!isRecord(entry) || !Array.isArray(entry.options)) continue
+    const label = text(entry.label, 40)
+    const options = parseOptions(entry.options, false)
+    if (!label || options.length === 0) continue
+    const id = optionId(entry.id)
+    groups.push({ ...(id ? { id } : {}), label, options })
+    if (groups.length === MAX_GROUPS) break
+  }
+  return groups
 }
 
 function parseSectionChange(raw: Record<string, unknown>): SectionChange {

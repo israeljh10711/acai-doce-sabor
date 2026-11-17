@@ -122,6 +122,8 @@ export type ChoiceGroup = {
   photos?: Readonly<Record<string, string>>
   /** Começo do texto alternativo das fotos das opções: "<photoAlt>, sabor <opção>". */
   photoAlt?: string
+  /** Opções esgotadas pelo vendedor (pedido de 2026-11-17): aparecem desligadas. */
+  unavailable?: readonly string[]
 }
 
 export type ExtraAction =
@@ -811,6 +813,8 @@ export function normalizeChoices(
     const value = raw[group.id]
     if (typeof value !== 'string') return null
     if (group.options.includes(value)) {
+      // Opção esgotada pelo vendedor (2026-11-17): não entra; a que já estava no carrinho fica.
+      if (!options.ignoreStock && group.unavailable?.includes(value)) return null
       choices[group.id] = value
       continue
     }

@@ -182,8 +182,10 @@ export function chooseSize(
 }
 
 /** Escolhe o sabor. Devolve a mesma seleção quando o produto não tem esse sabor. */
-export function chooseFlavor(product: Product, selection: Selection, flavorId: string): Selection {
-  if (!product.flavors.some((flavor) => flavor.id === flavorId)) return selection
+export function chooseFlavor(product: Product, selection: Selection, flavorId: string, options: AddOptions = {}): Selection {
+  const flavor = product.flavors.find((candidate) => candidate.id === flavorId)
+  // Sabor esgotado pelo vendedor (2026-11-17): não é escolhido; o do carrinho guardado fica.
+  if (!flavor || (flavor.available === false && !options.ignoreStock)) return selection
   return { ...selection, flavorId }
 }
 
@@ -248,12 +250,12 @@ export function priceOf(product: Product, selection: Selection): Price | null {
 export type MissingChoice = 'size' | 'flavor'
 
 /** Escolhas obrigatórias que ainda faltam para o produto ficar completo. */
-export function missingChoices(product: Product, selection: Selection): MissingChoice[] {
+export function missingChoices(product: Product, selection: Selection, options: AddOptions = {}): MissingChoice[] {
   const missing: MissingChoice[] = []
   if (!selectedSize(product, selection)) missing.push('size')
-  if (product.flavors.length > 0 && !product.flavors.some((f) => f.id === selection.flavorId)) {
-    missing.push('flavor')
-  }
+  // Sabor que esgotou depois de escolhido conta como falta (menos ao reler o carrinho guardado).
+  const flavor = product.flavors.find((candidate) => candidate.id === selection.flavorId)
+  if (product.flavors.length > 0 && (!flavor || (flavor.available === false && !options.ignoreStock))) missing.push('flavor')
   return missing
 }
 
