@@ -2,7 +2,7 @@
 
 Pedido colado pelo responsável em 2026-11-17: "Atualização operacional do modo vendedor (esgotado em 1 toque, loja aberta/fechada, taxa de entrega editável, duplicar discreto) e nova comanda detalhada do WhatsApp com emojis".
 
-Estado: **aguardando aprovação** (duas perguntas no fim).
+Estado: **aprovado em 2026-11-17** ("Pode começar", respostas 1A e 2A), com os acréscimos da seção "Aprovação e acréscimos" no fim.
 
 ## Por que
 
@@ -173,3 +173,23 @@ Exemplo com entrega, dinheiro com troco e Completo sem Farinha láctea:
   - Até lá, preço, taxa e troco são calculados no aparelho do cliente.
   - A loja confere tudo na conversa.
 - **Lembrar nome e endereço do cliente para o próximo pedido:** pode vir depois, se o responsável quiser.
+
+## Aprovação e acréscimos (2026-11-17)
+
+- **Respostas:** 1A (horário automático e interruptor para exceções) e 2A ("+ Observação" em cada item do carrinho).
+- **Novo: botão "Horários e Contato" na faixa do vendedor:**
+  - abertura e fechamento: um horário só para todos os dias, como hoje;
+  - abertura a partir das 05:00 e fechamento depois da abertura, até 00:00 (meia-noite), porque o dia da loja vira às 5h;
+  - "Com a loja fechada": aceitar como pedido antecipado (padrão) ou bloquear o envio;
+  - contato: WhatsApp (recebe os pedidos), rua e número, cidade e UF.
+- **Novo: aviso acolhedor de loja fechada:**
+  - aparece no início, no cardápio e no carrinho sempre que a loja estiver fechada, pelo interruptor ou pelo horário;
+  - traz o convite para voltar ("amanhã a partir das 13h", ou "hoje a partir das 13h" antes da abertura);
+  - traz o endereço clicável (abre o mapa) e o botão do WhatsApp.
+- **"Abrir" fora do horário:** vale até o vendedor fechar ou até o limite automático. O limite é o fechamento, se abriu antes da abertura, ou as 5h, se abriu depois do fechamento.
+- **Observação:** até 140 caracteres; a linha some da comanda quando está vazia.
+- **Decisões da escrita do plano:**
+  - **"Acompanhamentos" na comanda:** vem agrupado por tipo, uma linha por grupo (Adicionais, Frutas, Caldas e cremes…), porque "Morango" existe como fruta e como cobertura.
+  - **Item com duas ou mais escolhas** (ex.: sorvete com sabor e cobertura): as escolhas vão em linhas abaixo do título; com uma escolha só, vai entre parênteses.
+  - **Achado:** o carrinho era lido antes das mudanças do vendedor serem aplicadas, e item criado pelo vendedor sumia do carrinho ao recarregar a página. Agora o carrinho é lido na primeira vez que a tela pede.
+  - **Item ou complemento que esgota com o cliente no carrinho:** continua no carrinho, marcado, até o cliente tirar ou editar. Antes, o complemento sumia sem aviso ao recarregar.
