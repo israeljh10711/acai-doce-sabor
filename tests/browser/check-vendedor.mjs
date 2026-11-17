@@ -6,6 +6,8 @@
 // - preço editado (Sundae R$ 9,50) chega ao carrinho; "Restaurar original" volta a R$ 7,00;
 // - complemento novo (Ovomaltine) entra no personalizador e no Completo; complemento e item
 //   esgotados ficam desligados e fora do Completo;
+// - tamanhos (ajuste de 2026-11-16): no Sundae, num item novo e um tamanho novo no Milk-shake;
+// - "Renomear": a seção Bebidas e o grupo "Monte do seu jeito";
 // - backup baixado e restaurado devolve as mudanças; "Sair" esconde as ferramentas.
 //
 // A senha inicial fica no código do site como hash; aqui ela vem da variável SENHA_VENDEDOR
@@ -165,10 +167,61 @@ try {
   await click(`__q('input[value="pote-200"]')`)
   await click(`__button('Completo', __q('[data-complete-bar]'))`, 600)
   check(
-    'Completo: entra o complemento novo, fica de fora o esgotado (24 itens)',
-    await run(`[__q('#resumo').innerText.includes('24 itens selecionados'), __q('#resumo').innerText.includes('Ovomaltine'), __q('#resumo').innerText.includes('Granola'), __q('button[aria-label="Adicionar Granola"]').getAttribute('aria-disabled')]`),
+    'Completo: entra o complemento novo, fica de fora o esgotado (15 itens)',
+    await run(`[__q('#resumo').innerText.includes('15 itens selecionados'), __q('#resumo').innerText.includes('Ovomaltine'), __q('#resumo').innerText.includes('Granola'), __q('button[aria-label="Adicionar Granola"]').getAttribute('aria-disabled')]`),
     [true, true, false, 'true'],
   )
+
+  // --- Tamanhos num item que já existe (Sundae): "a partir de" e escolha do tamanho ---
+  await goto('/monte-seu-pedido', desktop)
+  const addSize = async (name, price) => {
+    await click(`__dialog().querySelector('[data-add-size]')`, 250)
+    const index = await run(`__dialog().querySelectorAll('[data-size-name]').length - 1`)
+    await run(`__set(__dialog().querySelector('[data-size-name="${index}"]'), ${JSON.stringify(name)})`)
+    await run(`__set(__dialog().querySelector('[data-size-price="${index}"]'), ${JSON.stringify(price)})`)
+  }
+  await click(`__item('sundae').querySelector('[data-seller-edit]')`, 900)
+  check('formulário com "Tamanhos e Preços (Opcional)"', await run(`__dialog().querySelector('[data-sizes-editor] legend')?.textContent`), 'Tamanhos e Preços (Opcional)')
+  await addSize('Pequeno', '7,00')
+  await addSize('Grande', '10,00')
+  await submitDialog()
+  check('Sundae com tamanhos: "a partir de R$ 7,00" e "Escolher tamanho e sabor"', await run(`[__item('sundae').textContent.includes('a partir de'), __item('sundae').querySelector('strong').textContent, __item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit])').textContent.trim().split(':')[0]]`), [true, 'R$ 7,00', 'Escolher tamanho e sabor'])
+  await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit])')`, 800)
+  check('escolha com o tamanho e o preço de cada um', await run(`[__dialog()?.querySelector('h2')?.textContent, __dialog()?.textContent.includes('R$ 10,00')]`), ['Escolha o tamanho e o sabor', true])
+  await run(`__dialog().close(); true`)
+  await sleep(400)
+
+  // --- Item novo com tamanhos ---
+  await click(`__q('[data-section="bebidas"] [data-seller-add]')`, 900)
+  await run(`__set(__field('-nome'), 'Suco natural')`)
+  await run(`__set(__field('-descricao'), 'Suco da fruta')`)
+  await addSize('300 ml', '6,00')
+  await addSize('500 ml', '9,00')
+  await submitDialog(1400)
+  check('item novo com tamanhos: "a partir de R$ 6,00" na seção Bebidas', await run(`(() => { const card = __lastIn('bebidas'); return [card.querySelector('[id$="-nome"]').textContent, card.querySelector('strong').textContent, card.textContent.includes('a partir de')] })()`), ['Suco natural', 'R$ 6,00', true])
+
+  // --- Tamanho novo no Milk-shake (produto principal) ---
+  await click(`__q('#secao-milkshake [data-seller-edit]')`, 900)
+  await addSize('700 ml', '16,00')
+  await submitDialog(1400)
+  await goto('/monte-seu-pedido/milk-shake', desktop)
+  check('Milk-shake com o tamanho novo de 700 ml (R$ 16,00) no personalizador', await run(`[...document.querySelectorAll('input[name$="tamanho"], input[type=radio]')].some((input) => input.closest('label')?.textContent.includes('700 ml') && input.closest('label')?.textContent.includes('R$ 16,00'))`), true)
+
+  // --- Renomear a seção Bebidas e o grupo "Monte do seu jeito" ---
+  await goto('/monte-seu-pedido', desktop)
+  await click(`__q('[data-seller-rename="bebidas"]')`, 900)
+  check('"Renomear" abre a janela com o nome atual', await run(`[__dialog()?.querySelector('h2')?.textContent, __field('-nome')?.value]`), ['Renomear categoria', 'Bebidas'])
+  await run(`__set(__field('-nome'), 'Bebidas geladas')`)
+  await submitDialog()
+  check(
+    'seção renomeada: título, barra lateral e contagem continuam',
+    await run(`[__q('#bebidas-titulo')?.textContent, __q('nav[aria-label="Categorias do cardápio"] a[data-nav="secao-bebidas"]')?.textContent.includes('Bebidas geladas')]`),
+    ['Bebidas geladas', true],
+  )
+  await click(`__q('nav[aria-label="Categorias do cardápio"] [data-seller-rename="monte"]')`, 900)
+  await run(`__set(__field('-nome'), 'Monte o seu açaí')`)
+  await submitDialog()
+  check('grupo renomeado na barra lateral', await run(`__q('#lateral-grupo-monte')?.textContent`), 'Monte o seu açaí')
 
   // --- Backup e restauração ---
   await goto('/monte-seu-pedido', desktop)
@@ -185,7 +238,7 @@ try {
   const { nodeId } = await browser.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'dialog[open] input[type=file]' })
   await browser.send('DOM.setFileInputFiles', { nodeId, files: [file.replaceAll('\\', '/')] })
   await sleep(1500)
-  check('restaurar: aviso e o produto novo de volta', await run(`[__dialog()?.textContent.includes('Backup restaurado.'), [...document.querySelectorAll('[data-item] [id$="-nome"]')].some((h) => h.textContent === 'Picolé trufado')]`), [true, true])
+  check('restaurar: aviso, o produto novo e o nome da seção de volta', await run(`[__dialog()?.textContent.includes('Backup restaurado.'), [...document.querySelectorAll('[data-item] [id$="-nome"]')].some((h) => h.textContent === 'Picolé trufado'), __q('#bebidas-titulo')?.textContent]`), [true, true, 'Bebidas geladas'])
   await run(`__dialog()?.close(); true`)
   await sleep(400)
 

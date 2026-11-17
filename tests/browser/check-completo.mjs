@@ -1,10 +1,12 @@
-// Confere no navegador o botão "Completo" (pedido de 2026-11-16), no celular (390 px) e no
-// computador (1280 px):
-// - Barca: "Completo" marca os 13 adicionais e as 3 frutas pelo preço de R$ 30,00, sem fechar o
-//   personalizador; tirar a Farinha láctea mantém o resto; a confirmação, o carrinho e o WhatsApp
-//   trazem "Montagem: COMPLETO (SEM: Farinha láctea)" e a Farinha láctea fica fora das listas;
-// - Pote 1 L: "Completo" marca 24 itens por R$ 30,00; "Limpar" zera e volta à cota de 7 grátis;
-// - Oca 200 ml: Completo por R$ 10,00 (cremes sem custo); Kit Kat continua cobrado (+ R$ 4,00);
+// Confere no navegador o botão "Completo" (pedido de 2026-11-16, com o ajuste do mesmo dia), no
+// celular (390 px) e no computador (1280 px):
+// - Barca: "Completo" marca os 12 adicionais sem custo (sem o leite condensado) e as 3 frutas pelo
+//   preço de R$ 30,00, sem fechar o personalizador; tirar a Farinha láctea mantém o resto; a
+//   confirmação, o carrinho e o WhatsApp trazem "Montagem: COMPLETO (SEM: Farinha láctea)";
+// - Pote 1 L: "Completo" marca 15 itens por R$ 30,00, sem caldas nem cremes; "Limpar" zera e volta
+//   à cota de 7 grátis;
+// - Tradicional Isopor M (R$ 15,00): Completo + creme de avelã + creme de ninho = R$ 21,00, e o
+//   WhatsApp traz os dois em "Extras / Cremes e Caldas pagos";
 // - Açaí Batido e Milk-shake não têm o botão.
 //
 // Uso (com o site rodando, por exemplo em `npm run dev`): node tests/browser/check-completo.mjs [endereçoBase]
@@ -74,19 +76,20 @@ try {
     ])
     await click(`__button('Completo', __bar())`)
     check(
-      `${at} Barca: "Completo" marca 16 (13 adicionais e 3 frutas), R$ 30,00, sem fechar nem abrir janela`,
-      await run(`[__resumo().includes('16 itens selecionados'), __total(), location.pathname, !!__q('dialog[open]'), __montagem()]`),
-      [true, 'R$ 30,00', '/monte-seu-pedido/barca-de-acai', false, 'Montagem: COMPLETO (todos os acompanhamentos)'],
+      `${at} Barca: "Completo" marca 15 (12 adicionais e 3 frutas), R$ 30,00, sem fechar nem abrir janela`,
+      await run(`[__resumo().includes('15 itens selecionados'), __total(), location.pathname, !!__q('dialog[open]'), __montagem()]`),
+      [true, 'R$ 30,00', '/monte-seu-pedido/barca-de-acai', false, 'Montagem: COMPLETO'],
     )
     check(`${at} Barca: botões viram "Completo aplicado" e "Limpar"; aviso do modo`, await run(`[__barButtons(), __bar().textContent.includes('Modo Completo ativado!')]`), [
       ['Completo aplicado', 'Limpar'],
       true,
     ])
+    check(`${at} Barca: o leite condensado não é marcado pelo Completo`, await run(`__q('[aria-label="Leite condensado: 0"]') !== null`), true)
     check(`${at} Barca: no Completo, "+" da Granola bloqueado (1 de cada)`, await run(`__q('button[aria-label="Adicionar Granola"]').getAttribute('aria-disabled') ?? String(__q('button[aria-label="Adicionar Granola"]').disabled)`), 'true')
     await click(`__q('button[aria-label="Tirar Farinha láctea"]')`)
     check(
       `${at} Barca: tirar a Farinha láctea mantém o resto e o preço; "Marcar tudo novamente"`,
-      await run(`[__resumo().includes('15 itens selecionados'), __total(), __montagem(), __barButtons()[0]]`),
+      await run(`[__resumo().includes('14 itens selecionados'), __total(), __montagem(), __barButtons()[0]]`),
       [true, 'R$ 30,00', 'Montagem: COMPLETO (SEM: Farinha láctea)', 'Marcar tudo novamente'],
     )
     await click(`__q('input[value="calda-chocolate"]')`)
@@ -114,7 +117,11 @@ try {
     // --- Pote 1 L: Completo e Limpar ---
     await page('/monte-seu-pedido/pote-de-acai-1-litro', viewport)
     await click(`__button('Completo', __bar())`)
-    check(`${at} Pote 1 L: 24 itens por R$ 30,00`, await run(`[__resumo().includes('24 itens selecionados'), __total()]`), [true, 'R$ 30,00'])
+    check(
+      `${at} Pote 1 L: 15 itens por R$ 30,00, sem caldas nem cremes`,
+      await run(`[__resumo().includes('15 itens selecionados'), __total(), document.querySelectorAll('button[aria-pressed="true"][aria-label*="calda" i], button[aria-pressed="true"][aria-label*="Creme" i]').length]`),
+      [true, 'R$ 30,00', 0],
+    )
     await click(`__button('Limpar', __bar())`)
     check(
       `${at} Pote 1 L: "Limpar" zera e volta à cota de 7 grátis`,
@@ -122,17 +129,36 @@ try {
       [false, null, ['Completo'], true],
     )
 
-    // --- Oca 200 ml: cremes sem custo no Completo, Kit Kat cobrado ---
-    await page('/monte-seu-pedido/acai-oca', viewport)
-    await click(`__q('input[value="pote-200"]')`)
+    // --- Exemplo do pedido: Tradicional Isopor M (R$ 15,00) + Completo + avelã + ninho = R$ 21,00 ---
+    await page('/monte-seu-pedido/acai-tradicional', viewport)
+    await click(`__q('input[value="isopor-m"]')`)
     await click(`__button('Completo', __bar())`)
-    check(`${at} Oca 200 ml: Completo por R$ 10,00, com os cremes sem custo`, await run(`[__total(), __resumo().includes('Creme de ninho'), __resumo().includes('+ R$ 3,00')]`), [
-      'R$ 10,00',
-      true,
-      false,
-    ])
+    check(`${at} Tradicional Isopor M: Completo por R$ 15,00, sem cremes marcados`, await run(`[__total(), __resumo().includes('Creme de')]`), ['R$ 15,00', false])
+    await click(`[...document.querySelectorAll('button[aria-pressed]')].find((b) => b.getAttribute('aria-label') === 'Creme de avelã')`)
+    await click(`[...document.querySelectorAll('button[aria-pressed]')].find((b) => b.getAttribute('aria-label') === 'Creme de ninho')`)
+    check(`${at} Tradicional Isopor M: + creme de avelã + creme de ninho = R$ 21,00`, await run(`__total()`), 'R$ 21,00')
     await click(`__q('button[aria-label="Adicionar Kit Kat"]')`)
-    check(`${at} Oca 200 ml: Kit Kat continua cobrado (R$ 14,00)`, await run(`__total()`), 'R$ 14,00')
+    check(`${at} Tradicional Isopor M: + Kit Kat = R$ 25,00`, await run(`__total()`), 'R$ 25,00')
+    await click(`[...document.querySelectorAll('#resumo button')].find((b) => b.textContent.trim().startsWith('Adicionar ao carrinho'))`, 700)
+    check(
+      `${at} Tradicional: confirmação com "Extras / Cremes e Caldas pagos"`,
+      await run(`(__confirm()?.textContent ?? '').includes('Extras / Cremes e Caldas pagos')`),
+      true,
+    )
+    await click(`[...__confirm().querySelectorAll('button')].find((b) => b.textContent.includes('ir para o carrinho'))`, 900)
+    await run(`__stubOpen()`)
+    await click(`__q('input[value="pix"]')`)
+    await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`, 700)
+    const extras = ((await run(`__openedText()`)) ?? '').split('\n')
+    check(
+      `${at} Tradicional: WhatsApp com R$ 25,00, "Montagem: COMPLETO" e os pagos com o valor`,
+      [
+        extras.some((line) => line.startsWith('*1x Açaí Tradicional') && line.includes('R$ 25,00')),
+        extras.includes('• Montagem: COMPLETO'),
+        extras.includes('• Extras / Cremes e Caldas pagos: Creme de ninho (+ R$ 3,00), Creme de avelã (+ R$ 3,00), Kit Kat (+ R$ 4,00)'),
+      ],
+      [true, true, true],
+    )
 
     // --- Sem o botão ---
     for (const slug of ['acai-batido', 'milk-shake']) {
