@@ -8,6 +8,8 @@ import {
   type Selection,
   freeLimit,
   freeUsed,
+  COMPLETE_GROUPS,
+  completeToppings,
   quantityOf,
 } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
@@ -63,6 +65,9 @@ export function removedText(product: Product, selection: Selection, toppingId: s
 
   const removed = `Você tirou ${toppingLabel(topping)}.`
   const quantity = quantityOf(selection, toppingId)
+  if (selection.complete && quantity === 0 && COMPLETE_GROUPS.includes(topping.group)) {
+    return `${removed} O Completo continua, sem ${toppingLabel(topping)}.`
+  }
 
   switch (TOPPING_GROUPS[topping.group].rule) {
     case 'limited':
@@ -94,4 +99,15 @@ export function sizeText(product: Product, sizeId: string, removed: RemovedToppi
 export function flavorText(product: Product, flavorId: string): string {
   const flavor = product.flavors.find((candidate) => candidate.id === flavorId)
   return flavor ? `${flavorTermOf(product).label}: ${flavor.name}.` : ''
+}
+
+/** Anúncio do "Completo" (e de "Marcar tudo novamente"). */
+export function completeText(product: Product, selection: Selection): string {
+  const count = completeToppings(product).filter((topping) => quantityOf(selection, topping.id) > 0).length
+  return `Completo aplicado: ${count} ${count === 1 ? 'item marcado' : 'itens marcados'}, pelo preço do tamanho.`
+}
+
+/** Anúncio do "Limpar". */
+export function clearedText(): string {
+  return 'Seleção limpa. Escolha os itens que quiser.'
 }

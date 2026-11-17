@@ -307,3 +307,19 @@ export function completeOmitted(product: Product, selection: Selection): readonl
 export function isCompleteFull(product: Product, selection: Selection): boolean {
   return Boolean(selection.complete) && completeOmitted(product, selection).length === 0
 }
+
+/**
+ * Linha da montagem no resumo, na confirmação, no carrinho e no WhatsApp:
+ * "COMPLETO (todos os acompanhamentos)" ou "COMPLETO (SEM: Farinha láctea, Granola)".
+ * Fora do Completo, `null`.
+ */
+export function completeLabel(product: Product, selection: Selection): string | null {
+  if (!selection.complete) return null
+  const omitted = completeOmitted(product, selection).map((topping) => topping.name)
+  return omitted.length === 0 ? 'COMPLETO (todos os acompanhamentos)' : `COMPLETO (SEM: ${omitted.join(', ')})`
+}
+
+/** Quantas unidades de ingredientes estão escolhidas ("18 itens selecionados"). */
+export function selectedCount(selection: Selection): number {
+  return Object.values(selection.toppings).reduce((sum, quantity) => sum + quantity, 0)
+}

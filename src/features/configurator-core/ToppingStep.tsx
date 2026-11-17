@@ -4,7 +4,7 @@ import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppin
 import { ingredientPhoto } from '../catalog/photos.ts'
 import { toppingLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
-import { quantityOf, selectedByGroup } from '../catalog/selection.ts'
+import { COMPLETE_GROUPS, completeToppings, quantityOf, selectedByGroup } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { blockerText, toppingLabel } from './messages.ts'
 import { QuantityStepper } from './QuantityStepper.tsx'
@@ -24,6 +24,12 @@ const cardBase =
 /** Texto da dica ao lado do título do grupo. */
 function hintFor(product: Product, group: ToppingGroupId, cfg: ConfiguratorApi): { text: string; full: boolean } {
   const { rule } = TOPPING_GROUPS[group]
+  // Completo: sem cota; a dica conta o que está marcado.
+  if (cfg.selection.complete && COMPLETE_GROUPS.includes(group)) {
+    const options = completeToppings(product).filter((topping) => topping.group === group)
+    const marked = options.filter((topping) => quantityOf(cfg.selection, topping.id) > 0).length
+    return { text: `Completo · ${marked} de ${options.length} marcados, sem custo`, full: false }
+  }
   const optional = !product.groups.includes('dry')
   if (rule === 'limited') {
     const full = cfg.freeUsed >= cfg.freeCap
@@ -196,7 +202,13 @@ function StepperCard({
         quantity={quantity}
         onAdd={() => cfg.add(topping.id)}
         onRemove={() => cfg.remove(topping.id)}
-        addBlockedReason={blocker ? blockerText(blocker, cfg.freeCap) : null}
+        addBlockedReason={
+          blocker === 'item-max' && cfg.selection.complete && COMPLETE_GROUPS.includes(topping.group)
+            ? 'No Completo, vai 1 de cada'
+            : blocker
+              ? blockerText(blocker, cfg.freeCap)
+              : null
+        }
         describedBy={hintId}
         className="mt-auto"
       />

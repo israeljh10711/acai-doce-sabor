@@ -7,7 +7,7 @@ import { cartActions } from '../cart/cartStore.ts'
 import { ProductVisual } from '../catalog/ItemVisual.tsx'
 import { type Product, TOPPING_GROUPS, flavorTermOf } from '../catalog/menu.ts'
 import { productInfo } from '../catalog/productInfo.ts'
-import { freeByGroup } from '../catalog/selection.ts'
+import { COMPLETE_GROUPS, freeByGroup, selectedByGroup } from '../catalog/selection.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import { ConfirmItemDialog } from './ConfirmItemDialog.tsx'
 import { productSummary } from './confirmSummary.ts'
@@ -52,9 +52,23 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
                 {term.label}: {flavor.name}
               </p>
             )}
+            {cfg.completeLabel && (
+              <p data-montagem="" className="rounded-xl bg-gold-100 px-3 py-2 text-sm font-bold text-acai-950 ring-1 ring-gold-400">
+                Montagem: {cfg.completeLabel}
+              </p>
+            )}
+            {cfg.selectedCount > 0 && (
+              <p className="nums text-sm font-semibold text-acai-800">
+                {cfg.selectedCount} {cfg.selectedCount === 1 ? 'item selecionado' : 'itens selecionados'}
+              </p>
+            )}
 
             {freeGroups.map((group) => {
-              const items = freeByGroup(product, cfg.selection, group)
+              // No Completo, os cremes também entram sem custo.
+              const items =
+                cfg.selection.complete && COMPLETE_GROUPS.includes(group)
+                  ? selectedByGroup(product, cfg.selection, group)
+                  : freeByGroup(product, cfg.selection, group)
               if (items.length === 0) return null
               return (
                 <p key={group} className="text-sm text-ink-soft">

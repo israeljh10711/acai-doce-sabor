@@ -7,11 +7,14 @@ import {
   EMPTY_SELECTION,
   type Selection,
   addTopping,
+  applyComplete,
   chooseFlavor,
   chooseSize,
+  clearToppings,
   removeTopping,
+  settleComplete,
 } from '../catalog/selection.ts'
-import { addedText, flavorText, removedBySizeText, removedText, sizeText } from './messages.ts'
+import { addedText, clearedText, completeText, flavorText, removedBySizeText, removedText, sizeText } from './messages.ts'
 
 export type ConfiguratorState = {
   selection: Selection
@@ -26,6 +29,10 @@ export type ConfiguratorAction =
   | { type: 'flavor'; flavorId: string }
   | { type: 'add'; toppingId: string }
   | { type: 'remove'; toppingId: string }
+  /** "Completo" ou "Marcar tudo novamente" (pedido de 2026-11-16). */
+  | { type: 'complete' }
+  /** "Limpar": tira os acompanhamentos e volta ao modo normal. */
+  | { type: 'clear' }
 
 export const INITIAL_STATE: ConfiguratorState = {
   selection: EMPTY_SELECTION,
@@ -60,9 +67,19 @@ export function configuratorReducer(
       return { ...state, selection, announcement: addedText(product, selection, action.toppingId) }
     }
     case 'remove': {
-      const selection = removeTopping(state.selection, action.toppingId)
-      if (selection === state.selection) return state
+      const removed = removeTopping(state.selection, action.toppingId)
+      if (removed === state.selection) return state
+      const selection = settleComplete(product, removed)
       return { ...state, selection, announcement: removedText(product, selection, action.toppingId) }
+    }
+    case 'complete': {
+      if (!product.completo) return state
+      const selection = applyComplete(product, state.selection)
+      return { ...state, selection, sizeNotice: '', announcement: completeText(product, selection) }
+    }
+    case 'clear': {
+      if (Object.keys(state.selection.toppings).length === 0 && !state.selection.complete) return state
+      return { ...state, selection: clearToppings(state.selection), sizeNotice: '', announcement: clearedText() }
     }
   }
 }

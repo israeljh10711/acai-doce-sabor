@@ -3,6 +3,9 @@ import type { Product } from '../catalog/menu.ts'
 import {
   type Selection,
   addBlocker,
+  completeLabel,
+  isCompleteFull,
+  selectedCount,
   freeCap,
   freeLimit,
   freeLimitRange,
@@ -41,6 +44,13 @@ export function useConfigurator(product: Product, initialSelection?: Selection) 
     chooseFlavor: (flavorId: string) => dispatch({ type: 'flavor', flavorId }),
     add: (toppingId: string) => dispatch({ type: 'add', toppingId }),
     remove: (toppingId: string) => dispatch({ type: 'remove', toppingId }),
+    /** Botão "Completo" (pedido de 2026-11-16): só nos produtos que têm. */
+    hasComplete: Boolean(product.completo),
+    complete: () => dispatch({ type: 'complete' }),
+    clear: () => dispatch({ type: 'clear' }),
+    completeFull: isCompleteFull(product, selection),
+    completeLabel: completeLabel(product, selection),
+    selectedCount: selectedCount(selection),
   }
 }
 

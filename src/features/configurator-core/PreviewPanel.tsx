@@ -43,10 +43,17 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
             <span className="sr-only">Total: </span>
             <AnimatedValue value={cfg.price ? formatBRL(cfg.price.totalCents) : '—'} />
           </p>
-          {hasFreeLimit && cfg.size && (
+          {cfg.selection.complete ? (
             <p className="mt-1 inline-block rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-bold text-acai-950 ring-1 ring-gold-400">
-              {cfg.freeUsed} de {cfg.freeLimit} adicionais grátis
+              Completo · {cfg.selectedCount} {cfg.selectedCount === 1 ? 'item' : 'itens'}
             </p>
+          ) : (
+            hasFreeLimit &&
+            cfg.size && (
+              <p className="mt-1 inline-block rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-bold text-acai-950 ring-1 ring-gold-400">
+                {cfg.freeUsed} de {cfg.freeLimit} adicionais grátis
+              </p>
+            )
           )}
         </div>
       </div>

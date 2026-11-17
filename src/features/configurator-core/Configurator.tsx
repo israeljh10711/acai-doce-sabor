@@ -11,6 +11,7 @@ import { EMPTY_SELECTION } from '../catalog/selection.ts'
 import { FlavorStep } from '../milkshake-configurator/FlavorStep.tsx'
 import { OrderSummary } from './OrderSummary.tsx'
 import { PreviewPanel } from './PreviewPanel.tsx'
+import { CompleteBar } from './CompleteBar.tsx'
 import { SizeStep } from './SizeStep.tsx'
 import { ToppingStep } from './ToppingStep.tsx'
 import { useConfigurator } from './useConfigurator.ts'
@@ -97,6 +98,7 @@ export function Configurator({ product }: { product: Product }) {
         </div>
 
         <div className="cfg-extras flex flex-col gap-10">
+          {cfg.hasComplete && <CompleteBar cfg={cfg} />}
           {product.groups.map((group, index) => (
             <ToppingStep
               key={group}

@@ -86,3 +86,38 @@ describe('configuratorReducer', () => {
     expect(state.announcement).toBe('Sabor: Morango.')
   })
 })
+
+describe('Completo e Limpar no personalizador (pedido de 2026-11-16)', () => {
+  const barca = PRODUCTS['barca-de-acai']
+
+  it('"Completo" marca tudo, não fecha nada e anuncia quantos itens', () => {
+    const state = run(barca, [{ type: 'size', sizeId: 'barca' }, { type: 'complete' }])
+    expect(state.selection.complete).toBe(true)
+    expect(Object.keys(state.selection.toppings)).toHaveLength(16)
+    expect(state.announcement).toBe('Completo aplicado: 16 itens marcados, pelo preço do tamanho.')
+  })
+
+  it('tirar a Farinha láctea depois do Completo mantém o Completo e os outros itens', () => {
+    const state = run(barca, [{ type: 'complete' }, { type: 'remove', toppingId: 'farinha-lactea' }])
+    expect(state.selection.complete).toBe(true)
+    expect(state.selection.toppings['farinha-lactea']).toBeUndefined()
+    expect(Object.keys(state.selection.toppings)).toHaveLength(15)
+    expect(state.announcement).toBe('Você tirou Farinha láctea. O Completo continua, sem Farinha láctea.')
+  })
+
+  it('tirar tudo desliga o Completo; "Limpar" zera e volta ao modo normal', () => {
+    const marked = run(barca, [{ type: 'complete' }])
+    const emptied = Object.keys(marked.selection.toppings).reduce(
+      (state, toppingId) => configuratorReducer(barca, state, { type: 'remove', toppingId }),
+      marked,
+    )
+    expect(emptied.selection.complete).toBe(false)
+    const cleared = run(barca, [{ type: 'size', sizeId: 'barca' }, { type: 'complete' }, { type: 'clear' }])
+    expect(cleared.selection).toEqual({ sizeId: 'barca', flavorId: null, toppings: {}, complete: false })
+    expect(cleared.announcement).toBe('Seleção limpa. Escolha os itens que quiser.')
+  })
+
+  it('produto sem Completo (Milk-shake) ignora a ação', () => {
+    expect(run(milkShake, [{ type: 'complete' }])).toEqual(INITIAL_STATE)
+  })
+})
