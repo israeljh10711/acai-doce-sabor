@@ -20,7 +20,7 @@ import { openBrowser, sleep } from './lib.mjs'
 const baseUrl = process.argv[2] ?? 'http://127.0.0.1:5173'
 const outDir = join(tmpdir(), 'acai-doce-sabor-conferencia', 'vendedor')
 const PHOTO = join(process.cwd(), 'public', 'images', 'catalogo', 'picole-trufado.jpg').replaceAll('\\', '/')
-const PASSWORD = process.env.SENHA_VENDEDOR ?? String(2000 + 26)
+const PASSWORD = process.env.SENHA_VENDEDOR ?? `vendedor${2000 + 26}`
 const failures = []
 let checks = 0
 

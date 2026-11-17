@@ -29,13 +29,21 @@ function fakeDeps(): LocalDeps & { storage: Map<string, string>; blobs: Map<stri
 }
 
 describe('gravação no aparelho (modo vendedor sem Supabase)', () => {
+  it('senha de antes (guardada num teste anterior) é trocada pela senha nova do pedido', async () => {
+    const deps = fakeDeps()
+    deps.storage.set('acai_doce_sabor_seller_password_v1', await deps.hash(String(2000 + 26)))
+    const backend = createLocalBackend(deps)
+    expect(await backend.signIn(String(2000 + 26))).toBe(false)
+    expect(await backend.signIn('vendedor2026')).toBe(true)
+  })
+
   it('a senha inicial do pedido entra; uma errada não; a sessão fica até "Sair"', async () => {
     const backend = createLocalBackend(fakeDeps())
     expect(backend.kind).toBe('local')
     expect(backend.isSignedIn()).toBe(false)
     expect(await backend.signIn('1234')).toBe(false)
     expect(backend.isSignedIn()).toBe(false)
-    expect(await backend.signIn('2026')).toBe(true)
+    expect(await backend.signIn('vendedor2026')).toBe(true)
     expect(backend.isSignedIn()).toBe(true)
     await backend.signOut()
     expect(backend.isSignedIn()).toBe(false)
@@ -44,11 +52,11 @@ describe('gravação no aparelho (modo vendedor sem Supabase)', () => {
   it('trocar a senha: a nova entra e a antiga deixa de entrar; senha curta é recusada', async () => {
     const deps = fakeDeps()
     const backend = createLocalBackend(deps)
-    await backend.signIn('2026')
+    await backend.signIn('vendedor2026')
     expect(await backend.changePassword('12')).toBe(false)
     expect(await backend.changePassword('acai2027')).toBe(true)
     await backend.signOut()
-    expect(await backend.signIn('2026')).toBe(false)
+    expect(await backend.signIn('vendedor2026')).toBe(false)
     expect(await backend.signIn('acai2027')).toBe(true)
     // A senha não fica guardada como texto.
     expect([...deps.storage.values()].some((value) => value.includes('acai2027'))).toBe(false)

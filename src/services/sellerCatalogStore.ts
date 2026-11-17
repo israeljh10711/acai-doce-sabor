@@ -42,8 +42,10 @@ export const CATALOG_KEY = 'acai_doce_sabor_seller_catalog_v1'
 export const IMAGES_DB = 'acai_doce_sabor_seller_images'
 const PASSWORD_KEY = 'acai_doce_sabor_seller_password_v1'
 const SESSION_KEY = 'acai_doce_sabor_seller_session_v1'
-/** Hash SHA-256 da senha inicial definida pelo responsável (vale até ser trocada). */
-const INITIAL_PASSWORD_HASH = '158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab'
+/** Hash SHA-256 da senha inicial definida pelo responsável (ajuste de 2026-11-16; vale até ser trocada). */
+const INITIAL_PASSWORD_HASH = 'c6cad5eff701c2484eb0561f073a564c3562dcf6335a6d8af8d4ddcded34051e'
+/** Hash da senha inicial anterior: se ficou guardada (testes), dá lugar à senha nova. */
+const PREVIOUS_INITIAL_HASH = '158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab'
 export const MIN_PASSWORD_LENGTH = 4
 
 /* Mudanças: juntar uma nova às que existem. */
@@ -117,7 +119,14 @@ export function createLocalBackend(deps: LocalDeps): CatalogBackend {
     store.setItem(CATALOG_KEY, JSON.stringify(changes))
     return changes
   }
-  const passwordHash = () => store.getItem(PASSWORD_KEY) ?? INITIAL_PASSWORD_HASH
+  const passwordHash = () => {
+    const saved = store.getItem(PASSWORD_KEY)
+    if (saved === PREVIOUS_INITIAL_HASH) {
+      store.removeItem(PASSWORD_KEY)
+      return INITIAL_PASSWORD_HASH
+    }
+    return saved ?? INITIAL_PASSWORD_HASH
+  }
 
   return {
     kind: 'local',
