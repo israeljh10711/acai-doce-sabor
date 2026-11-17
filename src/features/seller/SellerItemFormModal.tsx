@@ -9,7 +9,9 @@ import { BASE_EXTRA_ITEMS, DRAWERS, type DrawerId, type ExtraItem, drawerById, g
 import { BASE_TOPPINGS, PRODUCTS, TOPPING_GROUPS, type ToppingGroupId, getTopping } from '../catalog/menu.ts'
 import { catalogPhotoSrc, ingredientPhoto } from '../catalog/photos.ts'
 import { compressPhoto } from './photo.ts'
-import { formatPriceInput, newId, parseFlavors, parsePriceInput } from './sellerForm.ts'
+import { formatPriceInput, newId, parsePriceInput } from './sellerForm.ts'
+import { ChoiceGroupsEditor, FlavorListEditor } from './FlavorsEditor.tsx'
+import { type GroupRow, type OptionRow, flavorRowsOf, groupRowsOf, readChoiceGroups, readFlavors, sameFlavors, sameGroups } from './flavorsForm.ts'
 import { SellerDialog } from './SellerDialog.tsx'
 import { type EditTarget, useSellerMode } from './sellerModeContext.ts'
 
@@ -286,7 +288,6 @@ function DangerZone({ canDelete, canRestore, onDelete, onRestore, busy }: { canD
 
 /* Item das seções (e os 5 destaques) */
 
-const flavorGroupOf = (entry?: ExtraItem) => (entry?.action.type === 'flavor_modal' ? entry.action.choices.find((group) => !group.prices) : undefined)
 const sizeGroupOf = (entry?: ExtraItem) => (entry?.action.type === 'flavor_modal' ? entry.action.choices.find((group) => group.prices) : undefined)
 
 function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?: string; copyOf?: string; onClose: () => void }) {
@@ -300,8 +301,9 @@ function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?:
   const isBase = id ? BASE_EXTRA_ITEMS.some((candidate) => candidate.id === id) : false
   const customizer = item?.action.type === 'customizer'
   // Para saber o que mudou, compara com o próprio item (num item novo, grava tudo o que tiver).
-  const firstGroup = flavorGroupOf(item)
   const sizeGroup = sizeGroupOf(item)
+  // Barca: as coberturas são as caldas do personalizador (gerenciador de sabores, 2026-11-17).
+  const coberturasDasCaldas = item?.action.type === 'customizer' && Boolean(PRODUCTS[item.action.product].flavorsFrom)
   const startSizes = sizeGroupOf(source)
 
   const [name, setName] = useState(item?.name ?? (copy ? `${copy.name} (Cópia)` : ''))
@@ -309,10 +311,11 @@ function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?:
   const [oldPrice, setOldPrice] = useState(source?.originalPriceCents ? formatPriceInput(source.originalPriceCents) : '')
   const [description, setDescription] = useState(source?.description ?? '')
   const [section, setSection] = useState<DrawerId>((source?.drawer ?? drawer ?? DRAWERS[0].id) as DrawerId)
-  const [flavors, setFlavors] = useState(flavorGroupOf(source)?.options.join(', ') ?? '')
+  // Gerenciador de sabores (2026-11-17): todas as escolhas do item; no Duplicar, as do original.
+  const [groupRows, setGroupRows] = useState<GroupRow[]>(() => groupRowsOf(source))
   const [available, setAvailable] = useState(source?.available !== false)
   const [photo, setPhoto] = useState<Blob | null>(null)
-  const [errors, setErrors] = useState<{ name?: string; price?: string; oldPrice?: string; sizes?: string }>({})
+  const [errors, setErrors] = useState<{ name?: string; price?: string; oldPrice?: string; sizes?: string; groups?: string }>({})
   const [sizeRows, setSizeRows] = useState<SizeRow[]>(() =>
     (startSizes?.options ?? []).map((option) => ({ key: rowKey(), name: option, price: formatPriceInput(startSizes?.prices?.[option] ?? 0), free: '0' })),
   )
@@ -335,14 +338,16 @@ function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?:
           const sizes = customizer ? [] : readSizes(sizeRows)
           const priceCents = sizes && sizes.length > 0 ? Math.min(...sizes.map((size) => size.priceCents)) : parsePriceInput(price)
           const oldCents = !hasSizes && oldPrice.trim() ? parsePriceInput(oldPrice) : null
+          const groupsRead = customizer ? null : readChoiceGroups(groupRows)
           const next = {
             name: name.trim() ? undefined : 'Escreva o nome.',
             price: priceCents === null ? 'Escreva o preço, por exemplo 3,00.' : undefined,
             oldPrice: !hasSizes && oldPrice.trim() && oldCents === null ? 'Preço antigo inválido.' : undefined,
             sizes: sizes === null ? 'Confira os tamanhos: cada um com nome (sem repetir) e preço.' : undefined,
+            groups: groupsRead && !groupsRead.ok ? groupsRead.problem : undefined,
           }
           setErrors(next)
-          if (next.name || next.price || next.oldPrice || next.sizes) return
+          if (next.name || next.price || next.oldPrice || next.sizes || next.groups) return
           void submit.run(async () => {
             const change: ItemChange = { ...saved, name: name.trim(), priceCents: priceCents!, originalPriceCents: oldCents, description: description.trim(), available, drawer: section }
             if (!customizer) {
@@ -350,8 +355,10 @@ function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?:
               const before = (sizeGroup?.options ?? []).map((option) => `${option}=${sizeGroup?.prices?.[option]}`).join('|')
               if (entries.map((size) => `${size.name}=${size.priceCents}`).join('|') !== before) change.sizes = entries
             }
-            const parsed = parseFlavors(flavors)
-            if (!customizer && parsed.join('|') !== (firstGroup?.options ?? []).join('|')) change.flavors = parsed
+            if (groupsRead?.ok && !sameGroups(item, groupsRead.groups)) {
+              change.groups = groupsRead.groups
+              delete change.flavors
+            }
             if (photo) change.image = await seller.uploadPhoto(photo)
             const targetId = id ?? newId(name)
             if (!id) change.created = true
@@ -386,7 +393,13 @@ function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?:
                 {errors.sizes}
               </p>
             )}
+            <ChoiceGroupsEditor groups={groupRows} onChange={setGroupRows} error={errors.groups} />
           </>
+        )}
+        {coberturasDasCaldas && (
+          <p className="rounded-xl bg-acai-50 px-3 py-2 text-sm text-ink-soft ring-1 ring-line">
+            As coberturas da Barca são as caldas do personalizador: esgote ou renomeie a calda lá, e a Barca acompanha.
+          </p>
         )}
         <Field id={`${uid}-descricao`} label="Descrição">
           <textarea id={`${uid}-descricao`} className={`${inputClass} min-h-24 py-3`} value={description} maxLength={300} onChange={(event) => setDescription(event.target.value)} placeholder="Ex.: Picolé trufado sabor chocolate" />
@@ -403,11 +416,6 @@ function ItemForm({ id, drawer, copyOf, onClose }: { id: string | null; drawer?:
                 ))}
               </select>
             </Field>
-            {!customizer && (
-              <Field id={`${uid}-sabores`} label="Sabores (opcional)" hint="Separados por vírgula. Ex.: Chocolate, Morango, Maracujá">
-                <input id={`${uid}-sabores`} className={inputClass} value={flavors} aria-describedby={`${uid}-sabores-dica`} onChange={(event) => setFlavors(event.target.value)} />
-              </Field>
-            )}
             <Availability available={available} onChange={setAvailable} />
           </div>
         </details>
@@ -447,6 +455,9 @@ function ProductForm({ slug, onClose }: { slug: string; onClose: () => void }) {
     product.sizes.map((size) => ({ key: rowKey(), id: size.id, name: size.name, price: formatPriceInput(size.priceCents), free: String(size.freeToppings) })),
   )
   const withFree = product.groups.includes('dry')
+  // Gerenciador de sabores (2026-11-17): só nos produtos que já têm sabor (Açaí Batido, Milk-shake).
+  const hasFlavors = product.flavors.length > 0 && !product.flavorsFrom
+  const [flavorRows, setFlavorRows] = useState<OptionRow[]>(() => flavorRowsOf(product))
   const [photo, setPhoto] = useState<Blob | null>(null)
   const [error, setError] = useState<string | null>(null)
   const submit = useSubmit(onClose)
@@ -465,11 +476,14 @@ function ProductForm({ slug, onClose }: { slug: string; onClose: () => void }) {
           if (sizes === null) return setError('Confira os tamanhos: cada um com nome (sem repetir), preço e grátis de 0 a 20.')
           if (sizes.length === 0) return setError('Deixe pelo menos um tamanho.')
           if (!name.trim()) return setError('Escreva o nome.')
+          const flavorsRead = hasFlavors ? readFlavors(flavorRows) : null
+          if (flavorsRead && !flavorsRead.ok) return setError(flavorsRead.problem)
           setError(null)
           void submit.run(async () => {
             const entries: ProductSizeEntry[] = sizes.map((size) => ({ ...(size.id ? { id: size.id } : {}), name: size.name, priceCents: size.priceCents, freeToppings: size.freeToppings }))
             const change: ProductChange = { ...saved, name: name.trim(), description: description.trim(), sizes: entries }
             delete change.sizePrices
+            if (flavorsRead?.ok && !sameFlavors(product, flavorsRead.flavors)) change.flavors = flavorsRead.flavors
             if (photo) change.image = await seller.uploadPhoto(photo)
             await seller.save('products', category.slug, change)
             closeDialog(form)
@@ -490,6 +504,7 @@ function ProductForm({ slug, onClose }: { slug: string; onClose: () => void }) {
           title="Tamanhos e Preços"
           hint={withFree ? '"Grátis": quantos adicionais grátis o tamanho inclui. Tamanho novo com "Copo", "Isopor" ou "Pote" no nome entra nesse grupo.' : undefined}
         />
+        {hasFlavors && <FlavorListEditor rows={flavorRows} onChange={setFlavorRows} title="Sabores" />}
         {(error || submit.error) && (
           <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200">
             {error ?? submit.error}
