@@ -108,3 +108,17 @@ Estado: aprovado pela mensagem do pedido; as escolhas abaixo marcadas como "minh
   - observação em outra aba;
   - "fechada" três vezes no celular;
   - tamanho do pacote.
+
+## Decisões tomadas na construção
+
+- **Chave de repetição do pedido:** calculada no servidor (SHA-256 do carrinho, do cliente e do pagamento), e não um identificador mandado pelo site. Assim ninguém lê um pedido gravado sem saber o conteúdo inteiro dele (que inclui ids sorteados no aparelho). Pedido mudado (por exemplo, a observação editada) é pedido novo.
+- **Pedido já gravado:** mandado de novo, mesmo com outro total, volta o pedido gravado, com o código dele.
+- **Numeração:** o número sai de uma sequência do banco antes de gravar. Duas tentativas iguais ao mesmo tempo gastam um número, e a sequência pula um código (raro).
+- **"Os preços mudaram":** além de "Tentar de novo", o carrinho oferece "Enviar mesmo assim pelo WhatsApp". Se a função colada estiver com o cardápio antigo, o total nunca bateria e a venda se perderia.
+- **Aba do WhatsApp:** abre em branco no toque e recebe o endereço depois do registro (fecha se não der). O navegador bloquearia uma janela aberta depois de esperar o servidor.
+- **Toque duplo no botão de enviar:** o segundo toque, enquanto o pedido é registrado, é ignorado (abria duas abas; o banco já gravava uma vez só).
+- **Código da função:** fica em `src/server/` e passa pelo TypeScript do site. O arquivo gerado (`supabase/functions/pedido/index.ts`) leva `// @ts-nocheck` e fica fora do lint; a conferência `check:pedido-funcao` confere se ele está atualizado.
+- **Chaves de servidor:** a função aceita a nova (`SUPABASE_SECRET_KEYS`) e a antiga (`service_role`).
+- **Pedidos no banco:** o vendedor logado lê os pedidos e muda só a situação; o resto fica como a função gravou.
+- **Sabores:** o campo antigo "sabores separados por vírgula" saiu do formulário (o gerenciador cobre). O que ele gravou continua valendo.
+

@@ -143,6 +143,8 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
   const [opened, setOpened] = useState<{ key: string; url: string; unregistered: boolean } | null>(null)
   // Registro do pedido no Supabase (pedido de 2026-11-17, opção A); sem o Supabase ligado, fica nulo.
   const [registration, setRegistration] = useState<Registration | null>(null)
+  // Dois toques seguidos não mandam duas vezes (o estado só muda no desenho seguinte).
+  const submitting = useRef(false)
   const functionConfig = supabaseConfig()
   const panel = useRef<HTMLDivElement>(null)
   const methods = useRef<HTMLFieldSetElement>(null)
@@ -214,15 +216,21 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
 
   const send = async () => {
     const order = localOrder()
-    if (!order || sending) return
+    if (!order || submitting.current) return
     if (!functionConfig) return openLocal(order, false)
 
     // Com o Supabase ligado: registra no servidor antes do WhatsApp (pedido de 2026-11-17).
     const key = orderKey
+    submitting.current = true
     const tab = openBlankTab()
     setOpened(null)
     setRegistration({ key, state: 'sending' })
-    const result = await submitOrder({ cart, customer, payment: draft, expectedTotalCents: totalCents }, functionConfig)
+    let result: Awaited<ReturnType<typeof submitOrder>>
+    try {
+      result = await submitOrder({ cart, customer, payment: draft, expectedTotalCents: totalCents }, functionConfig)
+    } finally {
+      submitting.current = false
+    }
     if (result.kind === 'registered') {
       const url = buildWhatsAppUrl(result.whatsapp, result.message)
       showInTab(tab, url)

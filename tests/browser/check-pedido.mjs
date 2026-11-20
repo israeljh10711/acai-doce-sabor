@@ -136,6 +136,16 @@ try {
   await send()
   check('pedido mudado (outro nome): ADS-0002', await waitFor(`__q('[data-order-registered]')?.textContent.includes('Pedido ADS-0002 registrado.')`), true)
 
+  // --- Toque duplo no botão: uma aba só, um registro só ---
+  await name('Cliente Toque Duplo')
+  const tabsBefore = await run(`__tabs.length`)
+  await run(`(() => { const button = __button('Confirmar e Enviar Pedido no WhatsApp'); button.click(); button.click(); return true })()`)
+  check(
+    'toque duplo: abre uma aba só e registra uma vez',
+    [await waitFor(`__q('[data-order-registered]')?.textContent.includes('Pedido ADS-0003 registrado.')`), (await run(`__tabs.length`)) - tabsBefore, fake.db.orders.length],
+    [true, 1, 3],
+  )
+
   // --- Preço mudado no banco (o site ainda mostra o antigo) ---
   fake.db.changes.push({ kind: 'items', id: 'jujuba', data: { priceCents: 150 } })
   await name('Cliente Preço')
@@ -143,11 +153,11 @@ try {
   check(
     '"Os preços mudaram": o total certo, sem gravar, e a aba em branco fecha',
     [await waitFor(`__q('[data-order-rejected]')?.textContent.includes('Os preços mudaram: o total agora é R$ 3,50')`), fake.db.orders.length, await run(`__lastTab()?.closed`)],
-    [true, 2, true],
+    [true, 3, true],
   )
   check('o carrinho relê o cardápio e mostra o total novo', await waitFor(`__values().includes('TOTAL R$ 3,50')`), true)
   await click(`__q('[data-order-retry]')`, 300)
-  check('"Tentar de novo" com o total novo registra ADS-0003', await waitFor(`__q('[data-order-registered]')?.textContent.includes('Pedido ADS-0003 registrado.')`), true)
+  check('"Tentar de novo" com o total novo registra ADS-0004', await waitFor(`__q('[data-order-registered]')?.textContent.includes('Pedido ADS-0004 registrado.')`), true)
 
   // --- Servidor fora do ar (opção 1) ---
   fake.state.failFunction = true
@@ -163,7 +173,7 @@ try {
   check(
     '"Enviar mesmo assim": comanda do aparelho marcada como não registrada, sem código',
     [unregistered.includes('⚠️ *Pedido não registrado no sistema*'), unregistered.some((line) => line.startsWith('🔖')), await run(`document.body.textContent.includes('Abrimos o WhatsApp com o seu pedido (sem registro no sistema).')`), fake.db.orders.length],
-    [true, false, true, 3],
+    [true, false, true, 4],
   )
   fake.state.failFunction = false
 
