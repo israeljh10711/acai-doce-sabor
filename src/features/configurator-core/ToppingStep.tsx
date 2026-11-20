@@ -172,8 +172,12 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {topping.priceCents > 0 ? <PriceBadge cents={topping.priceCents} /> : <FreeBadge />}
-      {/* Esgotado em 1 toque (modo vendedor, 2026-11-17): por cima do botão que cobre o cartão. */}
-      <SellerStockToggle kind="toppings" id={topping.id} available={topping.available !== false} label={toppingLabel(topping)} className="relative z-20" />
+      {/*
+        Esgotado em 1 toque (modo vendedor, 2026-11-17): por cima do botão que cobre o cartão (z-10
+        basta). Abaixo da prévia fixa do celular (z-index 20, 2026-11-20): com z-20 o botão passava
+        por cima dela ao rolar e parecia um segundo "Disponível" sobre a foto e o selo do Completo.
+      */}
+      <SellerStockToggle kind="toppings" id={topping.id} available={topping.available !== false} label={toppingLabel(topping)} className="relative z-10" />
       {/* Selo de marcado no canto, como nos tamanhos: o nome fica com a largura toda. */}
       <m.span
         aria-hidden="true"
@@ -208,7 +212,8 @@ function StepperCard({
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {paid ? <PriceBadge cents={topping.priceCents} each /> : <FreeBadge />}
-      <SellerStockToggle kind="toppings" id={topping.id} available={topping.available !== false} label={toppingLabel(topping)} className="relative z-20" />
+      {/* Abaixo da prévia fixa do celular, como no cartão de marcar (ver acima). */}
+      <SellerStockToggle kind="toppings" id={topping.id} available={topping.available !== false} label={toppingLabel(topping)} className="relative z-10" />
       <QuantityStepper
         label={topping.name}
         quantity={quantity}

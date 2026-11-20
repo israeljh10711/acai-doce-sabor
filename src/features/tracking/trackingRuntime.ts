@@ -146,7 +146,12 @@ export function getCustomerLive(): CustomerLive {
     api: getTrackingApi(),
     tracked: getTrackedOrders(),
     listen: config && customer ? supabaseListen(config, customer) : demoListen,
-    timers: { setInterval: (callback, ms) => window.setInterval(callback, ms), clearInterval: (id) => window.clearInterval(id) },
+    timers: {
+      setInterval: (callback, ms) => window.setInterval(callback, ms),
+      clearInterval: (id) => window.clearInterval(id),
+      setTimeout: (callback, ms) => window.setTimeout(callback, ms),
+      clearTimeout: (id) => window.clearTimeout(id),
+    },
     visible: () => document.visibilityState === 'visible',
   })
   return live

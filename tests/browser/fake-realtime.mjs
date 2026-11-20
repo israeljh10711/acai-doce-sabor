@@ -150,13 +150,16 @@ export function attachFakeRealtime(server, { isPublicKey, sellerToken, userOf = 
         return filter.table === table && (filter.event === '*' || filter.event === type) && passes(filter.filter, record)
       })
       if (ids.length === 0) continue
-      stats.delivered.push({ table, type, token: sub.token, record })
+      // Como o Supabase de verdade (visto em 2026-11-20): num UPDATE, a coluna grande que não mudou
+      // (a comanda, guardada à parte pelo Postgres, TOAST) não vem na linha.
+      const sent = type === 'UPDATE' && table === 'orders' ? Object.fromEntries(Object.entries(record).filter(([column]) => column !== 'message')) : record
+      stats.delivered.push({ table, type, token: sub.token, record: sent })
       sub.send([
         sub.joinRef,
         null,
         sub.topic,
         'postgres_changes',
-        { ids, data: { schema: 'public', table, commit_timestamp: new Date().toISOString(), type, columns: [], record, ...(type === 'UPDATE' ? { old_record: { id: record.id } } : {}), errors: null } },
+        { ids, data: { schema: 'public', table, commit_timestamp: new Date().toISOString(), type, columns: [], record: sent, ...(type === 'UPDATE' ? { old_record: { id: record.id } } : {}), errors: null } },
       ])
     }
   }

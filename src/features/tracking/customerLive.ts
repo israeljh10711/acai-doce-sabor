@@ -23,10 +23,17 @@ export type CustomerLiveSnapshot = {
 /** A escuta por fora: chama `onChange` com o id do pedido que mudou (ou `null`: confira todos). */
 export type CustomerListen = (onChange: (orderId: string | null) => void, onState: (state: Exclude<CustomerLiveState, 'off'>) => void) => () => void
 
-type Timers = { setInterval(callback: () => void, ms: number): number; clearInterval(id: number): void }
+type Timers = {
+  setInterval(callback: () => void, ms: number): number
+  clearInterval(id: number): void
+  setTimeout(callback: () => void, ms: number): number
+  clearTimeout(id: number): void
+}
 
 export const CUSTOMER_POLL_OFFLINE_MS = 20_000
 export const CUSTOMER_POLL_LIVE_MS = 60_000
+/** Quanto a conexão espera, depois que a última tela larga, antes de fechar. */
+export const CUSTOMER_LINGER_MS = 1_500
 
 export type CustomerLive = ReturnType<typeof createCustomerLive>
 
@@ -47,6 +54,7 @@ export function createCustomerLive({
   let stopListening: (() => void) | null = null
   let timer: number | null = null
   let timerMs = 0
+  let linger: number | null = null
   let snapshot: CustomerLiveSnapshot = { views: {}, errors: {}, live: 'off' }
   const watched = new Map<string, number>()
   const running = new Map<string, Promise<void>>()
@@ -100,6 +108,17 @@ export function createCustomerLive({
     }
   }
 
+  /** Fecha a conexão e o relógio. */
+  const teardown = () => {
+    if (linger !== null) timers.clearTimeout(linger)
+    linger = null
+    stopListening?.()
+    stopListening = null
+    if (timer !== null) timers.clearInterval(timer)
+    timer = null
+    emit({ live: 'off' })
+  }
+
   const ids = () => new Set([...tracked.active().filter((order) => order.tracked || order.demo).map((order) => order.id), ...watched.keys()])
 
   const live = {
@@ -107,6 +126,13 @@ export function createCustomerLive({
     start() {
       users++
       if (users > 1) return
+      if (linger !== null) {
+        // A tela anterior acabou de largar (troca de tela): a mesma conexão continua.
+        timers.clearTimeout(linger)
+        linger = null
+        void live.refreshAll()
+        return
+      }
       emit({ live: 'connecting' })
       schedule(CUSTOMER_POLL_OFFLINE_MS)
       connect()
@@ -114,21 +140,29 @@ export function createCustomerLive({
     },
     /** A sessão do cliente mudou (o primeiro pedido criou a sessão): escuta de novo, já com ela. */
     restart() {
-      if (users === 0) return
+      if (users === 0) {
+        // Ninguém mais usa: a conexão que ficou esperando sai já (a próxima tela abre outra, nova).
+        if (linger !== null) teardown()
+        return
+      }
       stopListening?.()
       emit({ live: 'connecting' })
       connect()
       void live.refreshAll()
     },
+    /**
+     * Larga a escuta. A última a largar não fecha na hora: ao trocar de tela, o React desmonta uma
+     * e monta a outra, e fechar e abrir de novo a conexão no mesmo instante só gasta rede (e o
+     * navegador avisa "WebSocket is closed before the connection is established").
+     */
     stop() {
       if (users === 0) return
       users--
       if (users > 0) return
-      stopListening?.()
-      stopListening = null
-      if (timer !== null) timers.clearInterval(timer)
-      timer = null
-      emit({ live: 'off' })
+      linger = timers.setTimeout(() => {
+        linger = null
+        if (users === 0) teardown()
+      }, CUSTOMER_LINGER_MS)
     },
     /** A tela de um pedido pede que ele seja conferido (mesmo encerrado). */
     watch(id: string) {

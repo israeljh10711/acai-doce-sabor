@@ -9,9 +9,16 @@
  *
  * A escuta começa ANTES da carga: o que chega enquanto ela anda fica guardado e é juntado depois,
  * sem repetir o que a carga já trouxe. Parar remove a inscrição e apaga os pedidos da memória.
+ *
+ * Num UPDATE, o Realtime do Supabase não repete as colunas grandes que não mudaram (guardadas à
+ * parte pelo Postgres, TOAST): no ADS-0003 de teste (2026-11-20), a mudança de situação chegou sem
+ * a comanda (`message`). Por isso o UPDATE é juntado à última linha conhecida do pedido: o que
+ * não veio fica como estava.
  */
 import { OPEN_STATUSES, type OrderStatus, type PanelOrder, parseOrderRow, storeDayStart } from './ordersPanel.ts'
 import type { LiveState, OrderChange, OrdersSource } from './ordersSource.ts'
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 export type OrdersSnapshot = {
   kind: OrdersSource['kind']
@@ -63,6 +70,8 @@ export function createOrdersLive({
   let users = 0
   let generation = 0
   let orders = new Map<string, PanelOrder>()
+  /** A última linha inteira de cada pedido (para juntar os UPDATE que chegam sem algumas colunas). */
+  let rows = new Map<string, Record<string, unknown>>()
   let initialized = false
   let buffer: OrderChange[] = []
   let stopListening: (() => void) | null = null
@@ -80,10 +89,14 @@ export function createOrdersLive({
 
   /** Junta uma mudança. Só `INSERT` de um id nunca visto, na situação "novo", toca o aviso. */
   const apply = (change: OrderChange): boolean => {
-    const order = parseOrderRow(change.row)
+    const incoming = isRecord(change.row) ? change.row : null
+    const previous = change.type === 'UPDATE' && incoming && typeof incoming.id === 'string' ? rows.get(incoming.id) : undefined
+    const row = previous && incoming ? { ...previous, ...incoming } : change.row
+    const order = parseOrderRow(row)
     if (!order) return false
     const known = orders.has(order.id)
     orders.set(order.id, order)
+    if (isRecord(row)) rows.set(order.id, row)
     if (change.type === 'INSERT' && !known && order.status === 'novo') alert.play()
     return true
   }
@@ -118,6 +131,7 @@ export function createOrdersLive({
       if (users > 1) return
       generation++
       orders = new Map()
+      rows = new Map()
       initialized = false
       buffer = []
       loading = false
@@ -138,6 +152,7 @@ export function createOrdersLive({
       if (timer !== null) timers.clearInterval(timer)
       timer = null
       orders = new Map()
+      rows = new Map()
       initialized = false
       buffer = []
       loading = false
@@ -149,16 +164,20 @@ export function createOrdersLive({
       loading = true
       const run = generation
       try {
-        const rows = await source.load()
+        const fetched = await source.load()
         if (run !== generation) return
         const loaded = new Map<string, PanelOrder>()
-        for (const raw of rows) {
+        const loadedRows = new Map<string, Record<string, unknown>>()
+        for (const raw of fetched) {
           const order = parseOrderRow(raw)
-          if (order) loaded.set(order.id, order)
+          if (!order) continue
+          loaded.set(order.id, order)
+          if (isRecord(raw)) loadedRows.set(order.id, raw)
         }
         if (!initialized) {
           initialized = true
           orders = loaded
+          rows = loadedRows
           const pending = buffer
           buffer = []
           for (const change of pending) apply(change)
@@ -168,9 +187,14 @@ export function createOrdersLive({
           // Fica o que a consulta trouxe, mais o que chegou depois dela e ainda vale para o painel.
           const dayStart = storeDayStart(now())
           for (const [id, order] of orders) {
-            if (!loaded.has(id) && (order.createdAt >= dayStart || OPEN_STATUSES.includes(order.status))) loaded.set(id, order)
+            if (!loaded.has(id) && (order.createdAt >= dayStart || OPEN_STATUSES.includes(order.status))) {
+              loaded.set(id, order)
+              const kept = rows.get(id)
+              if (kept) loadedRows.set(id, kept)
+            }
           }
           orders = loaded
+          rows = loadedRows
         }
         emit({ status: 'ready', updatedAt: now() })
       } catch {
@@ -187,6 +211,7 @@ export function createOrdersLive({
         if (!updated) return { ok: false, message: 'O pedido não foi encontrado. Atualize a lista.' }
         if (users > 0) {
           orders.set(updated.id, updated)
+          if (isRecord(raw)) rows.set(updated.id, raw)
           emit()
         }
         return { ok: true }

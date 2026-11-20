@@ -45,16 +45,30 @@ function setup(statuses: Record<string, OrderView['status']>) {
     active: () => trackedList.filter((order) => order.status !== 'concluido' && order.status !== 'cancelado'),
     setStatus: (id: string, status: OrderView['status']) => void (saved[id] = status),
   }
+  let listens = 0
   const listen: CustomerListen = (change, live) => {
+    listens++
     onChange = change
     onState = live
     return () => void state.stopped++
   }
   const timers = new Map<number, () => void>()
+  const timeouts = new Map<number, () => void>()
   let next = 0
-  const fakeTimers = { setInterval: (callback: () => void) => (timers.set(++next, callback), next), clearInterval: (id: number) => void timers.delete(id) }
+  const fakeTimers = {
+    setInterval: (callback: () => void) => (timers.set(++next, callback), next),
+    clearInterval: (id: number) => void timers.delete(id),
+    setTimeout: (callback: () => void) => (timeouts.set(++next, callback), next),
+    clearTimeout: (id: number) => void timeouts.delete(id),
+  }
   const live = createCustomerLive({ api, tracked, listen, timers: fakeTimers })
-  return { live, state, saved, timers, change: (id: string | null) => onChange(id), setState: (s: 'live' | 'offline') => onState(s) }
+  /** Faz passar o tempo de espera antes de fechar. */
+  const elapse = () => {
+    const pending = [...timeouts.entries()]
+    timeouts.clear()
+    for (const [, callback] of pending) callback()
+  }
+  return { live, state, saved, timers, timeouts, elapse, listens: () => listens, change: (id: string | null) => onChange(id), setState: (s: 'live' | 'offline') => onState(s) }
 }
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -132,14 +146,37 @@ describe('acompanhamento ao vivo do cliente (2026-11-20)', () => {
     expect([live.getSnapshot().live, state.lookups]).toEqual(['live', ['a', 'a']])
   })
 
-  it('desligar: remove a escuta e o relógio (a faixa e a tela dividem uma escuta só)', () => {
-    const { live, state, timers } = setup({ a: 'novo' })
+  it('desligar: remove a escuta e o relógio depois da espera (a faixa e a tela dividem uma escuta só)', () => {
+    const { live, state, timers, elapse } = setup({ a: 'novo' })
     live.start()
     live.start()
     live.stop()
     expect(state.stopped).toBe(0)
     live.stop()
+    expect(state.stopped).toBe(0)
+    elapse()
     expect([state.stopped, timers.size, live.getSnapshot().live]).toEqual([1, 0, 'off'])
+  })
+
+  it('troca de tela (uma larga e a outra pega logo): a mesma conexão continua, sem fechar e abrir', async () => {
+    const { live, state, elapse, listens, timeouts } = setup({ a: 'novo' })
+    live.start()
+    await settle()
+    live.stop()
+    live.start()
+    elapse()
+    await settle()
+    expect([listens(), state.stopped, timeouts.size, live.getSnapshot().live]).toEqual([1, 0, 0, 'connecting'])
+  })
+
+  it('sessão nova durante a espera: a conexão antiga sai na hora (a próxima tela abre com a sessão nova)', () => {
+    const { live, state, listens } = setup({ a: 'novo' })
+    live.start()
+    live.stop()
+    live.restart()
+    expect([state.stopped, live.getSnapshot().live]).toEqual([1, 'off'])
+    live.start()
+    expect(listens()).toBe(2)
   })
 })
 

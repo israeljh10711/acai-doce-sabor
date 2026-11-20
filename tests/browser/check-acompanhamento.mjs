@@ -193,6 +193,11 @@ try {
     [true, true, false],
   )
   check('a tela da Bia continua no "Pedido recebido"', await bia.run(`__step('recebido')`), 'current')
+  check(
+    'painel: depois do UPDATE (que chega sem a comanda, como no Supabase de verdade), o cartão continua com os itens da comanda',
+    await seller.waitFor(`__card('ADS-0001')?.dataset.status === 'preparando' && __card('ADS-0001').querySelectorAll('[data-order-item]').length === 2`),
+    true,
+  )
 
   // --- Isolamento: a Bia não abre o pedido da Ana, nem pelo código nem pela função ---
   await bia.browser.goto(`${baseUrl}/acompanhar/ADS-0001`, desktop)

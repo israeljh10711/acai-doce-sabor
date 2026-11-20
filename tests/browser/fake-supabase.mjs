@@ -140,7 +140,7 @@ function rest(db, method, url, headers, body, state = {}) {
   }
   // Painel do vendedor (2026-11-20): o vendedor lê todos os pedidos e muda só a situação.
   if (url.pathname === '/rest/v1/orders' && method === 'GET' && seller) {
-    const rows = [...db.orders].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    const rows = db.orders.filter((order) => matchesFilters(order, url.searchParams)).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
     return { status: 200, body: rows.map((order) => pick(order, select)) }
   }
   if (url.pathname === '/rest/v1/orders' && method === 'PATCH') {
@@ -190,7 +190,8 @@ function rest(db, method, url, headers, body, state = {}) {
   }
   // O histórico (2026-11-20): só a função (chave de servidor) lê por aqui.
   if (url.pathname === '/rest/v1/order_events' && method === 'GET') {
-    if (!server) return { status: 200, body: [] }
+    // RLS: a função (chave de servidor) e o vendedor leem; o cliente lê pela função.
+    if (!server && !seller) return { status: 200, body: [] }
     const rows = db.events.filter((event) => matchesFilters(event, url.searchParams)).sort((a, b) => a.id - b.id)
     return { status: 200, body: rows.map((event) => pick(event, select)) }
   }

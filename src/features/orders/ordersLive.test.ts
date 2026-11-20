@@ -96,6 +96,21 @@ describe('painel ao vivo: carga e Realtime (2026-11-20)', () => {
     expect([live.getSnapshot().orders[0].status, live.getSnapshot().newCount, alert.plays]).toEqual(['preparando', 0, 0])
   })
 
+  it('UPDATE do Realtime sem as colunas grandes que não mudaram (a comanda, TOAST): o cartão mantém a comanda', async () => {
+    // Visto no Supabase de verdade em 2026-11-20 (ADS-0003): o UPDATE chegou com 27 das 28 colunas, sem `message`.
+    const comanda = '🍨 *ITENS DO PEDIDO*\n\n1️⃣ *1x Açaí Tradicional* (Pote 200 ml) — *R$ 11,00*\n   ✨ *Montagem:* COMPLETO'
+    const { source, state } = fakeSource([row('1', 'novo', { message: comanda })])
+    const live = createOrdersLive({ source, alert: fakeAlert(), timers: fakeTimers() })
+    live.start()
+    await settle()
+    // A linha do UPDATE vem sem a chave `message`.
+    state.onChange({ type: 'UPDATE', row: row('1', 'preparando') })
+    expect([live.getSnapshot().orders[0].status, live.getSnapshot().orders[0].message]).toEqual(['preparando', comanda])
+    // INSERT de um pedido novo não herda nada (vem completo).
+    state.onChange({ type: 'INSERT', row: row('2') })
+    expect(live.getSnapshot().orders.find((order) => order.id === '2')?.message).toBe('')
+  })
+
   it('evento repetido (mesmo id): um cartão só e um bipe só', async () => {
     const { source, state } = fakeSource()
     const alert = fakeAlert()

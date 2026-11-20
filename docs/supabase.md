@@ -164,6 +164,7 @@ Com o Modo Vendedor desbloqueado, a faixa do topo mostra o botão **📋 Pedidos
   - ao abrir, o painel carrega os pedidos do dia da loja (desde as 5h de Brasília) e os de antes ainda em andamento;
   - os eventos que chegam durante a carga são juntados sem repetir (pelo `id`);
   - se a conexão ao vivo cair, o painel confere sozinho a cada 15 segundos. Com ela ligada, confere a cada 60 segundos, só por garantia.
+  - **colunas que não vêm no UPDATE:** numa mudança de situação, o Realtime não repete as colunas grandes que não mudaram, porque o Postgres as guarda à parte (TOAST). No teste real do ADS-0003 (2026-11-20), o UPDATE chegou sem a comanda (`message`). O painel junta cada UPDATE à última linha conhecida do pedido, e o que não veio fica como estava. Sem isso, o cartão perdia a montagem detalhada (Completo, SEM, extras) depois da primeira mudança.
 
 ### Situação dos pedidos
 
