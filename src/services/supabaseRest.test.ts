@@ -141,3 +141,51 @@ describe('gravação no Supabase (CatalogBackend)', () => {
     expect(createSupabaseBackend(createSupabaseRest(CONFIG, deps), deps.store).loadSync()).toEqual(changes)
   })
 })
+
+describe('pedidos no painel do vendedor (pedido de 2026-11-20, etapa 2)', () => {
+  const signedIn = async (routes: (call: Call) => { status: number; body?: unknown }) => {
+    const fake = fakeRest((call) => (call.url.includes('/auth/v1/token') ? { status: 200, body: TOKEN } : call.url.includes('/sellers') ? { status: 200, body: [{ user_id: 'u1' }] } : routes(call)))
+    const rest = createSupabaseRest(CONFIG, fake.deps)
+    await rest.signIn('senha-certa')
+    fake.calls.length = 0
+    return { ...fake, rest }
+  }
+
+  it('lê os pedidos do dia e os ainda em andamento, os mais novos primeiro, com o token do vendedor', async () => {
+    const { calls, rest } = await signedIn(() => ({ status: 200, body: [{ id: 'a' }] }))
+    expect(await rest.readOrders('2026-11-20T08:00:00.000Z')).toEqual([{ id: 'a' }])
+    const url = new URL(calls[0].url)
+    expect(url.pathname).toBe('/rest/v1/orders')
+    expect(url.searchParams.get('or')).toBe('(created_at.gte."2026-11-20T08:00:00.000Z",status.in.(novo,confirmado,preparando,pronto,saiu_para_entrega))')
+    expect(url.searchParams.get('order')).toBe('created_at.desc')
+    expect(url.searchParams.get('limit')).toBe('200')
+    expect(url.searchParams.get('select')?.split(',')).toEqual(expect.arrayContaining(['id', 'code', 'status', 'fulfillment', 'customer_lat', 'customer_lng', 'maps_url', 'message']))
+    expect([calls[0].method, calls[0].headers.authorization, calls[0].headers.apikey]).toEqual(['GET', 'Bearer token-1', 'sb_publishable_123'])
+  })
+
+  it('muda só a situação de um pedido e devolve a linha nova', async () => {
+    const { calls, rest } = await signedIn(() => ({ status: 200, body: [{ id: 'a', status: 'confirmado' }] }))
+    expect(await rest.setOrderStatus('a', 'confirmado')).toEqual({ id: 'a', status: 'confirmado' })
+    expect(calls[0].url).toBe('https://projeto.supabase.co/rest/v1/orders?id=eq.a&select=*')
+    expect([calls[0].method, calls[0].body, calls[0].headers.prefer, calls[0].headers.authorization]).toEqual([
+      'PATCH',
+      { status: 'confirmado' },
+      'return=representation',
+      'Bearer token-1',
+    ])
+  })
+
+  it('nenhuma linha mudada (pedido sumiu ou sem permissão): null; erro do banco: lança', async () => {
+    const empty = await signedIn(() => ({ status: 200, body: [] }))
+    expect(await empty.rest.setOrderStatus('sumiu', 'pronto')).toBeNull()
+    const failing = await signedIn(() => ({ status: 403, body: { message: 'permission denied' } }))
+    await expect(failing.rest.setOrderStatus('a', 'pronto')).rejects.toThrow('403')
+    await expect(failing.rest.readOrders('2026-11-20T08:00:00.000Z')).rejects.toThrow('403')
+  })
+
+  it('sem sessão do vendedor: não chama o banco', async () => {
+    const { calls, deps } = fakeRest(() => ({ status: 200, body: [] }))
+    await expect(createSupabaseRest(CONFIG, deps).readOrders('2026-11-20T08:00:00.000Z')).rejects.toThrow('Vendedor sem sessão')
+    expect(calls).toHaveLength(0)
+  })
+})

@@ -126,6 +126,26 @@ O SQL não muda nem apaga nenhum pedido.
 
 **Quem vê o GPS:** só o vendedor logado (a mesma regra de leitura da tabela) e a função. Os visitantes não leem a tabela `orders`. O site só pede a localização quando o cliente toca em "📍 Usar minha localização atual", e o ponto nunca fica guardado no navegador. Depois do toque, o site faz uma consulta ao Nominatim (OpenStreetMap) com o ponto, para sugerir rua e bairro.
 
+## Painel de pedidos do Modo Vendedor (2026-11-20)
+
+Com o Supabase ligado e o vendedor logado, a faixa do Modo Vendedor ganha o botão **Pedidos**. Ele abre a página `/pedidos`, feita para ficar aberta no balcão.
+
+- **Quais pedidos:** os do dia da loja, que começa às 5h de Brasília, mais os de dias anteriores ainda em andamento. Os mais novos ficam em cima.
+- **Cada cartão mostra:**
+  - o código, a hora e a situação;
+  - o selo da modalidade: Entrega, Retirar ou Comer no Local (este em dourado e roxo);
+  - o cliente, com o link do WhatsApp dele;
+  - na entrega, o endereço e o botão **Abrir GPS no Mapa**, só quando há GPS. Em Retirar e Comer no Local, nunca aparecem endereço nem GPS;
+  - os itens como saíram na comanda, o subtotal, o frete, o total e o pagamento.
+- **Situação:**
+  - os botões avançam: **Confirmar → Preparando → Pronto**;
+  - depois de Pronto, a entrega vai para **Saiu para entrega** e então **Concluído**. Retirar e Comer no Local vão direto para **Concluído**;
+  - **Cancelar** pede confirmação no próprio cartão;
+  - o banco só deixa o vendedor mudar a situação (regra do `20261117120000_pedidos.sql`). Nenhum SQL novo foi preciso.
+- **Atualização:** a página busca pedidos a cada 15 segundos, enquanto está visível, e também ao voltar para a aba. Tem ainda o botão **Atualizar agora**.
+- **Aviso de pedido novo:** a página toca um bipe duplo e o título da aba mostra quantos pedidos estão como "novo". O botão **Som do aviso** liga e desliga o bipe, e a escolha fica guardada no aparelho. O navegador só libera o som depois do primeiro toque na página.
+- **Sem o Supabase:** a página avisa que os pedidos não ficam guardados. **Sem login:** a página pede a senha do vendedor.
+
 **Tipos gerados:** o projeto não usa tipos gerados pelo Supabase. Os tipos da linha ficam em `OrderRow`, em `src/server/orderServer.ts`.
 
 ## 7. Conferir

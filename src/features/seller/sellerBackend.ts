@@ -8,7 +8,7 @@
 import { getCatalogChanges, setCatalogChanges, setPhotoUrls } from '../catalog/catalogStore.ts'
 import { type CatalogBackend, browserLocalDeps, createLocalBackend } from '../../services/sellerCatalogStore.ts'
 import { createSupabaseBackend } from '../../services/supabaseBackend.ts'
-import { createSupabaseRest } from '../../services/supabaseRest.ts'
+import { type SupabaseRest, createSupabaseRest } from '../../services/supabaseRest.ts'
 
 /** De quanto em quanto tempo a página aberta confere se o vendedor mudou algo (Supabase). */
 const REFRESH_MS = 60_000
@@ -25,20 +25,28 @@ export function supabaseConfig(): { url: string; key: string; sellerEmail: strin
   return url && key && sellerEmail ? { url, key, sellerEmail } : null
 }
 
+let rest: SupabaseRest | null = null
+
+/**
+ * O cliente do Supabase do site (o mesmo do modo vendedor, com a sessão do vendedor). Sem o
+ * Supabase ligado, `null`. O painel de pedidos (2026-11-20) lê e muda a situação por ele.
+ */
+export function getSupabaseRest(): SupabaseRest | null {
+  const config = supabaseConfig()
+  if (!config) return null
+  rest ??= createSupabaseRest(config, {
+    fetch: (input, init) => fetch(input, init),
+    now: () => Date.now(),
+    store: window.localStorage,
+    randomId: () => Math.random().toString(36).slice(2, 10),
+  })
+  return rest
+}
+
 export function getSellerBackend(): CatalogBackend {
   if (backend) return backend
-  const config = supabaseConfig()
-  backend = config
-    ? createSupabaseBackend(
-        createSupabaseRest(config, {
-          fetch: (input, init) => fetch(input, init),
-          now: () => Date.now(),
-          store: window.localStorage,
-          randomId: () => Math.random().toString(36).slice(2, 10),
-        }),
-        window.localStorage,
-      )
-    : createLocalBackend(browserLocalDeps())
+  const supabase = getSupabaseRest()
+  backend = supabase ? createSupabaseBackend(supabase, window.localStorage) : createLocalBackend(browserLocalDeps())
   return backend
 }
 

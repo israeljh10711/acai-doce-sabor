@@ -7,6 +7,8 @@ export const routePatterns = {
   configurator: '/monte-seu-pedido/:categoria',
   cart: '/carrinho',
   credits: '/creditos',
+  /** Painel de pedidos do Modo Vendedor (2026-11-20). */
+  orders: '/pedidos',
 } as const
 
 /** Endereços prontos para usar em links. */
@@ -18,4 +20,5 @@ export const paths = {
     `${routePatterns.buildOrder}/${slug}${itemId ? `?item=${encodeURIComponent(itemId)}` : ''}`,
   cart: routePatterns.cart,
   credits: routePatterns.credits,
+  orders: routePatterns.orders,
 } as const

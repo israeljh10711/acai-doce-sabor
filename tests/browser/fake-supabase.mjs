@@ -3,6 +3,8 @@
 // - um banco na memória com as rotas da API REST que o site e a função usam (catalog_changes,
 //   orders e a função proximo_numero_pedido), com as mesmas regras de acesso do SQL: o site lê o
 //   cardápio com a chave pública; só a chave de servidor lê e grava pedidos;
+// - o login do vendedor e o painel de pedidos (2026-11-20): o vendedor lê os pedidos e muda só a
+//   situação, como no SQL;
 // - a função "pedido" de verdade: o arquivo gerado supabase/functions/pedido/index.ts (o mesmo que
 //   se cola no painel), carregado com um "Deno" de mentira.
 //
@@ -14,6 +16,10 @@ import { pathToFileURL } from 'node:url'
 
 export const PUBLIC_KEY = 'sb_publishable_teste'
 export const SERVER_KEY = 'sb_secret_teste'
+/** Login do vendedor (painel de pedidos, 2026-11-20): a senha e o token que o "Auth" devolve. */
+export const SELLER_PASSWORD = 'senha-teste'
+export const SELLER_TOKEN = 'token-do-vendedor-teste'
+const ORDER_STATUSES = ['novo', 'confirmado', 'preparando', 'pronto', 'saiu_para_entrega', 'concluido', 'cancelado']
 const BUNDLE = join(process.cwd(), 'supabase', 'functions', 'pedido', 'index.ts')
 
 const CORS = {
@@ -29,12 +35,45 @@ export function createFakeDatabase() {
 const pick = (row, columns) => (columns.length === 0 || columns[0] === '' ? row : Object.fromEntries(columns.map((column) => [column, row[column]])))
 
 /** As rotas REST que o site e a função usam, com as regras de acesso do SQL. */
-function rest(db, method, url, headers, body) {
+function rest(db, method, url, headers, body, state = {}) {
   const key = headers.apikey
   if (!key) return { status: 401, body: { message: 'No API key found in request' } }
   if (key !== PUBLIC_KEY && key !== SERVER_KEY) return { status: 401, body: { message: 'Invalid API key' } }
   const server = key === SERVER_KEY
+  // O vendedor logado: chave pública no apikey e o token dele no Authorization.
+  const seller = headers.authorization === `Bearer ${SELLER_TOKEN}`
   const select = (url.searchParams.get('select') ?? '').split(',')
+
+  if (url.pathname === '/auth/v1/token' && method === 'POST') {
+    const data = JSON.parse(body || '{}')
+    const grant = url.searchParams.get('grant_type')
+    const valid = grant === 'refresh_token' ? data.refresh_token === 'refresh-teste' : data.password === SELLER_PASSWORD
+    if (!valid) return { status: 400, body: { error: 'invalid_grant', error_description: 'Invalid login credentials' } }
+    return { status: 200, body: { access_token: SELLER_TOKEN, refresh_token: 'refresh-teste', expires_in: 3600, token_type: 'bearer' } }
+  }
+  if (url.pathname === '/auth/v1/logout' && method === 'POST') return { status: 204, body: null }
+  if (url.pathname === '/rest/v1/sellers' && method === 'GET') {
+    return { status: 200, body: seller ? [{ user_id: 'vendedor-teste' }] : [] }
+  }
+  // Painel do vendedor (2026-11-20): o vendedor lê todos os pedidos e muda só a situação.
+  if (url.pathname === '/rest/v1/orders' && method === 'GET' && seller) {
+    const rows = [...db.orders].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    return { status: 200, body: rows.map((order) => pick(order, select)) }
+  }
+  if (url.pathname === '/rest/v1/orders' && method === 'PATCH') {
+    if (!seller) return { status: 401, body: { message: 'permission denied for table orders' } }
+    if (state.failOrdersPatch) return { status: 500, body: { message: 'erro de teste' } }
+    const change = JSON.parse(body || '{}')
+    // "grant update (status)": mudar outra coluna é recusado pelo banco.
+    if (Object.keys(change).join() !== 'status' || !ORDER_STATUSES.includes(change.status)) {
+      return { status: 403, body: { message: 'permission denied for table orders' } }
+    }
+    const id = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
+    const order = db.orders.find((candidate) => candidate.id === id)
+    if (!order) return { status: 200, body: [] }
+    order.status = change.status
+    return { status: 200, body: [pick(order, select[0] === '*' ? [] : select)] }
+  }
 
   if (url.pathname === '/rest/v1/catalog_changes' && method === 'GET') {
     return { status: 200, body: db.changes.map(({ kind, id, data }) => pick({ kind, id, data }, select)) }
@@ -94,12 +133,12 @@ const readBody = (request) =>
  */
 export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), env = {} } = {}) {
   const handler = await loadFunction()
-  const state = { failFunction: false }
+  const state = { failFunction: false, failOrdersPatch: false }
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1')
     const headers = Object.fromEntries(Object.entries(request.headers).map(([name, value]) => [name.toLowerCase(), String(value)]))
     const body = await readBody(request)
-    db.calls.push({ method: request.method, path: url.pathname, apikey: headers.apikey ?? null, authorization: headers.authorization ?? null })
+    db.calls.push({ method: request.method, path: url.pathname, search: url.search, apikey: headers.apikey ?? null, authorization: headers.authorization ?? null })
     if (request.method === 'OPTIONS') {
       response.writeHead(204, CORS).end()
       return
@@ -114,7 +153,11 @@ export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), e
       response.writeHead(reply.status, replyHeaders).end(Buffer.from(await reply.arrayBuffer()))
       return
     }
-    const result = rest(db, request.method, url, headers, body)
+    const result = rest(db, request.method, url, headers, body, state)
+    if (result.body === null) {
+      response.writeHead(result.status, CORS).end()
+      return
+    }
     response.writeHead(result.status, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify(result.body))
   })
   await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve))

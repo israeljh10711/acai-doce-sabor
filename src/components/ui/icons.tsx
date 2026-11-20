@@ -89,6 +89,15 @@ export const Camera = (props: IconProps) => (
   </Icon>
 )
 
+/** Prancheta com lista: o painel de pedidos do vendedor (o "📋" pedido em 2026-11-20). */
+export const ClipboardList = (props: IconProps) => (
+  <Icon {...props}>
+    <rect x="8" y="2.5" width="8" height="4" rx="1" />
+    <path d="M16 4.5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2h2" />
+    <path d="M12 11h4M12 16h4M8 11h.01M8 16h.01" />
+  </Icon>
+)
+
 export const Pin = (props: IconProps) => (
   <Icon {...props}>
     <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z" />

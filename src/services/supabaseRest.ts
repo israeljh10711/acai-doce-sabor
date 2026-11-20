@@ -6,6 +6,7 @@
  * Só a chave pública (anon ou publishable) fica no site. Quem pode gravar é decidido no banco
  * (RLS, `supabase/setup.sql`), não aqui.
  */
+import type { OrderStatus } from '../features/orders/ordersPanel.ts'
 import type { AnyChange, ChangeKind } from './sellerCatalogStore.ts'
 
 export type SupabaseConfig = { url: string; key: string; sellerEmail: string }
@@ -23,6 +24,35 @@ type Session = { accessToken: string; refreshToken: string; expiresAt: number }
 
 const SESSION_KEY = 'acai_doce_sabor_seller_supabase_session_v1'
 export const PHOTO_BUCKET = 'catalogo'
+
+/** O que o painel de pedidos lê de cada pedido (pedido de 2026-11-20, etapa 2). */
+const ORDER_COLUMNS = [
+  'id',
+  'number',
+  'code',
+  'created_at',
+  'status',
+  'customer_name',
+  'customer_phone',
+  'fulfillment',
+  'address',
+  'delivery_fee',
+  'delivery_fee_cents',
+  'delivery_zone',
+  'customer_lat',
+  'customer_lng',
+  'maps_url',
+  'payment_method',
+  'change_for_cents',
+  'subtotal_cents',
+  'total_cents',
+  'antecipado',
+  'items',
+  'message',
+].join(',')
+
+/** Os pedidos de dias anteriores que ainda aparecem: os que não foram concluídos nem cancelados. */
+const OPEN_FILTER = 'status.in.(novo,confirmado,preparando,pronto,saiu_para_entrega)'
 
 export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
   const base = config.url.replace(/\/+$/, '')
@@ -142,6 +172,37 @@ export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
         method: 'DELETE',
         headers: await authed(),
       })
+    },
+
+    /**
+     * Pedidos para o painel do vendedor (pedido de 2026-11-20, etapa 2): os gravados desde `since`
+     * (o começo do dia da loja) e os de antes ainda em andamento, os mais novos primeiro, até 200.
+     * Só o vendedor logado lê (regra do banco).
+     */
+    async readOrders(since: string): Promise<unknown[]> {
+      const params = new URLSearchParams({
+        select: ORDER_COLUMNS,
+        or: `(created_at.gte."${since}",${OPEN_FILTER})`,
+        order: 'created_at.desc',
+        limit: '200',
+      })
+      const response = await request(`/rest/v1/orders?${params.toString()}`, { headers: await authed() })
+      const rows = (await response.json()) as unknown
+      return Array.isArray(rows) ? rows : []
+    },
+
+    /**
+     * Muda só a situação do pedido (o banco não deixa o vendedor mudar mais nada) e devolve a
+     * linha nova. `null`: nenhuma linha mudou (o pedido sumiu ou o vendedor perdeu a permissão).
+     */
+    async setOrderStatus(id: string, status: OrderStatus): Promise<unknown> {
+      const response = await request(`/rest/v1/orders?id=eq.${encodeURIComponent(id)}&select=*`, {
+        method: 'PATCH',
+        headers: await authed({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+        body: JSON.stringify({ status }),
+      })
+      const rows = (await response.json()) as unknown
+      return Array.isArray(rows) && rows.length > 0 ? (rows[0] as unknown) : null
     },
 
     /** Envia a foto para o bucket público e devolve o endereço dela. */

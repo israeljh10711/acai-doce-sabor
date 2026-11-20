@@ -359,6 +359,15 @@ try {
   check('recarregou: modalidade e rua voltam, o GPS não', await run(`[__q('input[value="entrega"]').checked, __field('street').value, !!__q('[data-gps="anexado"]'), !!__q('[data-gps-capture]')]`), [true, 'Rua das Flores', false, true])
   check('computador: sem rolagem lateral', await run(`__noOverflow()`), true)
 
+  // --- Painel de pedidos sem o Supabase (etapa 2): explica que os pedidos não ficam guardados ---
+  await browser.goto(`${baseUrl}/pedidos`, desktop)
+  await waitFor(`__q('[data-orders-notice]')`)
+  check(
+    'painel de pedidos sem Supabase: aviso, nenhum pedido',
+    await run(`[__q('[data-orders-notice] h2')?.textContent, document.querySelectorAll('[data-order-card]').length]`),
+    ['Os pedidos ficam guardados só com o Supabase ligado', 0],
+  )
+
   // --- Celulares ---
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
     await openCart(viewport)

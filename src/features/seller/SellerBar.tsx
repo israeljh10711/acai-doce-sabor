@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
-import { Clock, Download, LockOpen, Scooter, Upload } from '../../components/ui/icons.tsx'
+import { Link } from 'react-router'
+import { ClipboardList, Clock, Download, LockOpen, Scooter, Upload } from '../../components/ui/icons.tsx'
+import { paths } from '../../paths.ts'
 import { MIN_PASSWORD_LENGTH } from '../../services/sellerCatalogStore.ts'
 import { DeliverySettingsModal } from './DeliverySettingsModal.tsx'
 import { SellerDialog } from './SellerDialog.tsx'
@@ -12,7 +14,8 @@ import { StoreHoursContactModal } from './StoreHoursContactModal.tsx'
  * Faixa do modo vendedor no topo de todas as páginas (pedido de 2026-11-16): o aviso de como
  * editar, onde as mudanças ficam salvas e os botões "Alterar senha", "Backup / Restaurar" e
  * "Sair do Modo Vendedor". Desde 2026-11-17, a linha de operação da loja: "Loja Aberta / Fechada",
- * "Tempo", "Entrega / Frete" e "Horários e Contato".
+ * "Tempo", "Entrega / Frete" e "Horários e Contato". Desde 2026-11-20, com o Supabase ligado,
+ * "Pedidos": o painel de pedidos do balcão.
  */
 export function SellerBar() {
   const seller = useSellerMode()
@@ -51,6 +54,12 @@ export function SellerBar() {
           aria-label="Operação da loja"
           className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-4 py-2 text-xs sm:px-6 sm:text-sm"
         >
+          {seller.backendKind === 'supabase' && (
+            <Link to={paths.orders} data-orders-link="" className={`${barButton} bg-gold-400 text-acai-950 ring-gold-400 hover:bg-gold-300`}>
+              <ClipboardList className="size-4" />
+              Pedidos
+            </Link>
+          )}
           <StoreSwitch />
           <DeliveryTimeButton />
           <button type="button" data-delivery-settings="" aria-haspopup="dialog" className={barButton} onClick={() => setOpen('delivery')}>

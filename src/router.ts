@@ -23,6 +23,12 @@ export const router = createBrowserRouter([
         lazy: async () => ({ Component: (await import('./pages/CreditsPage.tsx')).CreditsPage }),
       },
       {
+        // Painel de pedidos do Modo Vendedor (2026-11-20): só o vendedor abre, carregado sob demanda.
+        path: routePatterns.orders,
+        HydrateFallback: PageLoading,
+        lazy: async () => ({ Component: (await import('./pages/OrdersPage.tsx')).OrdersPage }),
+      },
+      {
         // O personalizador é carregado só quando aberto, para a página inicial abrir mais rápido.
         path: routePatterns.configurator,
         HydrateFallback: PageLoading,
