@@ -102,6 +102,13 @@ describe('função do pedido no servidor (opção A, pedido de 2026-11-17)', () 
     expect(other).toMatchObject({ ok: true, code: 'ADS-0002', repeated: false })
   })
 
+  it('pedido já gravado, mandado de novo com outro total (preço mudou depois): volta o gravado, sem gravar outro', async () => {
+    const { deps, orders } = fakeDeps()
+    await handleOrder(request(), deps)
+    expect(await handleOrder(request({ expectedTotalCents: 999 }), deps)).toMatchObject({ ok: true, code: 'ADS-0001', totalCents: 500, repeated: true })
+    expect(orders).toHaveLength(1)
+  })
+
   it('duas tentativas iguais ao mesmo tempo: a segunda acha a primeira gravada', async () => {
     const { deps } = fakeDeps()
     const results = await Promise.all([handleOrder(request(), deps), handleOrder(request(), deps)])
