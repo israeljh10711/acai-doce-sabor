@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { ClipboardList, Clock, Download, LockOpen, Scooter, Upload } from '../../components/ui/icons.tsx'
+import { Clock, Download, LockOpen, Scooter, Upload } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
+import { useOrders, useOrdersConnection } from '../orders/ordersRuntime.ts'
 import { MIN_PASSWORD_LENGTH } from '../../services/sellerCatalogStore.ts'
 import { DeliverySettingsModal } from './DeliverySettingsModal.tsx'
 import { SellerDialog } from './SellerDialog.tsx'
@@ -14,12 +15,15 @@ import { StoreHoursContactModal } from './StoreHoursContactModal.tsx'
  * Faixa do modo vendedor no topo de todas as páginas (pedido de 2026-11-16): o aviso de como
  * editar, onde as mudanças ficam salvas e os botões "Alterar senha", "Backup / Restaurar" e
  * "Sair do Modo Vendedor". Desde 2026-11-17, a linha de operação da loja: "Loja Aberta / Fechada",
- * "Tempo", "Entrega / Frete" e "Horários e Contato". Desde 2026-11-20, com o Supabase ligado,
- * "Pedidos": o painel de pedidos do balcão.
+ * "Tempo", "Entrega / Frete" e "Horários e Contato". Desde 2026-11-20, "📋 Pedidos": o painel de
+ * pedidos do balcão, com o selo vermelho dos pedidos novos. Enquanto a faixa está na tela (vendedor
+ * logado), a escuta dos pedidos fica ligada em qualquer página; ao sair do Modo Vendedor, ela para.
  */
 export function SellerBar() {
   const seller = useSellerMode()
   const [open, setOpen] = useState<'password' | 'backup' | 'delivery' | 'hours' | null>(null)
+  useOrdersConnection()
+  const { newCount } = useOrders()
 
   return (
     <div data-seller-bar="" className="border-b-2 border-gold-400 bg-acai-800 text-white">
@@ -54,12 +58,20 @@ export function SellerBar() {
           aria-label="Operação da loja"
           className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-2 px-4 py-2 text-xs sm:px-6 sm:text-sm"
         >
-          {seller.backendKind === 'supabase' && (
-            <Link to={paths.orders} data-orders-link="" className={`${barButton} bg-gold-400 text-acai-950 ring-gold-400 hover:bg-gold-300`}>
-              <ClipboardList className="size-4" />
-              Pedidos
-            </Link>
-          )}
+          <Link
+            to={paths.orders}
+            data-orders-link=""
+            aria-label={newCount > 0 ? `Pedidos (${newCount} ${newCount === 1 ? 'novo' : 'novos'})` : 'Pedidos'}
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-gold-400 px-3 text-xs font-extrabold text-acai-950 ring-1 ring-gold-400 transition hover:bg-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
+          >
+            📋 Pedidos
+            {newCount > 0 && (
+              <span data-orders-badge={newCount} className="relative inline-flex">
+                <span aria-hidden="true" className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-75 motion-reduce:animate-none" />
+                <span className="nums relative min-w-5 rounded-full bg-red-600 px-1.5 text-center text-xs leading-5 font-black text-white">({newCount})</span>
+              </span>
+            )}
+          </Link>
           <StoreSwitch />
           <DeliveryTimeButton />
           <button type="button" data-delivery-settings="" aria-haspopup="dialog" className={barButton} onClick={() => setOpen('delivery')}>

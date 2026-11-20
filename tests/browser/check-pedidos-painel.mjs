@@ -1,21 +1,22 @@
-// Confere no navegador o painel de pedidos do Modo Vendedor (pedido de 2026-11-20, etapa 2), sem
-// um Supabase de verdade: sobe o Supabase de mentira (com a função "pedido" gerada e o login do
-// vendedor) e um segundo site na porta 5179 ligado a ele. O site da porta 5173 não muda.
-// - pedidos criados pela função de verdade: entrega com GPS, entrega sem GPS, retirar e comer no
-//   local, mais um pedido antigo (antes das colunas novas);
-// - sem login: a página pede a senha; com login, o botão "Pedidos" na faixa;
-// - selos das modalidades (Comer no Local em dourado e roxo), "Abrir GPS no Mapa" só na entrega
-//   com GPS, sem endereço fora da entrega, itens, total e pagamento;
-// - avançar a situação (gravada no banco), cancelar com confirmação, erro ao gravar, filtros;
-// - pedido novo chegando pela atualização automática: cartão, bipe e título da aba;
-// - 1280, 390 e 320 px sem rolagem lateral.
+// Confere no navegador o painel de pedidos AO VIVO do Modo Vendedor (2026-11-20), sem um Supabase
+// de verdade: sobe o Supabase de mentira (função "pedido" gerada, login do vendedor e Realtime
+// por WebSocket, fake-realtime.mjs) e um segundo site na porta 5179 ligado a ele.
+// - sem login: a página pede a senha; com login, "📋 Pedidos" na faixa com o selo vermelho;
+// - inscrição no Realtime com o token do vendedor, uma só para a faixa e a página;
+// - cartões: #código, hora, cliente, selo da modalidade, itens organizados (Completo, SEM, extras
+//   pagos, observação), endereço e GPS só na entrega, pagamento, WhatsApp do cliente;
+// - filtros rápidos; fluxo de cada modalidade gravado no banco; cancelar com confirmação; erro;
+// - Realtime: INSERT aparece na hora com o bipe (sem recarregar); UPDATE de outro aparelho sem
+//   bipe; evento repetido sem duplicar; silenciado sem bipe; contador em outra página;
+// - sair do Modo Vendedor remove a inscrição; 1280, 390 e 320 px sem rolagem lateral.
 //
 // Uso: node tests/browser/check-pedidos-painel.mjs
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { createServer } from 'vite'
-import { PUBLIC_KEY, SELLER_PASSWORD, startFakeSupabase } from './fake-supabase.mjs'
+import { PUBLIC_KEY, SELLER_PASSWORD, SELLER_TOKEN, startFakeSupabase } from './fake-supabase.mjs'
 import { openBrowser, sleep } from './lib.mjs'
 
 const PORT = 5179
@@ -31,50 +32,65 @@ function check(label, actual, expected) {
   return pass
 }
 
+// O carrinho com um Açaí Completo de verdade, montado pelas regras do próprio site.
+const src = (path) => pathToFileURL(join(process.cwd(), 'src', path)).href
+const { EMPTY_CART, addExtraItem, addItem, cartTotalCents, serializeCart, setNote } = await import(src('features/cart/cart.ts'))
+const { PRODUCTS } = await import(src('features/catalog/menu.ts'))
+const { EMPTY_SELECTION, addTopping, applyComplete, chooseSize, removeTopping } = await import(src('features/catalog/selection.ts'))
+
 const fake = await startFakeSupabase()
-// Loja aberta e frete por bairro no "banco".
 fake.db.changes.push({
   kind: 'settings',
   id: 'loja',
   data: { override: { state: 'open', until: Date.now() + 3_600_000 }, delivery: { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] } },
 })
 
-/** Jujuba (R$ 1,00) e Água (R$ 2,00): R$ 3,00. */
-const CART = JSON.stringify({
+/** Jujuba (R$ 1,00) e Água (R$ 2,00, "bem gelada"): R$ 3,00. */
+const SIMPLE = JSON.stringify({
   v: 2,
   items: [
     { kind: 'extra', id: 'j1', itemId: 'jujuba', choices: [], quantity: 1 },
     { kind: 'extra', id: 'a1', itemId: 'agua-mineral-500-ml', choices: [], quantity: 1, note: 'bem gelada' },
   ],
 })
+const tradicional = PRODUCTS['acai-tradicional']
+let completo = removeTopping(applyComplete(tradicional, chooseSize(tradicional, EMPTY_SELECTION, 'isopor-m').selection), 'farinha-lactea')
+completo = addTopping(tradicional, completo, 'kit-kat')
+let completoCart = addItem(EMPTY_CART, 'acai-tradicional', completo, 'c1').cart
+completoCart = setNote(completoCart, 'c1', 'pouco gelo')
+completoCart = addExtraItem(completoCart, 'jujuba', {}, 'j1').cart
+const COMPLETO = serializeCart(completoCart)
+const COMPLETO_TOTAL = cartTotalCents(completoCart)
+
 const customer = (patch) => ({ name: '', phone: '', kind: null, street: '', number: '', district: '', zoneId: null, reference: '', gps: null, ...patch })
 const GPS = { lat: -7.220987, lng: -37.254124 }
+const PIX = { method: 'pix', changeFor: '', exact: false }
 /** Um pedido pela função "pedido" de verdade (como o carrinho manda). */
-async function placeOrder(draft, payment, expectedTotalCents) {
+async function placeOrder(draft, payment, expectedTotalCents, cart = SIMPLE) {
   const response = await fetch(`${fake.url}/functions/v1/pedido`, {
     method: 'POST',
     headers: { apikey: PUBLIC_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cart: CART, customer: draft, payment, expectedTotalCents }),
+    body: JSON.stringify({ cart, customer: draft, payment, expectedTotalCents }),
   })
   const body = await response.json()
   if (!body.ok) throw new Error(`pedido recusado: ${JSON.stringify(body)}`)
   return body.code
 }
-const PIX = { method: 'pix', changeFor: '', exact: false }
 const codes = {
   gps: await placeOrder(customer({ name: 'Ana GPS', phone: '83999990000', kind: 'entrega', street: 'Rua das Flores', number: '12A', zoneId: 'centro', reference: 'portão azul', gps: GPS }), { method: 'dinheiro', changeFor: '10', exact: false }, 600),
   retirada: await placeOrder(customer({ name: 'Bruno Retira', kind: 'retirada', street: 'Rua Que Não Vai', number: '9', gps: GPS }), PIX, 300),
   local: await placeOrder(customer({ name: 'Carla Local', kind: 'local' }), { method: 'credito', changeFor: '', exact: false }, 300),
   semGps: await placeOrder(customer({ name: 'Davi Sem GPS', kind: 'entrega', street: 'Av. Brasil', number: 'S/N', zoneId: 'centro' }), PIX, 600),
+  completo: await placeOrder(customer({ name: 'Fábio Completo', phone: '(83) 98888-1111', kind: 'retirada' }), PIX, COMPLETO_TOTAL, COMPLETO),
 }
-// Um pedido antigo (de antes de 2026-11-20): sem as colunas do GPS.
+// Um pedido antigo (de antes de 2026-11-20): sem as colunas do GPS, na situação antiga "pronto".
 fake.db.orders.push({
   id: 'antigo-0099',
   number: 99,
   code: 'ADS-0099',
   attempt_key: 'a'.repeat(64),
   created_at: new Date(Date.now() - 60_000).toISOString(),
-  status: 'preparando',
+  status: 'pronto',
   customer_name: 'Pedido Antigo',
   customer_phone: null,
   fulfillment: 'retirada',
@@ -111,12 +127,12 @@ const helpers = `
   window.__codes = () => [...document.querySelectorAll('[data-order-card]')].map((card) => card.dataset.orderCard);
   window.__text = (el) => el?.innerText.replace(/\\s+/g, ' ').trim() ?? null;
   window.__noOverflow = () => document.documentElement.scrollWidth <= window.innerWidth;
-  // Som de mentira: conta os bipes (cada bipe tem 2 tons).
   window.__fakeAudio = () => {
     window.__tones = 0;
     class FakeAudio {
-      constructor() { this.state = 'running'; this.currentTime = 0; this.destination = {}; }
-      resume() { return Promise.resolve(); }
+      constructor() { this.state = 'suspended'; this.currentTime = 0; this.destination = {}; this.listeners = []; }
+      addEventListener(type, listener) { this.listeners.push(listener); }
+      resume() { this.state = 'running'; this.listeners.forEach((listener) => listener()); return Promise.resolve(); }
       createOscillator() { return { type: 'sine', frequency: { value: 0 }, connect: (node) => node, start: () => { window.__tones++ }, stop() {} }; }
       createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect: (node) => node }; }
     }
@@ -146,6 +162,7 @@ const waitFor = async (condition, timeout = 8000) => {
 const shot = async (name) => writeFileSync(join(outDir, `${name}.png`), await browser.screenshot())
 const quiet = `sessionStorage.setItem('acai-doce-sabor:ofertas', JSON.stringify({ bag: [], last: null, dismissed: 3, stopped: true })); true`
 const statusOf = (code) => fake.db.orders.find((order) => order.code === code)?.status
+const q = JSON.stringify
 
 try {
   const desktop = { width: 1280, height: 900 }
@@ -154,154 +171,213 @@ try {
 
   // --- Sem login ---
   await browser.goto(`${baseUrl}/pedidos`, desktop)
-  await run(quiet)
+  await run(`${quiet}; __fakeAudio()`)
   await waitFor(`__q('[data-orders-notice]')`)
   check(
-    'sem login: a página pede a senha e não mostra pedidos',
-    await run(`[__text(__q('[data-orders-notice] h2')), !!__q('[data-orders-login]'), document.querySelectorAll('[data-order-card]').length, document.querySelector('meta[name="robots"]')?.content]`),
-    ['Esta página é do Modo Vendedor', true, 0, 'noindex'],
+    'sem login: a página pede a senha; sem botão "Pedidos" nem pedidos',
+    await run(`[__text(__q('[data-orders-notice] h2')), !!__q('[data-orders-login]'), !!__q('[data-orders-link]'), document.querySelectorAll('[data-order-card]').length, document.querySelector('meta[name="robots"]')?.content]`),
+    ['Esta página é do Modo Vendedor', true, false, 0, 'noindex'],
   )
+  check('sem login: nenhuma inscrição no Realtime', fake.realtime.sellerSubscriptions(), 0)
   await click(`__q('[data-orders-login]')`, 600)
-  await run(`(() => { const el = __q('#senha-vendedor'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(SELLER_PASSWORD)}); el.dispatchEvent(new Event('input', { bubbles: true })); el.form.requestSubmit(); return true })()`)
-  check('login: o painel carrega os pedidos', await waitFor(`document.querySelectorAll('[data-order-card]').length >= 5`), true)
-  await run(`__fakeAudio()`)
-  // A faixa do vendedor carrega sob demanda depois do login.
+  await run(`(() => { const el = __q('#senha-vendedor'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${q(SELLER_PASSWORD)}); el.dispatchEvent(new Event('input', { bubbles: true })); el.form.requestSubmit(); return true })()`)
+  check('login: o painel carrega os pedidos', await waitFor(`document.querySelectorAll('[data-order-card]').length >= 6`), true)
   await waitFor(`__q('[data-orders-link]')`)
-  check('botão "Pedidos" na faixa do vendedor', await run(`[__text(__q('[data-orders-link]')), new URL(__q('[data-orders-link]').href).pathname]`), ['Pedidos', '/pedidos'])
-  check('pediu os pedidos do dia e os em andamento', fake.db.calls.some((call) => call.path === '/rest/v1/orders' && call.search.includes('or=') && call.search.includes('order=created_at.desc')), true)
+  check('ao vivo: conectado ao Realtime', await waitFor(`__q('[data-orders-live]')?.dataset.ordersLive === 'live'`), true)
+  check('uma inscrição só (faixa e página dividem), com o token do vendedor', [fake.realtime.sellerSubscriptions(), fake.realtime.stats.subscriptions.every((sub) => sub.token === SELLER_TOKEN)], [1, true])
+  check(
+    '"📋 Pedidos" na faixa com o selo vermelho dos novos',
+    await run(`[__text(__q('[data-orders-link]')), __q('[data-orders-link]').getAttribute('aria-label'), __q('[data-orders-badge]')?.dataset.ordersBadge, getComputedStyle(__q('[data-orders-badge] span:last-child')).backgroundColor]`),
+    ['📋 Pedidos (5)', 'Pedidos (5 novos)', '5', 'oklch(0.577 0.245 27.325)'],
+  )
 
   // --- Lista e cartões ---
-  check('em andamento: os 4 novos e o antigo, os mais novos primeiro', await run(`__codes()`), [codes.semGps, codes.local, codes.retirada, codes.gps, 'ADS-0099'])
+  check('todos os do dia, os mais novos primeiro', await run(`__codes()`), [codes.completo, codes.semGps, codes.local, codes.retirada, codes.gps, 'ADS-0099'])
   check(
-    'selos das modalidades (ícone e texto)',
-    await run(`${JSON.stringify(Object.values(codes))}.map((code) => __text(__card(code).querySelector('[data-modality]')))`),
-    ['Entrega', 'Retirar', 'Comer no Local', 'Entrega'],
+    'cabeçalho: #código, hora HH:MM, cliente e selo da modalidade',
+    await run(`${q(Object.values(codes))}.map((code) => { const card = __card(code); return [__text(card.querySelector('h2')), /^\\d{2}:\\d{2}$/.test(__text(card.querySelector('[data-order-time]'))), card.querySelector('[data-order-customer]').firstChild.textContent, __text(card.querySelector('[data-modality]'))] })`),
+    [
+      [`#${codes.gps}`, true, 'Ana GPS', '🛵 Entrega'],
+      [`#${codes.retirada}`, true, 'Bruno Retira', '🛍️ Retirar'],
+      [`#${codes.local}`, true, 'Carla Local', '🍨 Comer no Local'],
+      [`#${codes.semGps}`, true, 'Davi Sem GPS', '🛵 Entrega'],
+      [`#${codes.completo}`, true, 'Fábio Completo', '🛍️ Retirar'],
+    ],
   )
   check(
     'Comer no Local em dourado e roxo',
-    await run(`(() => { const s = getComputedStyle(__card(${JSON.stringify(codes.local)}).querySelector('[data-modality]')); return [s.backgroundColor, s.color] })()`),
+    await run(`(() => { const s = getComputedStyle(__card(${q(codes.local)}).querySelector('[data-modality]')); return [s.backgroundColor, s.color] })()`),
     ['rgb(250, 204, 21)', 'rgb(42, 8, 29)'],
   )
-  check('pedido antigo aparece (Retirar, sem GPS)', await run(`[__text(__card('ADS-0099').querySelector('[data-modality]')), !!__card('ADS-0099').querySelector('[data-order-gps]'), __text(__card('ADS-0099').querySelector('[data-order-items]'))]`), ['Retirar', false, '1x Jujuba — R$ 1,00'])
+  check('pedido antigo aparece (Retirar, situação antiga "Pronto", lista gravada)', await run(`[__text(__card('ADS-0099').querySelector('[data-modality]')), __card('ADS-0099').querySelector('[data-status-pill]').textContent, __text(__card('ADS-0099').querySelector('[data-order-items]'))]`), ['🛍️ Retirar', 'Pronto', '1x Jujuba — R$ 1,00'])
   check(
-    'entrega com GPS: endereço e "Abrir GPS no Mapa" com o link do pedido, em outra aba',
-    await run(`(() => { const card = __card(${JSON.stringify(codes.gps)}); const a = card.querySelector('[data-order-gps]'); return [__text(card.querySelector('[data-order-address] p')), __text(a), a.href, a.target, a.rel] })()`),
-    ['Rua das Flores, 12A — Centro', 'Abrir GPS no Mapa', 'https://www.google.com/maps?q=-7.220987,-37.254124', '_blank', 'noopener noreferrer'],
+    'entrega com GPS: endereço, bairro, referência e "📍 Abrir GPS no Mapa" do pedido, em outra aba',
+    await run(`(() => { const card = __card(${q(codes.gps)}); const a = card.querySelector('[data-order-gps]'); return [[...card.querySelectorAll('[data-order-address] p')].map(__text), __text(a), a.href, a.target, a.rel] })()`),
+    [['Rua das Flores, 12A', 'Bairro: Centro', 'Ref.: portão azul'], '📍 Abrir GPS no Mapa', 'https://www.google.com/maps?q=-7.220987,-37.254124', '_blank', 'noopener noreferrer'],
   )
-  check('entrega sem GPS: endereço, sem botão de GPS', await run(`[!!__card(${JSON.stringify(codes.semGps)}).querySelector('[data-order-address]'), !!__card(${JSON.stringify(codes.semGps)}).querySelector('[data-order-gps]')]`), [true, false])
+  check('entrega sem GPS: endereço, sem botão de GPS', await run(`[!!__card(${q(codes.semGps)}).querySelector('[data-order-address]'), !!__card(${q(codes.semGps)}).querySelector('[data-order-gps]')]`), [true, false])
   check(
     'retirar e comer no local: sem endereço nem GPS (mesmo com rua e GPS mandados no pedido)',
-    await run(`[${JSON.stringify(codes.retirada)}, ${JSON.stringify(codes.local)}].map((code) => [!!__card(code).querySelector('[data-order-address]'), !!__card(code).querySelector('[data-order-gps]'), __card(code).innerText.includes('Rua Que Não Vai')])`),
+    await run(`[${q(codes.retirada)}, ${q(codes.local)}].map((code) => [!!__card(code).querySelector('[data-order-address]'), !!__card(code).querySelector('[data-order-gps]'), __card(code).textContent.includes('Rua Que Não Vai')])`),
     [[false, false, false], [false, false, false]],
   )
   check(
-    'itens como na comanda, com a observação',
-    await run(`[...__card(${JSON.stringify(codes.gps)}).querySelectorAll('[data-order-items] li')].map((li) => li.textContent.trim()).filter(Boolean)`),
-    ['1️⃣ 1x Jujuba — R$ 1,00', '2️⃣ 1x Água Mineral 500 ml — R$ 2,00', '📝 Observação: bem gelada'],
+    'itens organizados: Completo, "🚫 SEM" e extras pagos em destaque, acompanhamentos e observação',
+    await run(`(() => { const item = __card(${q(codes.completo)}).querySelector('[data-order-item]'); return [__text(item.querySelector('p')), item.textContent.includes('✨ COMPLETO'), __text(item.querySelector('[data-item-removed]')), __text(item.querySelector('[data-item-paid]')), __text(item.querySelector('[data-item-note]')), getComputedStyle(item.querySelector('[data-item-removed]')).color] })()`),
+    ['1x Açaí Tradicional R$ 19,00', true, '🚫 SEM: Farinha láctea', '➕ Extras pagos: Kit Kat (+R$ 4,00)', '📝 Observação: pouco gelo', 'oklch(0.444 0.177 26.899)'],
+  )
+  check('itens simples com a observação', await run(`[...__card(${q(codes.gps)}).querySelectorAll('[data-order-item]')].map((item) => __text(item))`), ['1x Jujuba R$ 1,00', '1x Água Mineral 500 ml R$ 2,00 📝 Observação: bem gelada'])
+  check(
+    'valores e pagamento: frete do bairro, total e "💵 Dinheiro — Troco para"',
+    await run(`[[...__card(${q(codes.gps)}).querySelectorAll('dl > div:not([data-order-payment])')].map((row) => __text(row)), __text(__card(${q(codes.gps)}).querySelector('[data-order-payment]'))]`),
+    [['Subtotal R$ 3,00', 'Frete (Centro) R$ 3,00', 'TOTAL R$ 6,00'], '💵 Dinheiro — Troco para R$ 10,00 (levar R$ 4,00)'],
   )
   check(
-    'valores e pagamento da entrega: frete do bairro, total e troco',
-    await run(`[...__card(${JSON.stringify(codes.gps)}).querySelectorAll('dl > div')].map((row) => __text(row))`),
-    ['Subtotal R$ 3,00', 'Frete (Centro) R$ 3,00', 'TOTAL R$ 6,00', 'Pagamento Dinheiro: troco para R$ 10,00 (levar R$ 4,00)'],
+    'pagamentos: 💳 Cartão e 💠 Pix; frete grátis em comer no local e retirar',
+    await run(`[__text(__card(${q(codes.local)}).querySelector('[data-order-payment]')), __text(__card(${q(codes.retirada)}).querySelector('[data-order-payment]')), __text(__card(${q(codes.local)}).querySelectorAll('dl > div')[1]), __text(__card(${q(codes.retirada)}).querySelectorAll('dl > div')[1])]`),
+    ['💳 Cartão de crédito', '💠 Pix', 'Consumo no local Grátis', 'Retirada na loja Grátis'],
   )
   check(
-    'comer no local: consumo grátis e cartão sem maquininha',
-    await run(`[...__card(${JSON.stringify(codes.local)}).querySelectorAll('dl > div')].map((row) => __text(row))`),
-    ['Subtotal R$ 3,00', 'Consumo no local Grátis', 'TOTAL R$ 3,00', 'Pagamento Cartão de crédito'],
+    '"💬 Chamar Cliente no WhatsApp" com o telefone do próprio cliente; sem telefone, sem botão',
+    await run(`[${q(codes.gps)}, ${q(codes.completo)}, ${q(codes.local)}].map((code) => { const a = __card(code).querySelector('[data-order-whatsapp]'); return a ? [__text(a), a.href, a.target, a.rel] : null })`),
+    [['💬 Chamar Cliente no WhatsApp', 'https://wa.me/5583999990000', '_blank', 'noopener noreferrer'], ['💬 Chamar Cliente no WhatsApp', 'https://wa.me/5583988881111', '_blank', 'noopener noreferrer'], null],
   )
-  check('cliente com o WhatsApp dele', await run(`__card(${JSON.stringify(codes.gps)}).querySelector('a[href^="https://wa.me/"]')?.href`), 'https://wa.me/5583999990000')
   check(
-    'filtros com a contagem',
+    'filtros rápidos com a contagem',
     await run(`[...document.querySelectorAll('[data-orders-filter]')].map((b) => __text(b))`),
-    ['Em andamento 5', 'Novos 4', 'Confirmados 0', 'Preparando 1', 'Prontos 0', 'Saiu para entrega 0', 'Concluídos 0', 'Cancelados 0', 'Todos 5'],
+    ['Todos 6', '🆕 Novos 5', '🍨 Preparando 0', '🛵 Saiu / Pronto 1', '✅ Concluídos 0'],
   )
-  check('título da aba com os pedidos novos', await run(`document.title`), '(4) Pedidos | Açaí Doce Sabor')
+  check('título da aba com os pedidos novos', await run(`document.title`), '(5) Pedidos | Açaí Doce Sabor')
+  check(
+    'som: antes de um toque o painel não diz "Som Ativo" e pede para ativar',
+    await run(`[__text(__q('[data-orders-sound-on]')), __q('[data-orders-sound-on]').getAttribute('aria-pressed'), !!__q('[data-orders-sound-hint]')]`),
+    ['🔔 Ativar som', 'false', true],
+  )
+  await click(`__q('[data-orders-sound-on]')`, 400)
+  check('som: liberado pelo toque, "🔔 Som Ativo"', await run(`[__text(__q('[data-orders-sound-on]')), __q('[data-orders-sound-on]').getAttribute('aria-pressed'), !!__q('[data-orders-sound-hint]')]`), ['🔔 Som Ativo', 'true', false])
   await shot('1280-painel')
 
-  // --- Situação: comer no local até concluir ---
-  const local = JSON.stringify(codes.local)
-  const steps = []
-  for (const expected of ['confirmado', 'preparando', 'pronto', 'concluido']) {
-    const label = await run(`__text(__card(${local})?.querySelector('[data-order-next]'))`)
-    await click(`__card(${local}).querySelector('[data-order-next]')`, 700)
-    steps.push([label, statusOf(codes.local)])
-    if (expected === 'concluido') break
-    steps.at(-1).push(await run(`__card(${local}).querySelector('[data-status-pill]').textContent.trim()`))
+  // --- Fluxo de cada modalidade ---
+  const advance = async (code) => {
+    const label = await run(`__text(__card(${q(code)})?.querySelector('[data-order-next]'))`)
+    await click(`__card(${q(code)}).querySelector('[data-order-next]')`, 700)
+    return [label, statusOf(code)]
   }
   check(
-    'comer no local: Confirmar → Preparando → Pronto → Concluído, gravado no banco',
-    steps,
+    'comer no local: Aceitar / Preparar → 🍨 Pronto para Consumo → ✅ Concluir, gravado no banco',
+    [await advance(codes.local), await advance(codes.local), await advance(codes.local)],
     [
-      ['Confirmar', 'confirmado', 'Confirmado'],
-      ['Preparando', 'preparando', 'Preparando'],
-      ['Pronto', 'pronto', 'Pronto'],
-      ['Concluído', 'concluido'],
+      ['Aceitar / Preparar', 'preparando'],
+      ['🍨 Pronto para Consumo', 'pronto_consumo'],
+      ['✅ Concluir', 'concluido'],
     ],
   )
-  check('concluído sai de "Em andamento" e aparece em "Concluídos"', await run(`!!__card(${local})`), false)
-  await click(`__q('[data-orders-filter="concluido"]')`, 400)
-  check('filtro Concluídos', await run(`__codes()`), [codes.local])
-  await click(`__q('[data-orders-filter="andamento"]')`, 400)
+  check(
+    'concluído: "✅ Pedido concluído", sem ações de preparo',
+    await run(`[__text(__card(${q(codes.local)}).querySelector('[data-order-final]')), !!__card(${q(codes.local)}).querySelector('[data-order-next]'), !!__card(${q(codes.local)}).querySelector('[data-order-cancel]')]`),
+    ['✅ Pedido concluído', false, false],
+  )
+  check('entrega: Aceitar / Preparar → 🛵 Saiu para Entrega', [await advance(codes.gps), await advance(codes.gps)], [['Aceitar / Preparar', 'preparando'], ['🛵 Saiu para Entrega', 'saiu_para_entrega']])
+  check('retirar: Aceitar / Preparar → 🛍️ Pronto para Retirada', [await advance(codes.retirada), await advance(codes.retirada)], [['Aceitar / Preparar', 'preparando'], ['🛍️ Pronto para Retirada', 'pronto_retirada']])
+  await click(`__q('[data-orders-filter="saiu_pronto"]')`, 300)
+  check('filtro 🛵 Saiu / Pronto', await run(`__codes()`), [codes.retirada, codes.gps, 'ADS-0099'])
+  await click(`__q('[data-orders-filter="concluidos"]')`, 300)
+  check('filtro ✅ Concluídos', await run(`__codes()`), [codes.local])
+  await click(`__q('[data-orders-filter="todos"]')`, 300)
 
-  // --- Entrega: depois de pronto, "Saiu para entrega" ---
-  const gps = JSON.stringify(codes.gps)
-  for (let i = 0; i < 3; i++) await click(`__card(${gps}).querySelector('[data-order-next]')`, 700)
-  check('entrega pronta: próximo passo "Saiu para entrega"', [statusOf(codes.gps), await run(`__text(__card(${gps}).querySelector('[data-order-next]'))`)], ['pronto', 'Saiu para entrega'])
-  await click(`__card(${gps}).querySelector('[data-order-next]')`, 700)
-  check('saiu para entrega gravado; depois, Concluído', [statusOf(codes.gps), await run(`__text(__card(${gps}).querySelector('[data-order-next]'))`)], ['saiu_para_entrega', 'Concluído'])
-
-  // --- Cancelar com confirmação ---
-  const pickup = JSON.stringify(codes.retirada)
+  // --- Cancelar ---
+  const pickup = q(codes.retirada)
   await click(`__card(${pickup}).querySelector('[data-order-cancel]')`, 300)
-  check('cancelar pede confirmação no cartão', await run(`__text(__card(${pickup}).querySelector('[role="group"] p'))`), `Cancelar o pedido ${codes.retirada}?`)
+  check('"❌ Cancelar" pede confirmação no cartão', await run(`__text(__card(${pickup}).querySelector('[role="group"] p'))`), `Cancelar o pedido #${codes.retirada}?`)
   await click(`__card(${pickup}).querySelector('[data-order-cancel-back]')`, 300)
-  check('"Não": nada muda', [statusOf(codes.retirada), await run(`!!__card(${pickup}).querySelector('[data-order-cancel]')`)], ['novo', true])
+  check('"Não": nada muda', [statusOf(codes.retirada), await run(`!!__card(${pickup}).querySelector('[data-order-cancel]')`)], ['pronto_retirada', true])
   await click(`__card(${pickup}).querySelector('[data-order-cancel]')`, 300)
   await click(`__card(${pickup}).querySelector('[data-order-cancel-confirm]')`, 700)
-  check('"Sim, cancelar": cancelado no banco e fora de "Em andamento"', [statusOf(codes.retirada), await run(`!!__card(${pickup})`)], ['cancelado', false])
+  check(
+    '"Sim, cancelar": cancelado no banco, identificado no cartão, em Todos e fora de Concluídos',
+    [statusOf(codes.retirada), await run(`__text(__card(${pickup}).querySelector('[data-order-final]'))`), await run(`!!__card(${pickup}).querySelector('[data-order-next]')`), await run(`__text(__q('[data-orders-filter="concluidos"]'))`)],
+    ['cancelado', '❌ Pedido cancelado', false, '✅ Concluídos 1'],
+  )
 
   // --- Erro ao gravar ---
   fake.state.failOrdersPatch = true
-  const noGps = JSON.stringify(codes.semGps)
-  await click(`__card(${noGps}).querySelector('[data-order-next]')`, 700)
+  const noGps = q(codes.semGps)
+  await click(`__card(${noGps}).querySelector('[data-order-next]')`, 900)
   check(
     'erro ao gravar: aviso no cartão, situação mantida',
-    [await run(`__text(__card(${noGps}).querySelector('[role="alert"]'))`), statusOf(codes.semGps), await run(`__card(${noGps}).querySelector('[data-status-pill]').textContent.trim()`)],
+    [await run(`__text(__card(${noGps}).querySelector('[role="alert"]'))`), statusOf(codes.semGps), await run(`__card(${noGps}).querySelector('[data-status-pill]').textContent`)],
     ['Não foi possível mudar a situação. Confira a internet e tente de novo.', 'novo', 'Novo'],
   )
   fake.state.failOrdersPatch = false
 
-  // --- Pedido novo pela atualização automática ---
+  // --- Realtime: INSERT na hora, com bipe; contador ---
+  const before = await run(`window.__tones`)
+  const started = Date.now()
   const arrived = await placeOrder(customer({ name: 'Eva Nova', kind: 'local' }), PIX, 300)
-  check('pedido novo aparece sozinho (atualização a cada 15 s)', await waitFor(`__card(${JSON.stringify(arrived)})`, 20_000), true)
+  check('pedido novo aparece sozinho em menos de 3 s (Realtime, sem recarregar)', await waitFor(`__card(${q(arrived)})`, 3000), true)
+  const elapsed = Date.now() - started
   check(
-    'aviso do pedido novo: bipe duplo, anúncio e título da aba',
-    await run(`[window.__tones, __text(__q('[data-orders-announcement]')), document.title]`),
-    // "Novos" agora: o sem GPS (a mudança dele falhou) e o que acabou de chegar.
-    [2, `Novo pedido: ${arrived} (Comer no Local).`, '(2) Pedidos | Açaí Doce Sabor'],
+    'pedido novo: bipe (duas notas), contador e título',
+    await run(`[window.__tones - ${before}, __q('[data-orders-badge]')?.dataset.ordersBadge, document.title]`),
+    [2, '3', '(3) Pedidos | Açaí Doce Sabor'],
   )
-  await click(`__q('[data-orders-sound]')`, 300)
-  check('som desligado pelo botão (fica guardado no aparelho)', await run(`[__q('[data-orders-sound]').dataset.ordersSound, localStorage.getItem('acai_doce_sabor_pedidos_som_v1')]`), ['desligado', '0'])
-  await click(`__q('[data-orders-sound]')`, 300)
-  await click(`__q('[data-orders-filter="todos"]')`, 400)
-  check('filtro Todos', (await run(`__codes()`)).length, 6)
-  await click(`__q('[data-orders-filter="cancelado"]')`, 400)
-  check('filtro Cancelados', await run(`__codes()`), [codes.retirada])
-  check('computador: sem rolagem lateral', await run(`__noOverflow()`), true)
+  console.log(`     pedido novo apareceu em ${elapsed} ms`)
 
-  // --- Celulares ---
+  // --- Realtime: UPDATE de outro aparelho, sem bipe ---
+  const tonesBeforeUpdate = await run(`window.__tones`)
+  const otherDevice = await fetch(`${fake.url}/rest/v1/orders?id=eq.${fake.db.orders.find((order) => order.code === codes.semGps).id}&select=*`, {
+    method: 'PATCH',
+    headers: { apikey: PUBLIC_KEY, Authorization: `Bearer ${SELLER_TOKEN}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+    body: JSON.stringify({ status: 'preparando' }),
+  })
+  check('outro aparelho muda a situação', otherDevice.status, 200)
+  check('UPDATE chega na hora: o cartão muda, sem bipe', [await waitFor(`__card(${noGps}).dataset.status === 'preparando'`, 3000), (await run(`window.__tones`)) - tonesBeforeUpdate], [true, 0])
+
+  // --- Realtime: evento repetido não duplica nem toca de novo ---
+  const tonesBeforeRepeat = await run(`window.__tones`)
+  fake.realtime.publish('INSERT', fake.db.orders.find((order) => order.code === arrived))
+  await sleep(800)
+  check('INSERT repetido: um cartão só, sem bipe', [(await run(`__codes()`)).filter((code) => code === arrived).length, (await run(`window.__tones`)) - tonesBeforeRepeat], [1, 0])
+
+  // --- Silenciado ---
+  await click(`__q('[data-orders-sound-off]')`, 300)
+  const tonesMuted = await run(`window.__tones`)
+  const quietOrder = await placeOrder(customer({ name: 'Gil Silencioso', kind: 'retirada' }), PIX, 300)
+  check('silenciado: o pedido chega, sem bipe', [await waitFor(`__card(${q(quietOrder)})`, 3000), (await run(`window.__tones`)) - tonesMuted, await run(`__q('[data-orders-sound-off]').getAttribute('aria-pressed')`)], [true, 0, 'true'])
+  await click(`__q('[data-orders-sound-on]')`, 300)
+
+  // --- Celulares (com a sessão) ---
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
     await browser.goto(`${baseUrl}/pedidos`, viewport)
     await run(quiet)
-    check(`${viewport.width} px: painel abre com a sessão guardada`, await waitFor(`document.querySelectorAll('[data-order-card]').length >= 3`), true)
+    check(`${viewport.width} px: painel abre com a sessão guardada`, await waitFor(`document.querySelectorAll('[data-order-card]').length >= 6`), true)
     check(`${viewport.width} px: sem rolagem lateral`, await run(`__noOverflow()`), true)
-    check(
-      `${viewport.width} px: rótulo e valor do pagamento sem se sobrepor`,
-      await run(`[...document.querySelectorAll('[data-order-card] dl > div:last-child')].every((row) => { const [dt, dd] = row.children; const label = document.createRange(); label.selectNodeContents(dt); return label.getBoundingClientRect().right <= dd.getBoundingClientRect().left + 0.5 })`),
-      true,
-    )
     await shot(`${viewport.width}-painel`)
   }
+
+  // --- Contador em outra página ---
+  await browser.goto(`${baseUrl}/pedidos`, desktop)
+  await run(quiet)
+  await waitFor(`__q('[data-orders-live]')?.dataset.ordersLive === 'live'`)
+  await click(`[...document.querySelectorAll('header a')].find((a) => a.textContent.trim() === 'Cardápio')`, 800)
+  const badgeBefore = Number(await run(`__q('[data-orders-badge]')?.dataset.ordersBadge ?? 0`))
+  await placeOrder(customer({ name: 'Hugo Cardápio', kind: 'local' }), PIX, 300)
+  check(
+    'no cardápio: o selo da faixa conta o pedido novo na hora, sem recarregar',
+    [new URL(await run(`location.href`)).pathname, await waitFor(`Number(__q('[data-orders-badge]')?.dataset.ordersBadge) === ${badgeBefore + 1}`, 3000)],
+    ['/monte-seu-pedido', true],
+  )
+
+  // --- Sair do Modo Vendedor: a inscrição sai ---
+  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Sair do Modo Vendedor'))`, 1000)
+  const left = await (async () => {
+    for (let waited = 0; waited < 5000; waited += 100) {
+      if (fake.realtime.sellerSubscriptions() === 0) return true
+      await sleep(100)
+    }
+    return false
+  })()
+  check('sair do Modo Vendedor: a inscrição do Realtime é removida e o botão some', [left, await run(`!!__q('[data-orders-link]')`)], [true, false])
 
   const problems = browser.consoleProblems().filter((problem) => !/500|Internal Server Error/i.test(String(problem)))
   check('console sem outros erros', problems, [])

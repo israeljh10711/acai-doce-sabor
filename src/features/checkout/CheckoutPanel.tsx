@@ -7,6 +7,7 @@ import { buildWhatsAppUrl } from '../../utils/whatsapp.ts'
 import { type Cart, cartItemProblem, cartTotalCents, serializeCart } from '../cart/cart.ts'
 import { cartActions } from '../cart/cartStore.ts'
 import { useStoreSettings } from '../catalog/catalogStore.ts'
+import { browserDemoDeps, saveDemoOrder } from '../orders/localOrdersSource.ts'
 import type { OrderDraft } from '../orders/orderMessage.ts'
 import { type SubmitResult, orderWhatsAppUrl, submitOrder } from '../orders/orderService.ts'
 import { refreshCatalogNow, supabaseConfig } from '../seller/sellerBackend.ts'
@@ -210,6 +211,15 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
 
   /** WhatsApp com a comanda feita no aparelho (sem Supabase, ou "Enviar mesmo assim"). */
   const openLocal = (order: OrderDraft, unregistered: boolean) => {
+    // Sem o Supabase configurado: o pedido também fica no modo de demonstração local deste
+    // navegador, para o painel do vendedor (2026-11-20). Com o Supabase e uma falha, nunca.
+    if (!functionConfig) {
+      try {
+        saveDemoOrder(order, browserDemoDeps())
+      } catch {
+        // Sem armazenamento: o WhatsApp abre do mesmo jeito.
+      }
+    }
     const url = orderWhatsAppUrl({ ...order, ...(unregistered ? { naoRegistrado: true } : {}) })
     const tab = window.open(url, '_blank')
     if (tab) tab.opener = null

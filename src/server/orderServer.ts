@@ -12,12 +12,12 @@
  *
  * Funções puras com o banco por fora (`OrderDeps`): testadas sem Supabase.
  */
-import { type Cart, type CartItem, cartItemProblem, cartTotalCents, describeExtra, lineTotalCents, parseCart, serializeCart, summarizeSelection, unitPriceCents } from '../features/cart/cart.ts'
+import { cartItemProblem, cartTotalCents, parseCart } from '../features/cart/cart.ts'
 import { getStoreSettings, setCatalogChanges } from '../features/catalog/catalogState.ts'
-import { type CustomerDraft, type DeliveryFee, type DeliveryType, checkCustomer, feeCents, parseCustomerDraft } from '../features/checkout/delivery.ts'
-import { gpsMapsUrl } from '../features/checkout/gps.ts'
-import { EMPTY_PAYMENT, PAYMENT_METHODS, type PaymentDraft, type PaymentMethod, checkPayment, paymentProblemText } from '../features/checkout/payment.ts'
+import { type CustomerDraft, checkCustomer, feeCents, parseCustomerDraft } from '../features/checkout/delivery.ts'
+import { EMPTY_PAYMENT, PAYMENT_METHODS, type PaymentDraft, checkPayment, paymentProblemText } from '../features/checkout/payment.ts'
 import { buildOrderMessage } from '../features/orders/orderMessage.ts'
+import { type OrderRow, itemName, orderRowFields } from '../features/orders/orderRow.ts'
 import { effectiveStatus } from '../features/store-hours/hours.ts'
 import { changesFromRows } from '../services/supabaseBackend.ts'
 import type { ChangeRow } from '../services/supabaseRest.ts'
@@ -30,35 +30,7 @@ export const MAX_LINES = 60
 /** Marca do código na comanda, trocada pelo código de verdade depois de sair o número. */
 const CODE_MARK = '{{CODIGO_DO_PEDIDO}}'
 
-export type ItemSnapshot = { name: string; quantity: number; unit_cents: number; total_cents: number; note?: string }
-
-/** A linha gravada na tabela `orders` (cópia de nomes e preços do momento da compra). */
-export type OrderRow = {
-  attempt_key: string
-  number: number
-  code: string
-  message: string
-  whatsapp: string
-  customer_name: string
-  customer_phone: string | null
-  /** A modalidade (pedido de 2026-11-20): entrega, retirada (levar) ou local (comer na loja). */
-  fulfillment: DeliveryType
-  address: { street: string; number: string; district: string; reference: string | null } | null
-  delivery_fee: DeliveryFee['kind']
-  delivery_fee_cents: number
-  delivery_zone: string | null
-  /** GPS anexado pelo cliente: só na entrega, os três juntos ou nenhum. */
-  customer_lat: number | null
-  customer_lng: number | null
-  maps_url: string | null
-  payment_method: PaymentMethod
-  change_for_cents: number | null
-  subtotal_cents: number
-  total_cents: number
-  antecipado: boolean
-  items: ItemSnapshot[]
-  cart: unknown
-}
+export type { ItemSnapshot, OrderRow } from '../features/orders/orderRow.ts'
 
 /** O que volta do banco para responder ao cliente. */
 export type StoredOrder = { code: string; message: string; total_cents: number; whatsapp: string }
@@ -126,22 +98,6 @@ function declaredLines(cart: string): number {
   }
 }
 
-function itemName(item: CartItem): string {
-  if (item.kind === 'extra') return describeExtra(item).name
-  const summary = summarizeSelection(item.slug, item.selection)
-  return summary.sizeLabel ? `${summary.productName} (${summary.sizeLabel})` : summary.productName
-}
-
-function snapshot(cart: Cart): ItemSnapshot[] {
-  return cart.items.map((item) => ({
-    name: itemName(item),
-    quantity: item.quantity,
-    unit_cents: unitPriceCents(item),
-    total_cents: lineTotalCents(item),
-    ...(item.note ? { note: item.note } : {}),
-  }))
-}
-
 type Prepared = { ok: true; row: Omit<OrderRow, 'attempt_key' | 'number' | 'code'> }
 
 /**
@@ -178,36 +134,8 @@ function prepare(input: OrderInput, now: number): Prepared | Rejection {
 
   const { payment } = paymentCheck
   const antecipado = !status.open
-  const { fulfillment, fee } = customer
-  // O GPS só existe na entrega (checkCustomer descarta nas outras), conferido e com o mesmo link da comanda.
-  const gps = fulfillment.kind === 'entrega' ? fulfillment.gps : null
-  return {
-    ok: true,
-    row: {
-      message: buildOrderMessage({ cart, customer, payment, sentAt: now, antecipado, code: CODE_MARK }),
-      whatsapp: toWhatsAppNumber(settings.contact.whatsapp),
-      customer_name: customer.name,
-      customer_phone: customer.phone,
-      fulfillment: fulfillment.kind,
-      address:
-        fulfillment.kind === 'entrega'
-          ? { street: fulfillment.street, number: fulfillment.number, district: fulfillment.district, reference: fulfillment.reference }
-          : null,
-      delivery_fee: fee.kind,
-      delivery_fee_cents: feeCents(fee),
-      delivery_zone: fee.kind === 'taxa' ? fee.zoneName : null,
-      customer_lat: gps ? gps.lat : null,
-      customer_lng: gps ? gps.lng : null,
-      maps_url: gps ? gpsMapsUrl(gps) : null,
-      payment_method: payment.method,
-      change_for_cents: payment.method === 'dinheiro' ? payment.changeForCents : null,
-      subtotal_cents: subtotalCents,
-      total_cents: totalCents,
-      antecipado,
-      items: snapshot(cart),
-      cart: JSON.parse(serializeCart(cart)) as unknown,
-    },
-  }
+  const message = buildOrderMessage({ cart, customer, payment, sentAt: now, antecipado, code: CODE_MARK })
+  return { ok: true, row: orderRowFields({ cart, customer, payment, antecipado, message, whatsapp: toWhatsAppNumber(settings.contact.whatsapp) }) }
 }
 
 const accepted = (order: StoredOrder, repeated: boolean): OrderResponse => ({

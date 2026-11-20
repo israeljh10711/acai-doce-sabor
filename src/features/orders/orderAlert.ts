@@ -1,76 +1,136 @@
 /**
- * Aviso sonoro de pedido novo no painel do vendedor (pedido de 2026-11-20, etapa 2): um bipe
- * duplo feito pela Web Audio do navegador, sem arquivo de áudio. O navegador só libera o som
- * depois de um toque na página: `unlockSound` vai no toque.
+ * Aviso sonoro de pedido novo (painel ao vivo, 2026-11-20): um bipe duplo curto e agradável,
+ * feito pela Web Audio do navegador, sem arquivo de áudio.
+ *
+ * O navegador só libera o som depois de um toque na página. O áudio é criado nesse toque
+ * (`unlock`), e o painel só diz "Som Ativo" quando o navegador já liberou (`state() === 'on'`).
+ * Silenciado (`off`), nada toca. A escolha fica guardada no aparelho.
  */
 
-type AudioContextClass = new () => AudioContext
+/** O pedaço da Web Audio que o aviso usa (o do navegador, ou um de mentira nos testes). */
+export type AudioContextLike = {
+  readonly state: string
+  readonly currentTime: number
+  readonly destination: unknown
+  resume(): Promise<void>
+  createOscillator(): {
+    type: string
+    frequency: { value: number }
+    connect(node: unknown): unknown
+    start(when: number): void
+    stop(when: number): void
+  }
+  createGain(): {
+    gain: { setValueAtTime(value: number, when: number): void; exponentialRampToValueAtTime(value: number, when: number): void }
+    connect(node: unknown): unknown
+  }
+  addEventListener?(type: 'statechange', listener: () => void): void
+}
 
-let context: AudioContext | null = null
+/** `on`: toca; `blocked`: ligado, mas o navegador ainda não liberou; `off`: silenciado. */
+export type SoundState = 'on' | 'blocked' | 'off'
 
-function audio(): AudioContext | null {
-  if (context) return context
-  const scope = globalThis as unknown as { AudioContext?: AudioContextClass; webkitAudioContext?: AudioContextClass }
-  const Ctor = scope.AudioContext ?? scope.webkitAudioContext
-  if (!Ctor) return null
+export type SoundAlert = {
+  state(): SoundState
+  /** "🔔 Som Ativo" / "🔕 Silenciar" (num toque: também libera o som). */
+  setOn(on: boolean): void
+  /** Qualquer toque na página: libera o som se estiver ligado. */
+  unlock(): void
+  /** Toca o bipe se estiver ligado e liberado. Devolve se tocou. */
+  play(): boolean
+  subscribe(listener: () => void): () => void
+}
+
+export const SOUND_KEY = 'acai_doce_sabor_pedidos_som_v1'
+
+export function createSoundAlert({
+  createContext,
+  storage,
+}: {
+  createContext: () => AudioContextLike | null
+  storage: Pick<Storage, 'getItem' | 'setItem'> | null
+}): SoundAlert {
+  let context: AudioContextLike | null = null
+  let on = true
   try {
-    context = new Ctor()
+    on = storage?.getItem(SOUND_KEY) !== '0'
   } catch {
-    return null
+    // Sem armazenamento: ligado.
   }
-  return context
-}
-
-/** Chamar num toque do vendedor: libera o som para os avisos seguintes. */
-export function unlockSound(): void {
-  const ctx = audio()
-  if (ctx && ctx.state === 'suspended') void ctx.resume().catch(() => undefined)
-}
-
-/** O som está liberado pelo navegador? */
-export function soundReady(): boolean {
-  return audio()?.state === 'running'
-}
-
-/** Bipe duplo (agudo, curto). Devolve `false` quando o navegador ainda não liberou o som. */
-export function playNewOrderSound(): boolean {
-  const ctx = audio()
-  if (!ctx) return false
-  if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined)
-  const start = ctx.currentTime + 0.01
-  for (const [offset, frequency] of [
-    [0, 880],
-    [0.22, 1175],
-  ] as const) {
-    const oscillator = ctx.createOscillator()
-    const gain = ctx.createGain()
-    oscillator.type = 'sine'
-    oscillator.frequency.value = frequency
-    gain.gain.setValueAtTime(0.0001, start + offset)
-    gain.gain.exponentialRampToValueAtTime(0.35, start + offset + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.18)
-    oscillator.connect(gain).connect(ctx.destination)
-    oscillator.start(start + offset)
-    oscillator.stop(start + offset + 0.2)
+  const listeners = new Set<() => void>()
+  const notify = () => {
+    for (const listener of listeners) listener()
   }
-  return ctx.state === 'running'
-}
 
-const SOUND_KEY = 'acai_doce_sabor_pedidos_som_v1'
-
-/** Som ligado neste aparelho (padrão: ligado). */
-export function loadSoundOn(): boolean {
-  try {
-    return globalThis.localStorage?.getItem(SOUND_KEY) !== '0'
-  } catch {
-    return true
+  const ensureContext = () => {
+    if (context) return context
+    try {
+      context = createContext()
+    } catch {
+      context = null
+    }
+    context?.addEventListener?.('statechange', notify)
+    return context
   }
+
+  const alert: SoundAlert = {
+    state() {
+      if (!on) return 'off'
+      return context?.state === 'running' ? 'on' : 'blocked'
+    },
+    setOn(next) {
+      on = next
+      try {
+        storage?.setItem(SOUND_KEY, next ? '1' : '0')
+      } catch {
+        // Vale só nesta tela.
+      }
+      if (next) alert.unlock()
+      notify()
+    },
+    unlock() {
+      if (!on) return
+      const ctx = ensureContext()
+      if (ctx && ctx.state !== 'running') void ctx.resume().then(notify, notify)
+      else notify()
+    },
+    play() {
+      if (!on || !context || context.state !== 'running') return false
+      const ctx = context
+      const start = ctx.currentTime + 0.01
+      // Duas notas suaves (lá e ré), curtas, com volume moderado.
+      for (const [offset, frequency] of [
+        [0, 880],
+        [0.2, 1175],
+      ] as const) {
+        const oscillator = ctx.createOscillator()
+        const gain = ctx.createGain()
+        oscillator.type = 'sine'
+        oscillator.frequency.value = frequency
+        gain.gain.setValueAtTime(0.0001, start + offset)
+        gain.gain.exponentialRampToValueAtTime(0.25, start + offset + 0.02)
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.18)
+        oscillator.connect(gain)
+        gain.connect(ctx.destination)
+        oscillator.start(start + offset)
+        oscillator.stop(start + offset + 0.2)
+      }
+      return true
+    },
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+  return alert
 }
 
-export function saveSoundOn(on: boolean): void {
-  try {
-    globalThis.localStorage?.setItem(SOUND_KEY, on ? '1' : '0')
-  } catch {
-    // Sem armazenamento: vale só nesta tela.
-  }
-}
+/** O aviso do navegador (um só para o site). */
+export const soundAlert: SoundAlert = createSoundAlert({
+  createContext: () => {
+    const scope = globalThis as unknown as { AudioContext?: new () => AudioContextLike; webkitAudioContext?: new () => AudioContextLike }
+    const Ctor = scope.AudioContext ?? scope.webkitAudioContext
+    return Ctor ? new Ctor() : null
+  },
+  storage: typeof localStorage === 'undefined' ? null : localStorage,
+})

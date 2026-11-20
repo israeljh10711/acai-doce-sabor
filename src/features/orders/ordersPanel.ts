@@ -12,23 +12,42 @@ import { type GpsPoint, gpsMapsUrl, parseGpsPoint } from '../checkout/gps.ts'
 import { PAYMENT_METHODS, type PaymentMethod } from '../checkout/payment.ts'
 import { brasiliaTime } from '../store-hours/hours.ts'
 
-/** As situações da tabela `orders` (SQL de 2026-11-17). */
-export type OrderStatus = 'novo' | 'confirmado' | 'preparando' | 'pronto' | 'saiu_para_entrega' | 'concluido' | 'cancelado'
+/**
+ * As situações da tabela `orders`. Desde o painel ao vivo (2026-11-20), cada modalidade tem o seu
+ * "pronto": `saiu_para_entrega` (out_for_delivery), `pronto_retirada` (ready_for_pickup) e
+ * `pronto_consumo` (ready_for_dine_in). `confirmado` e `pronto` são do fluxo anterior e continuam
+ * lidos nos pedidos antigos.
+ */
+export type OrderStatus =
+  | 'novo'
+  | 'confirmado'
+  | 'preparando'
+  | 'pronto'
+  | 'pronto_retirada'
+  | 'pronto_consumo'
+  | 'saiu_para_entrega'
+  | 'concluido'
+  | 'cancelado'
 
-export const ORDER_STATUSES: readonly OrderStatus[] = ['novo', 'confirmado', 'preparando', 'pronto', 'saiu_para_entrega', 'concluido', 'cancelado']
+export const ORDER_STATUSES: readonly OrderStatus[] = ['novo', 'confirmado', 'preparando', 'pronto', 'pronto_retirada', 'pronto_consumo', 'saiu_para_entrega', 'concluido', 'cancelado']
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   novo: 'Novo',
   confirmado: 'Confirmado',
   preparando: 'Preparando',
   pronto: 'Pronto',
+  pronto_retirada: 'Pronto para retirada',
+  pronto_consumo: 'Pronto para consumo',
   saiu_para_entrega: 'Saiu para entrega',
   concluido: 'Concluído',
   cancelado: 'Cancelado',
 }
 
-/** Ainda precisam da equipe: de "novo" até "saiu para entrega". */
-export const OPEN_STATUSES: readonly OrderStatus[] = ['novo', 'confirmado', 'preparando', 'pronto', 'saiu_para_entrega']
+/** Ainda precisam da equipe: tudo menos concluído e cancelado. */
+export const OPEN_STATUSES: readonly OrderStatus[] = ['novo', 'confirmado', 'preparando', 'pronto', 'pronto_retirada', 'pronto_consumo', 'saiu_para_entrega']
+
+/** "Saiu / Pronto": o pedido já está com o entregador ou esperando o cliente. */
+const READY_STATUSES: readonly OrderStatus[] = ['saiu_para_entrega', 'pronto', 'pronto_retirada', 'pronto_consumo']
 
 export type PanelOrder = {
   id: string
@@ -113,20 +132,32 @@ export function parseOrderRow(raw: unknown): PanelOrder | null {
   }
 }
 
-/** O próximo passo do pedido (o botão principal do cartão). Concluído ou cancelado: nenhum. */
+/**
+ * O próximo passo do pedido (o botão principal do cartão), pelo fluxo do painel ao vivo
+ * (2026-11-20): Novo → "Aceitar / Preparar" → Preparando → o "pronto" da modalidade → "✅ Concluir".
+ * Retirar e Comer no Local nunca passam por "saiu para entrega". Concluído ou cancelado: nenhum.
+ */
 export function nextStep(order: PanelOrder): { status: OrderStatus; label: string } | null {
   switch (order.status) {
     case 'novo':
-      return { status: 'confirmado', label: 'Confirmar' }
     case 'confirmado':
-      return { status: 'preparando', label: 'Preparando' }
+      return { status: 'preparando', label: 'Aceitar / Preparar' }
     case 'preparando':
-      return { status: 'pronto', label: 'Pronto' }
+      switch (order.deliveryType) {
+        case 'entrega':
+          return { status: 'saiu_para_entrega', label: '🛵 Saiu para Entrega' }
+        case 'retirada':
+          return { status: 'pronto_retirada', label: '🛍️ Pronto para Retirada' }
+        case 'local':
+          return { status: 'pronto_consumo', label: '🍨 Pronto para Consumo' }
+        default:
+          return { status: 'pronto', label: 'Pronto' }
+      }
     case 'pronto':
-      // Só a entrega sai da loja; retirar e comer no local terminam na mão do cliente.
-      return order.deliveryType === 'entrega' ? { status: 'saiu_para_entrega', label: 'Saiu para entrega' } : { status: 'concluido', label: 'Concluído' }
+    case 'pronto_retirada':
+    case 'pronto_consumo':
     case 'saiu_para_entrega':
-      return { status: 'concluido', label: 'Concluído' }
+      return { status: 'concluido', label: '✅ Concluir' }
     default:
       return null
   }
@@ -137,22 +168,31 @@ export function canCancel(order: PanelOrder): boolean {
   return OPEN_STATUSES.includes(order.status)
 }
 
-export type OrderFilter = 'andamento' | OrderStatus | 'todos'
+/** Os filtros rápidos do topo do painel (2026-11-20). Cancelado só aparece em "Todos". */
+export type OrderFilter = 'todos' | 'novos' | 'preparando' | 'saiu_pronto' | 'concluidos'
 
 export const ORDER_FILTERS: readonly { id: OrderFilter; label: string }[] = [
-  { id: 'andamento', label: 'Em andamento' },
-  { id: 'novo', label: 'Novos' },
-  { id: 'confirmado', label: 'Confirmados' },
-  { id: 'preparando', label: 'Preparando' },
-  { id: 'pronto', label: 'Prontos' },
-  { id: 'saiu_para_entrega', label: 'Saiu para entrega' },
-  { id: 'concluido', label: 'Concluídos' },
-  { id: 'cancelado', label: 'Cancelados' },
   { id: 'todos', label: 'Todos' },
+  { id: 'novos', label: '🆕 Novos' },
+  { id: 'preparando', label: '🍨 Preparando' },
+  { id: 'saiu_pronto', label: '🛵 Saiu / Pronto' },
+  { id: 'concluidos', label: '✅ Concluídos' },
 ]
 
-const matches = (order: PanelOrder, filter: OrderFilter) =>
-  filter === 'todos' || (filter === 'andamento' ? OPEN_STATUSES.includes(order.status) : order.status === filter)
+function matches(order: PanelOrder, filter: OrderFilter): boolean {
+  switch (filter) {
+    case 'todos':
+      return true
+    case 'novos':
+      return order.status === 'novo'
+    case 'preparando':
+      return order.status === 'preparando' || order.status === 'confirmado'
+    case 'saiu_pronto':
+      return READY_STATUSES.includes(order.status)
+    case 'concluidos':
+      return order.status === 'concluido'
+  }
+}
 
 export function filterOrders(orders: readonly PanelOrder[], filter: OrderFilter): PanelOrder[] {
   return orders.filter((order) => matches(order, filter))
@@ -162,19 +202,20 @@ export function filterCounts(orders: readonly PanelOrder[]): Record<OrderFilter,
   return Object.fromEntries(ORDER_FILTERS.map(({ id }) => [id, orders.filter((order) => matches(order, id)).length])) as Record<OrderFilter, number>
 }
 
-/** "Pix", "Cartão de crédito (levar maquininha)", "Dinheiro: troco para R$ 50,00 (levar R$ 16,00)". */
+/** "💠 Pix", "💳 Cartão de crédito (levar maquininha)", "💵 Dinheiro — Troco para R$ 50,00 (levar R$ 16,00)". */
 export function paymentText(order: PanelOrder): string {
   switch (order.paymentMethod) {
     case 'pix':
-      return 'Pix'
+      return '💠 Pix'
     case 'credito':
     case 'debito': {
-      const card = order.paymentMethod === 'credito' ? 'Cartão de crédito' : 'Cartão de débito'
+      const card = order.paymentMethod === 'credito' ? '💳 Cartão de crédito' : '💳 Cartão de débito'
       return order.deliveryType === 'entrega' ? `${card} (levar maquininha)` : card
     }
     case 'dinheiro': {
-      if (order.changeForCents === null) return 'Dinheiro, sem troco'
-      const base = `Dinheiro: troco para ${formatBRL(order.changeForCents)}`
+      // O troco só aparece quando o cliente informou.
+      if (order.changeForCents === null) return '💵 Dinheiro'
+      const base = `💵 Dinheiro — Troco para ${formatBRL(order.changeForCents)}`
       if (order.fee.kind === 'combinar') return `${base} (frete a combinar)`
       const due = order.changeForCents - order.totalCents
       return due > 0 ? `${base} (levar ${formatBRL(due)})` : base
@@ -202,19 +243,86 @@ export function feeLine(order: PanelOrder): { label: string; value: string } {
   }
 }
 
+/** Um item da comanda, organizado para o cartão. */
+export type ComandaItem = {
+  quantity: number
+  name: string
+  /** "Isopor M", "Sabor: Nutella", "Copo 300 ml · Sabor: …". */
+  details: string | null
+  total: string
+  /** "COMPLETO" ou "COMPLETO (todos os acompanhamentos)". */
+  montagem: string | null
+  /** O que o cliente tirou do Completo. */
+  removed: string[]
+  /** Cremes e extras pagos, com o valor. */
+  paid: string | null
+  /** Acompanhamentos grátis, por grupo. */
+  included: { label: string; names: string }[]
+  /** Escolhas dos itens das seções com mais de uma ("Sabor do sorvete", "Sabor da cobertura"). */
+  rows: { label: string; value: string }[]
+  note: string | null
+}
+
+const KEYCAP = '(?:[0-9]\\uFE0F\\u20E3|\\u{1F51F})+'
+const ITEM_LINE = new RegExp(`^${KEYCAP} \\*(\\d+)x (.+?)\\*(?: \\((.+)\\))? — \\*(.+)\\*$`, 'u')
+const unmark = (text: string) => text.replace(/[*_]/g, '').trim()
+/** "✨ *Montagem:* COMPLETO" → ["Montagem", "COMPLETO"] (sem o emoji e as marcas). */
+const labeled = (line: string, emoji: string): string | null => {
+  if (!line.startsWith(emoji)) return null
+  const rest = line.slice(emoji.length)
+  const colon = rest.indexOf(':*')
+  return colon === -1 ? null : unmark(rest.slice(colon + 2))
+}
+
 /**
- * Os itens como saíram na comanda (montagem, "RETIRAR", extras, acompanhamentos, observação),
- * sem as marcas de negrito e itálico do WhatsApp. Sem a parte dos itens, nada.
+ * Os itens da comanda gravada, organizados (painel ao vivo, 2026-11-20): quantidade, nome,
+ * tamanho e sabor, Completo, o que foi tirado ("SEM"), pagos, acompanhamentos e observação. A
+ * comanda é a do momento da compra, a mesma que foi para o WhatsApp. Linha que não é de item fica
+ * de fora. Sem a parte dos itens, nada (o cartão usa a lista gravada).
  */
-export function comandaItems(message: string): string[] {
+export function parseComandaItems(message: string): ComandaItem[] {
   const lines = message.split('\n')
   const start = lines.findIndex((line) => line.includes('ITENS DO PEDIDO'))
   if (start === -1) return []
-  const end = lines.findIndex((line, index) => index > start && line.startsWith('━'))
-  const block = lines.slice(start + 1, end === -1 ? undefined : end).map((line) => line.replace(/[*_]/g, '').trimEnd())
-  while (block.length > 0 && !block[0]) block.shift()
-  while (block.length > 0 && !block.at(-1)) block.pop()
-  return block
+  const items: ComandaItem[] = []
+  for (const raw of lines.slice(start + 1)) {
+    if (raw.startsWith('━')) break
+    const header = ITEM_LINE.exec(raw)
+    if (header) {
+      items.push({
+        quantity: Number(header[1]),
+        name: unmark(header[2]),
+        details: header[3] ? unmark(header[3]) : null,
+        total: unmark(header[4]),
+        montagem: null,
+        removed: [],
+        paid: null,
+        included: [],
+        rows: [],
+        note: null,
+      })
+      continue
+    }
+    const item = items.at(-1)
+    const line = raw.trim()
+    if (!item || !line) continue
+    const montagem = labeled(line, '✨')
+    const removed = labeled(line, '🚫')
+    const paid = labeled(line, '➕')
+    const note = labeled(line, '📝')
+    if (montagem !== null) item.montagem = montagem
+    else if (removed !== null) item.removed = removed.split(', ').filter(Boolean)
+    else if (paid !== null) item.paid = paid
+    else if (note !== null) item.note = note
+    else if (line.startsWith('• *')) {
+      const colon = line.indexOf(':*')
+      if (colon !== -1) item.rows.push({ label: unmark(line.slice(2, colon)), value: unmark(line.slice(colon + 2)) })
+    } else if (line.startsWith('• ')) {
+      const colon = line.indexOf(':')
+      if (colon !== -1) item.included.push({ label: line.slice(2, colon).trim(), names: line.slice(colon + 1).trim() })
+    }
+  }
+  return items
 }
 
 /** Os pedidos que chegaram agora: ainda não vistos e na situação "novo". */

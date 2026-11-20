@@ -52,7 +52,7 @@ const ORDER_COLUMNS = [
 ].join(',')
 
 /** Os pedidos de dias anteriores que ainda aparecem: os que não foram concluídos nem cancelados. */
-const OPEN_FILTER = 'status.in.(novo,confirmado,preparando,pronto,saiu_para_entrega)'
+const OPEN_FILTER = 'status.in.(novo,confirmado,preparando,pronto,pronto_retirada,pronto_consumo,saiu_para_entrega)'
 
 export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
   const base = config.url.replace(/\/+$/, '')
@@ -158,6 +158,9 @@ export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
     },
 
     isSignedIn: () => readSession() !== null,
+
+    /** O token do vendedor (renovado se precisar), para a inscrição do Realtime (2026-11-20). */
+    sellerToken: () => accessToken(),
 
     async upsert(kind: ChangeKind, id: string, data: AnyChange): Promise<void> {
       await request('/rest/v1/catalog_changes', {

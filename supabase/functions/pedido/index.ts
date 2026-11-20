@@ -3011,6 +3011,59 @@ function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code, 
 	lines.push(LINE, "🧾 *RESUMO FINANCEIRO*", `🛍️ *Subtotal dos itens:* ${formatBRL(subtotalCents)}`, feeLine(customer.fee), `💰 *TOTAL A PAGAR:* ${amount}`, "", LINE, "💳 *FORMA DE PAGAMENTO*", ...paymentLines(payment, amount, totalCents, feeKnown, delivery), "", `💜 _Obrigado pela preferência! ${storeInfo.name}_`);
 	return lines.join("\n");
 }
+// src/features/orders/orderRow.ts
+/**
+* A linha de um pedido na tabela `orders`, montada de um pedido já conferido. A mesma montagem
+* vale para a função `pedido` do servidor (Supabase) e para o modo de demonstração local
+* (painel ao vivo, 2026-11-20): os dois guardam a mesma estrutura.
+*/
+/** "Açaí Tradicional (Isopor M)", "Picolé Gourmet". */
+function itemName(item) {
+	if (item.kind === "extra") return describeExtra(item).name;
+	const summary = summarizeSelection(item.slug, item.selection);
+	return summary.sizeLabel ? `${summary.productName} (${summary.sizeLabel})` : summary.productName;
+}
+function snapshot(cart) {
+	return cart.items.map((item) => ({
+		name: itemName(item),
+		quantity: item.quantity,
+		unit_cents: unitPriceCents(item),
+		total_cents: lineTotalCents(item),
+		...item.note ? { note: item.note } : {}
+	}));
+}
+/** Os campos da linha que vêm do pedido (sem a chave de repetição, o número e o código). */
+function orderRowFields({ cart, customer, payment, antecipado, message, whatsapp }) {
+	const subtotalCents = cartTotalCents(cart);
+	const { fulfillment, fee } = customer;
+	const gps = fulfillment.kind === "entrega" ? fulfillment.gps : null;
+	return {
+		message,
+		whatsapp,
+		customer_name: customer.name,
+		customer_phone: customer.phone,
+		fulfillment: fulfillment.kind,
+		address: fulfillment.kind === "entrega" ? {
+			street: fulfillment.street,
+			number: fulfillment.number,
+			district: fulfillment.district,
+			reference: fulfillment.reference
+		} : null,
+		delivery_fee: fee.kind,
+		delivery_fee_cents: feeCents(fee),
+		delivery_zone: fee.kind === "taxa" ? fee.zoneName : null,
+		customer_lat: gps ? gps.lat : null,
+		customer_lng: gps ? gps.lng : null,
+		maps_url: gps ? gpsMapsUrl(gps) : null,
+		payment_method: payment.method,
+		change_for_cents: payment.method === "dinheiro" ? payment.changeForCents : null,
+		subtotal_cents: subtotalCents,
+		total_cents: subtotalCents + feeCents(fee),
+		antecipado,
+		items: snapshot(cart),
+		cart: JSON.parse(serializeCart(cart))
+	};
+}
 // src/features/store-hours/hours.ts
 /**
 * Horário de funcionamento do Açaí Doce Sabor. Padrão do briefing de 2026-11-12: todos os dias,
@@ -3211,20 +3264,6 @@ function declaredLines(cart) {
 		return 0;
 	}
 }
-function itemName(item) {
-	if (item.kind === "extra") return describeExtra(item).name;
-	const summary = summarizeSelection(item.slug, item.selection);
-	return summary.sizeLabel ? `${summary.productName} (${summary.sizeLabel})` : summary.productName;
-}
-function snapshot(cart) {
-	return cart.items.map((item) => ({
-		name: itemName(item),
-		quantity: item.quantity,
-		unit_cents: unitPriceCents(item),
-		total_cents: lineTotalCents(item),
-		...item.note ? { note: item.note } : {}
-	}));
-}
 /**
 * Confere o pedido com o cardápio em uso e monta a linha e a comanda (com a marca do código).
 * Tudo síncrono: o cardápio é um estado do módulo, e outra chamada não pode trocá-lo no meio.
@@ -3247,8 +3286,7 @@ function prepare(input, now) {
 	const customerCheck = checkCustomer(input.customer, settings.delivery);
 	if (!customerCheck.ok) return reject("dados-invalidos", Object.values(customerCheck.problems)[0]);
 	const { customer } = customerCheck;
-	const subtotalCents = cartTotalCents(cart);
-	const totalCents = subtotalCents + feeCents(customer.fee);
+	const totalCents = cartTotalCents(cart) + feeCents(customer.fee);
 	const paymentCheck = checkPayment(input.payment, totalCents);
 	if (!paymentCheck.ok) return reject("pagamento-invalido", paymentProblemText(paymentCheck.problem, totalCents));
 	if (totalCents !== input.expectedTotalCents) return {
@@ -3258,11 +3296,13 @@ function prepare(input, now) {
 	};
 	const { payment } = paymentCheck;
 	const antecipado = !status.open;
-	const { fulfillment, fee } = customer;
-	const gps = fulfillment.kind === "entrega" ? fulfillment.gps : null;
 	return {
 		ok: true,
-		row: {
+		row: orderRowFields({
+			cart,
+			customer,
+			payment,
+			antecipado,
 			message: buildOrderMessage({
 				cart,
 				customer,
@@ -3271,30 +3311,8 @@ function prepare(input, now) {
 				antecipado,
 				code: CODE_MARK
 			}),
-			whatsapp: toWhatsAppNumber(settings.contact.whatsapp),
-			customer_name: customer.name,
-			customer_phone: customer.phone,
-			fulfillment: fulfillment.kind,
-			address: fulfillment.kind === "entrega" ? {
-				street: fulfillment.street,
-				number: fulfillment.number,
-				district: fulfillment.district,
-				reference: fulfillment.reference
-			} : null,
-			delivery_fee: fee.kind,
-			delivery_fee_cents: feeCents(fee),
-			delivery_zone: fee.kind === "taxa" ? fee.zoneName : null,
-			customer_lat: gps ? gps.lat : null,
-			customer_lng: gps ? gps.lng : null,
-			maps_url: gps ? gpsMapsUrl(gps) : null,
-			payment_method: payment.method,
-			change_for_cents: payment.method === "dinheiro" ? payment.changeForCents : null,
-			subtotal_cents: subtotalCents,
-			total_cents: totalCents,
-			antecipado,
-			items: snapshot(cart),
-			cart: JSON.parse(serializeCart(cart))
-		}
+			whatsapp: toWhatsAppNumber(settings.contact.whatsapp)
+		})
 	};
 }
 var accepted = (order, repeated) => ({

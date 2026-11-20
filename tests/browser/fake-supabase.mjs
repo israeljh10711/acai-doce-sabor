@@ -4,7 +4,7 @@
 //   orders e a função proximo_numero_pedido), com as mesmas regras de acesso do SQL: o site lê o
 //   cardápio com a chave pública; só a chave de servidor lê e grava pedidos;
 // - o login do vendedor e o painel de pedidos (2026-11-20): o vendedor lê os pedidos e muda só a
-//   situação, como no SQL;
+//   situação, como no SQL; e o Realtime (fake-realtime.mjs) avisa as mudanças em orders na hora;
 // - a função "pedido" de verdade: o arquivo gerado supabase/functions/pedido/index.ts (o mesmo que
 //   se cola no painel), carregado com um "Deno" de mentira.
 //
@@ -13,13 +13,16 @@ import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { attachFakeRealtime } from './fake-realtime.mjs'
 
 export const PUBLIC_KEY = 'sb_publishable_teste'
 export const SERVER_KEY = 'sb_secret_teste'
 /** Login do vendedor (painel de pedidos, 2026-11-20): a senha e o token que o "Auth" devolve. */
 export const SELLER_PASSWORD = 'senha-teste'
 export const SELLER_TOKEN = 'token-do-vendedor-teste'
-const ORDER_STATUSES = ['novo', 'confirmado', 'preparando', 'pronto', 'saiu_para_entrega', 'concluido', 'cancelado']
+const ORDER_STATUSES = ['novo', 'confirmado', 'preparando', 'pronto', 'pronto_retirada', 'pronto_consumo', 'saiu_para_entrega', 'concluido', 'cancelado']
+/** A situação que só vale numa modalidade (orders_status_modalidade_check, 2026-11-20). */
+const STATUS_ONLY_FOR = { saiu_para_entrega: 'entrega', pronto_retirada: 'retirada', pronto_consumo: 'local' }
 const BUNDLE = join(process.cwd(), 'supabase', 'functions', 'pedido', 'index.ts')
 
 const CORS = {
@@ -71,7 +74,10 @@ function rest(db, method, url, headers, body, state = {}) {
     const id = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
     const order = db.orders.find((candidate) => candidate.id === id)
     if (!order) return { status: 200, body: [] }
+    const only = STATUS_ONLY_FOR[change.status]
+    if (only && order.fulfillment !== only) return { status: 400, body: { message: 'new row for relation "orders" violates check constraint "orders_status_modalidade_check"' } }
     order.status = change.status
+    db.onChange?.('UPDATE', order)
     return { status: 200, body: [pick(order, select[0] === '*' ? [] : select)] }
   }
 
@@ -92,6 +98,7 @@ function rest(db, method, url, headers, body, state = {}) {
     if (db.orders.some((order) => order.attempt_key === row.attempt_key)) return { status: 201, body: [] }
     const stored = { id: randomUUID(), created_at: new Date().toISOString(), status: 'novo', ...row }
     db.orders.push(stored)
+    db.onChange?.('INSERT', stored)
     return { status: 201, body: [pick(stored, select)] }
   }
   if (url.pathname === '/rest/v1/rpc/proximo_numero_pedido' && method === 'POST') {
@@ -160,6 +167,9 @@ export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), e
     }
     response.writeHead(result.status, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify(result.body))
   })
+  // Realtime (painel ao vivo, 2026-11-20): as mudanças em orders vão para quem se inscreveu.
+  const realtime = attachFakeRealtime(server, { isPublicKey: (key) => key === PUBLIC_KEY, sellerToken: SELLER_TOKEN })
+  db.onChange = (type, row) => realtime.publish(type, row)
   await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve))
   const address = server.address()
   const url = `http://127.0.0.1:${address.port}`
@@ -171,6 +181,10 @@ export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), e
     db,
     state,
     env: fakeEnv,
-    close: () => new Promise((resolve) => server.close(resolve)),
+    realtime,
+    close: () => {
+      realtime.closeAll()
+      return new Promise((resolve) => server.close(resolve))
+    },
   }
 }
