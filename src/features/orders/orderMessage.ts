@@ -25,6 +25,11 @@ export type OrderDraft = {
   antecipado: boolean
   /** Código do pedido, quando o banco de pedidos existir e devolver um. */
   code?: string
+  /**
+   * O registro no banco falhou (internet ou servidor) e o cliente enviou mesmo assim (opção 1,
+   * pedido de 2026-11-17): a comanda avisa a loja.
+   */
+  naoRegistrado?: boolean
 }
 
 const LINE = '━'.repeat(20)
@@ -137,7 +142,7 @@ function paymentLines(payment: Payment, amount: string, totalCents: number, feeK
   }
 }
 
-export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code }: OrderDraft): string {
+export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code, naoRegistrado }: OrderDraft): string {
   const subtotalCents = cartTotalCents(cart)
   const totalCents = subtotalCents + feeCents(customer.fee)
   const feeKnown = customer.fee.kind !== 'combinar'
@@ -149,6 +154,7 @@ export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado,
   if (code) lines.push(`🔖 *Pedido:* ${code}`)
   lines.push(`📅 *Data/Hora:* ${dateTimeText(sentAt)}`)
   if (antecipado) lines.push('⏰ *Pedido antecipado:* enviado com a loja fechada')
+  if (naoRegistrado) lines.push('⚠️ *Pedido não registrado no sistema*')
 
   lines.push('', '👤 *DADOS DO CLIENTE*', `• *Nome:* ${customer.name}`)
   if (customer.phone) lines.push(`• *Telefone:* ${customer.phone}`)

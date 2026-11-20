@@ -141,6 +141,13 @@ describe('comanda do WhatsApp (pedido de 2026-11-17)', () => {
     expect(lines(order({ code: 'ADS-0001' }))[1]).toBe('🔖 *Pedido:* ADS-0001')
   })
 
+  it('pedido não registrado no sistema (falha de internet ou servidor): aviso logo abaixo da data', () => {
+    expect(lines(order({ naoRegistrado: true })).slice(1, 3)).toEqual([
+      '📅 *Data/Hora:* 17/11/2026 às 15:42',
+      '⚠️ *Pedido não registrado no sistema*',
+    ])
+  })
+
   it('itens sem Completo: pagos com o valor e os grátis agrupados; sabor e tamanho entre parênteses', () => {
     const oca = PRODUCTS['acai-oca']
     let ocaSelection = chooseSize(oca, EMPTY_SELECTION, 'copo-500').selection
