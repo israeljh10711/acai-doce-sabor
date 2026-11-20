@@ -7,7 +7,9 @@
 //   antecipado na comanda, envio bloqueado quando o vendedor escolhe bloquear, e "Abrir" de volta;
 // - Tempo (1 toque e digitado), Entrega / Frete (bairros, outro bairro, grátis, retirada) com o
 //   frete no total e no troco, Horários e Contato (rodapé e número do WhatsApp);
-// - Duplicar (cadastro preenchido, item novo na seção), "+ Observação" e a comanda linha a linha.
+// - Duplicar (cadastro preenchido, item novo na seção), "+ Observação" e a comanda linha a linha;
+// - gerenciador de sabores: sabor do Batido esgotado em 1 toque, opção esgotada no Kit Completo,
+//   sabor novo no Milk-shake e Duplicar com as duas escolhas do Kit.
 //
 // O modo vendedor é ligado direto pela sessão do aparelho (a senha é conferida em check:vendedor).
 // Uso (com o site rodando, sem .env.local do Supabase): node tests/browser/check-operacao.mjs [endereçoBase]
@@ -374,7 +376,7 @@ try {
   await click(`__item('picole-gourmet').querySelector('[data-seller-duplicate]')`, 1200)
   check(
     'Duplicar: título, nome com "(Cópia)", preço, sabores e sem foto',
-    await run(`[__dialog().querySelector('h2').textContent, __dialog().querySelector('[id$="-nome"]').value, __dialog().querySelector('[id$="-preco"]').value, __dialog().querySelector('[id$="-sabores"]')?.value.includes('Nutella') ?? null, !!__dialog().querySelector('button img[src]')]`),
+    await run(`[__dialog().querySelector('h2').textContent, __dialog().querySelector('[id$="-nome"]').value, __dialog().querySelector('[id$="-preco"]').value, [...__dialog().querySelectorAll('[data-option-name]')].some((input) => input.value === 'Nutella'), !!__dialog().querySelector('button img[src]')]`),
     ['Duplicar Item — Picolé Gourmet (Cópia)', 'Picolé Gourmet (Cópia)', '3,00', true, false],
   )
   await set(`__dialog().querySelector('[id$="-nome"]')`, 'Picolé Gourmet Especial')
@@ -386,7 +388,48 @@ try {
     [true, 'R$ 3,00', 'Escolher sabor'],
   )
 
-  // --- 8. Celular ---
+  // --- 8. Gerenciador de sabores (pedido de 2026-11-17) ---
+  await goto('/monte-seu-pedido/acai-batido', desktop)
+  const amendoim = `__q('[data-flavor="leite-condensado-amendoim"]')`
+  await click(`${amendoim}.querySelector('[data-seller-stock]')`, 900)
+  check(
+    'Batido: sabor esgotado em 1 toque, desligado com "Esgotado"',
+    await run(`[${amendoim}.querySelector('input').disabled, ${amendoim}.textContent.includes('Esgotado'), ${amendoim}.querySelector('[data-seller-stock]').dataset.sellerStock]`),
+    [true, true, 'esgotado'],
+  )
+  await click(`${amendoim}.querySelector('[data-seller-stock]')`, 900)
+  check('Batido: sabor de volta', await run(`${amendoim}.querySelector('input').disabled`), false)
+
+  await goto('/monte-seu-pedido', desktop)
+  await click(`__item('kit-completo-casquinha').querySelector('[data-seller-edit]')`, 1200)
+  check(
+    'Kit Completo: as duas escolhas no gerenciador de sabores',
+    await run(`[...__dialog().querySelectorAll('[data-group-label]')].map((input) => input.value)`),
+    ['Sabor do sorvete (2 litros)', 'Sabor da cobertura'],
+  )
+  await click(`[...__dialog().querySelectorAll('[data-option-name^="1-"]')].find((input) => input.value === 'Caramelo').parentElement.querySelector('[data-option-stock]')`, 300)
+  await submitDialog(1400)
+  await click(`__item('kit-completo-casquinha').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 900)
+  check(
+    'cliente: "Caramelo" esgotado aparece desligado na escolha da cobertura',
+    await run(`(() => { const radio = [...__dialog().querySelectorAll('input[type=radio]')].find((input) => input.value === 'Caramelo'); return [radio?.disabled, radio?.closest('label').textContent.includes('Esgotado')] })()`),
+    [true, true],
+  )
+  await run(`__dialog().close(); true`)
+  await sleep(400)
+  await click(`__item('kit-completo-casquinha').querySelector('[data-seller-duplicate]')`, 1200)
+  check('Duplicar o Kit: a cópia vem com as duas escolhas', await run(`__dialog().querySelectorAll('[data-group-label]').length`), 2)
+  await run(`__dialog().close(); true`)
+  await sleep(400)
+
+  await click(`__q('#secao-milkshake [data-seller-edit]')`, 1200)
+  await click(`__dialog().querySelector('[data-add-option]')`, 300)
+  await set(`[...__dialog().querySelectorAll('[data-option-name]')].at(-1)`, 'Nutella')
+  await submitDialog(1400)
+  await goto('/monte-seu-pedido/milk-shake', desktop)
+  check('Milk-shake: sabor novo "Nutella" no personalizador', await run(`__q('[data-flavor="novo-nutella"]')?.textContent.includes('Nutella')`), true)
+
+  // --- 9. Celular ---
   await goto('/carrinho', phone)
   check(
     'celular: selo na linha abaixo do cabeçalho, faixa e carrinho sem rolagem lateral',
