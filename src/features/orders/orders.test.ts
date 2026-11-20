@@ -7,7 +7,7 @@ import { type Cart, EMPTY_CART, addExtraItem, addItem, setNote, setQuantity } fr
 import type { Payment } from '../checkout/payment.ts'
 import type { Customer, DeliveryFee } from '../checkout/delivery.ts'
 import { type OrderDraft, buildOrderMessage, keycap } from './orderMessage.ts'
-import { ORDER_DATABASE_AVAILABLE, orderWhatsAppUrl, submitOrder } from './orderService.ts'
+import { orderWhatsAppUrl } from './orderService.ts'
 
 afterEach(() => setCatalogChanges(NO_CHANGES))
 
@@ -201,9 +201,4 @@ describe('envio do pedido', () => {
     expect(new URL(orderWhatsAppUrl(order())).pathname).toBe('/5583988887777')
   })
 
-  it('o banco de pedidos ainda não existe', async () => {
-    expect(ORDER_DATABASE_AVAILABLE).toBe(false)
-    expect(await submitOrder(exampleCart())).toEqual({ ok: false, reason: 'not-configured' })
-    expect(await submitOrder(EMPTY_CART)).toEqual({ ok: false, reason: 'empty-cart' })
-  })
 })

@@ -16,7 +16,8 @@ const REFRESH_MS = 60_000
 let backend: CatalogBackend | null = null
 let photoUrls: Record<string, string> = {}
 
-function supabaseConfig() {
+/** O Supabase está ligado quando o `.env.local` tem as três: endereço, chave pública e e-mail do vendedor. */
+export function supabaseConfig(): { url: string; key: string; sellerEmail: string } | null {
   const url = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim()
   // O nome pedido em 2026-11-16 (ANON_KEY) ou o do .env.example da Fase 0 (PUBLISHABLE_KEY).
   const key = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim()
@@ -69,6 +70,12 @@ export async function cleanupPhotos(): Promise<void> {
   } catch {
     // Sem acesso às fotos do aparelho agora: tenta de novo na próxima gravação.
   }
+}
+
+/** Lê o cardápio de novo agora (Supabase), por exemplo depois de o servidor recusar um pedido. */
+export async function refreshCatalogNow(): Promise<void> {
+  const current = getSellerBackend()
+  if (current.kind === 'supabase') await refresh(current)
 }
 
 /** Lê de novo do Supabase e aplica, se mudou. Erro de rede: fica o que já está na tela. */
