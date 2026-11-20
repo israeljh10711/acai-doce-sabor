@@ -220,7 +220,8 @@ try {
       '',
       '👤 *DADOS DO CLIENTE*',
       '• *Nome:* Cliente Teste',
-      '• *Tipo de Pedido:* 🏪 Retirada na Loja',
+      '• *Modalidade:* 🛍️ Retirar no Local (Levar para casa)',
+      '• *Local de retirada:* Rua Francisco Tota, 12 — Teixeira, PB',
       '',
       LINE,
       '🍨 *ITENS DO PEDIDO*',
@@ -232,7 +233,7 @@ try {
       LINE,
       '🧾 *RESUMO FINANCEIRO*',
       '🛍️ *Subtotal dos itens:* R$ 3,00',
-      '🏪 *Retirada na loja:* Grátis (R$ 0,00)',
+      '🛍️ *Retirada na loja:* Grátis (R$ 0,00)',
       '💰 *TOTAL A PAGAR:* *R$ 3,00*',
       '',
       LINE,
@@ -297,7 +298,7 @@ try {
   check(
     'comanda: entrega com endereço, frete do bairro, total e troco',
     [
-      lines.includes('• *Tipo de Pedido:* 🛵 Entrega em Domicílio'),
+      lines.includes('• *Modalidade:* 🛵 Entrega em Domicílio'),
       lines.includes('• *Endereço:* Rua das Flores, 12, Centro — Ref.: perto da praça'),
       lines.includes('🛵 *Frete / Entrega (Centro):* R$ 3,00'),
       lines.includes('💰 *TOTAL A PAGAR:* *R$ 6,00*'),

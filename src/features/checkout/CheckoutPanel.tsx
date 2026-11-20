@@ -1,6 +1,6 @@
 import { AnimatePresence, m } from 'motion/react'
 import { type ComponentType, type ReactNode, useEffect, useId, useRef, useState } from 'react'
-import { Banknote, Chat, Check, Copy, CreditCard, QrCode, Scooter, Storefront } from '../../components/ui/icons.tsx'
+import { Bag, Banknote, Chat, Check, Copy, CreditCard, IceCreamBowl, QrCode, Scooter } from '../../components/ui/icons.tsx'
 import { storeInfo } from '../../services/storeInfo.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { buildWhatsAppUrl } from '../../utils/whatsapp.ts'
@@ -13,19 +13,23 @@ import { refreshCatalogNow, supabaseConfig } from '../seller/sellerBackend.ts'
 import { StoreClosedCard } from '../store-hours/StoreClosedCard.tsx'
 import { serverNow } from '../store-hours/serverClock.ts'
 import { useStoreStatus } from '../store-hours/useStoreStatus.ts'
-import { storeAddressText } from '../store/storeSettings.ts'
+import { type StoreContact, mapsUrl, storeAddressText, storePlaceText } from '../store/storeSettings.ts'
+import { GpsLocation } from './GpsLocation.tsx'
 import { copyText } from './copyText.ts'
 import {
   type CustomerDraft,
   type CustomerField,
   EMPTY_CUSTOMER,
   OTHER_ZONE,
+  addressPatch,
   checkCustomer,
+  draftForStorage,
   feeCents,
   feeFor,
   parseCustomerDraft,
   zoneList,
 } from './delivery.ts'
+import type { AddressGuess } from './gps.ts'
 import {
   EMPTY_PAYMENT,
   PAYMENT_METHODS,
@@ -53,12 +57,12 @@ const reveal = {
   transition: { duration: 0.2 },
 } as const
 
-/** Dados do cliente guardados na aba (some ao fechar a aba). */
+/** Dados do cliente guardados na aba (some ao fechar a aba). O GPS nunca fica guardado. */
 const CUSTOMER_KEY = 'acai_doce_sabor_checkout_v1'
 
 function loadCustomer(): CustomerDraft {
   try {
-    return parseCustomerDraft(JSON.parse(globalThis.sessionStorage?.getItem(CUSTOMER_KEY) ?? 'null'))
+    return draftForStorage(parseCustomerDraft(JSON.parse(globalThis.sessionStorage?.getItem(CUSTOMER_KEY) ?? 'null')))
   } catch {
     return EMPTY_CUSTOMER
   }
@@ -152,7 +156,7 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
 
   useEffect(() => {
     try {
-      globalThis.sessionStorage?.setItem(CUSTOMER_KEY, JSON.stringify(customer))
+      globalThis.sessionStorage?.setItem(CUSTOMER_KEY, JSON.stringify(draftForStorage(customer)))
     } catch {
       // Sem armazenamento: os dados ficam só nesta tela.
     }
@@ -256,15 +260,23 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
   const zones = zoneList(settings.delivery)
   const zoneValue = customer.zoneId === OTHER_ZONE || zones.some((zone) => zone.id === customer.zoneId) ? (customer.zoneId ?? '') : ''
   const typedDistrict = zones.length === 0 || customer.zoneId === OTHER_ZONE
-  const deliveryHint =
-    settings.delivery.mode === 'gratis' ? 'Grátis' : settings.delivery.mode === 'taxas' && zones.length > 0 ? 'Taxa por bairro' : 'Taxa a combinar'
+  /** Endereço sugerido pelo GPS: só os campos ainda vazios, conferidos no estado mais novo. */
+  const applyGuess = (guess: AddressGuess) => setCustomer((current) => ({ ...current, ...addressPatch(current, guess, zones) }))
+  const feeLabel =
+    customer.kind === 'retirada'
+      ? 'Retirada na loja'
+      : customer.kind === 'local'
+        ? 'Consumo no local'
+        : fee?.kind === 'taxa'
+          ? `Entrega (${fee.zoneName})`
+          : 'Entrega'
 
   return (
     <div ref={panel} className="flex flex-col gap-5">
       <dl data-order-values="" className="flex flex-col gap-1.5">
         <ValueRow label="Subtotal" value={formatBRL(subtotalCents)} />
         <ValueRow
-          label={customer.kind === 'retirada' ? 'Retirada na loja' : fee?.kind === 'taxa' ? `Entrega (${fee.zoneName})` : 'Entrega'}
+          label={feeLabel}
           value={
             !fee
               ? customer.kind === 'entrega'
@@ -322,28 +334,38 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
 
       <fieldset
         aria-describedby={customerProblems.kind ? `${field('kind')}-erro` : undefined}
-        className={`rounded-2xl transition ${customerProblems.kind ? 'bg-red-50 p-3 ring-2 ring-red-700' : ''}`}
+        className={`@container rounded-2xl transition ${customerProblems.kind ? 'bg-red-50 p-3 ring-2 ring-red-700' : ''}`}
       >
         <legend className={sectionTitle}>Como você quer receber?</legend>
-        <div className="mt-3 grid grid-cols-2 gap-2.5">
+        {/* Três lado a lado quando cabem; em telas muito estreitas, um por linha, sem cortar texto. */}
+        <div data-modalidades="" className="mt-3 grid grid-cols-1 gap-2.5 @min-[18rem]:grid-cols-3">
           <ChoiceCard
             name={`${uid}-receber`}
             value="entrega"
             dataField="kind"
             checked={customer.kind === 'entrega'}
             onChange={() => updateCustomer({ kind: 'entrega' })}
-            icon={<Scooter className="size-6 text-acai-700" />}
+            icon={<Scooter className="size-7 text-acai-700" />}
             label="Entrega"
-            hint={deliveryHint}
+            hint="Receber em casa"
           />
           <ChoiceCard
             name={`${uid}-receber`}
             value="retirada"
             checked={customer.kind === 'retirada'}
             onChange={() => updateCustomer({ kind: 'retirada' })}
-            icon={<Storefront className="size-6 text-acai-700" />}
-            label="Retirar na loja"
-            hint="Grátis"
+            icon={<Bag className="size-7 text-acai-700" />}
+            label="Retirar"
+            hint="Pegar na loja e levar"
+          />
+          <ChoiceCard
+            name={`${uid}-receber`}
+            value="local"
+            checked={customer.kind === 'local'}
+            onChange={() => updateCustomer({ kind: 'local' })}
+            icon={<IceCreamBowl className="size-7 text-acai-700" />}
+            label="Comer no Local"
+            hint="Consumir na sorveteria"
           />
         </div>
         {customerProblems.kind && (
@@ -357,6 +379,12 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
         {customer.kind === 'entrega' && (
           <m.div key="entrega" {...reveal} className="flex flex-col gap-3 rounded-2xl bg-acai-50 p-4 ring-1 ring-line">
             <p className="font-bold text-acai-950">Endereço de entrega</p>
+            <GpsLocation
+              gps={customer.gps}
+              onCapture={(gps) => updateCustomer({ gps })}
+              onRemove={() => updateCustomer({ gps: null })}
+              onAddress={applyGuess}
+            />
             <Field id={field('street')} label="Rua" problem={customerProblems.street}>
               <input
                 id={field('street')}
@@ -378,7 +406,7 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
                 inputMode="text"
                 autoComplete="address-line2"
                 maxLength={12}
-                placeholder="Ex.: 12 ou s/n"
+                placeholder="Ex.: 12, 12A ou S/N"
                 value={customer.number}
                 onChange={(event) => updateCustomer({ number: event.target.value })}
                 className={`${inputClass} ring-line focus:ring-acai-700`}
@@ -432,10 +460,10 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
             </Field>
           </m.div>
         )}
-        {customer.kind === 'retirada' && (
-          <m.p key="retirada" {...reveal} className="rounded-2xl bg-acai-50 p-4 text-sm leading-relaxed text-acai-950 ring-1 ring-line">
-            Retire no balcão: <strong className="font-bold">{storeAddressText(settings.contact)}</strong>. Grátis (R$ 0,00).
-          </m.p>
+        {(customer.kind === 'retirada' || customer.kind === 'local') && (
+          <m.div key={customer.kind} {...reveal}>
+            <StorePlaceCard kind={customer.kind} contact={settings.contact} />
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -679,7 +707,37 @@ function Field({ id, label, problem, children }: { id: string; label: string; pr
   )
 }
 
-/** Cartão de escolha (entrega/retirada, forma de pagamento): o rádio fica escondido e o cartão marca. */
+/**
+ * Retirar e Comer no Local (pedido de 2026-11-20): o endereço da loja de "Horários e Contato" e o
+ * link do mapa. Comer no Local tem destaque dourado e roxo, além do texto e do ícone próprios.
+ */
+function StorePlaceCard({ kind, contact }: { kind: 'retirada' | 'local'; contact: StoreContact }) {
+  const local = kind === 'local'
+  return (
+    <div data-store-place={kind} className={`rounded-2xl p-4 ring-1 ${local ? 'bg-gold-100 ring-gold-400' : 'bg-acai-50 ring-line'}`}>
+      <p className="font-display text-base leading-snug font-extrabold text-acai-800">
+        {local ? '🍨 Consumo no Local — Vamos deixar tudo pronto!' : '🛍️ Retirada no Balcão — Açaí Doce Sabor'}
+      </p>
+      <p className="mt-1 text-sm leading-relaxed text-acai-950">
+        {local
+          ? 'Assim que você enviar o pedido, já começamos a preparar para você só chegar e aproveitar.'
+          : 'Faça seu pedido e retire diretamente na nossa loja.'}
+      </p>
+      <p className="mt-2 text-sm font-bold text-acai-950">📍 {storePlaceText(contact)}</p>
+      <a
+        data-store-map=""
+        href={mapsUrl(storeAddressText(contact))}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-white px-4 py-2 text-center text-sm leading-tight font-bold text-acai-800 ring-1 ring-acai-800/30 transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+      >
+        🗺️ Ver localização da sorveteria no Google Maps
+      </a>
+    </div>
+  )
+}
+
+/** Cartão de escolha (modalidade, forma de pagamento): o rádio fica escondido e o cartão marca. */
 function ChoiceCard({
   name,
   value,

@@ -191,3 +191,89 @@ describe('função do pedido no servidor (opção A, pedido de 2026-11-17)', () 
     expect([orderCode(1), orderCode(42), orderCode(12345)]).toEqual(['ADS-0001', 'ADS-0042', 'ADS-12345'])
   })
 })
+
+describe('modalidades e GPS gravados (pedido de 2026-11-20)', () => {
+  const ZONES = { kind: 'settings' as const, id: 'loja', data: { delivery: { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] } } }
+  const GPS = { lat: -7.220987, lng: -37.254124 }
+  const ENTREGA: CustomerDraft = { ...MARIA, kind: 'entrega', street: 'Rua das Flores', number: '12A', zoneId: 'centro', reference: '' }
+
+  it('entrega com GPS: coordenadas e link gravados, iguais aos da comanda', async () => {
+    const { deps, orders } = fakeDeps({ rows: [ZONES] })
+    const result = await handleOrder(request({ customer: { ...ENTREGA, gps: GPS }, expectedTotalCents: 800 }), deps)
+    expect(orders[0]).toMatchObject({
+      fulfillment: 'entrega',
+      address: { street: 'Rua das Flores', number: '12A', district: 'Centro', reference: null },
+      delivery_fee: 'taxa',
+      delivery_fee_cents: 300,
+      customer_lat: -7.220987,
+      customer_lng: -37.254124,
+      maps_url: 'https://www.google.com/maps?q=-7.220987,-37.254124',
+      total_cents: 800,
+    })
+    expect(result.ok && result.message.split('\n')).toContain('• *Localização GPS:* https://www.google.com/maps?q=-7.220987,-37.254124')
+  })
+
+  it('entrega sem GPS: os três campos nulos', async () => {
+    const { deps, orders } = fakeDeps({ rows: [ZONES] })
+    await handleOrder(request({ customer: ENTREGA, expectedTotalCents: 800 }), deps)
+    expect(orders[0]).toMatchObject({ fulfillment: 'entrega', customer_lat: null, customer_lng: null, maps_url: null })
+  })
+
+  it('retirar e comer no local: frete zero e sem endereço nem GPS, mesmo com bairro pago e GPS enviados juntos', async () => {
+    for (const kind of ['retirada', 'local'] as const) {
+      const { deps, orders } = fakeDeps({ rows: [ZONES] })
+      const customer = { ...ENTREGA, kind, gps: GPS }
+      // O total que o cliente viu na tela, sem frete: R$ 5,00. Com o frete do bairro (R$ 8,00), recusa.
+      expect(await handleOrder(request({ customer, expectedTotalCents: 800 }), deps)).toEqual({ ok: false, reason: 'total-mudou', totalCents: 500 })
+      const result = await handleOrder(request({ customer, expectedTotalCents: 500 }), deps)
+      expect(result).toMatchObject({ ok: true, totalCents: 500 })
+      expect(orders[0]).toMatchObject({
+        fulfillment: kind,
+        address: null,
+        delivery_fee: kind,
+        delivery_fee_cents: 0,
+        delivery_zone: null,
+        customer_lat: null,
+        customer_lng: null,
+        maps_url: null,
+        total_cents: 500,
+      })
+      const message = result.ok ? result.message : ''
+      expect([message.includes('GPS'), message.includes('Rua das Flores')]).toEqual([false, false])
+    }
+  })
+
+  it('retirar e comer no local ficam distintos na linha e na comanda', async () => {
+    const { deps, orders } = fakeDeps()
+    const pickup = await handleOrder(request({ customer: { ...MARIA, kind: 'retirada' } }), deps)
+    const dineIn = await handleOrder(request({ customer: { ...MARIA, kind: 'local' } }), deps)
+    expect(orders.map((order) => order.fulfillment)).toEqual(['retirada', 'local'])
+    expect(pickup.ok && pickup.message.split('\n')).toContain('• *Modalidade:* 🛍️ Retirar no Local (Levar para casa)')
+    expect(dineIn.ok && dineIn.message.split('\n')).toContain('• *Modalidade:* 🍨 COMER NO LOCAL (Deixar pronto para chegada)')
+  })
+
+  it('GPS inválido ou incompleto enviado por fora: grava sem GPS, nunca pela metade', async () => {
+    for (const gps of [{ lat: 200, lng: -37.2 }, { lat: -7.2 }, { lat: '-7.2', lng: '-37.2' }]) {
+      const { deps, orders } = fakeDeps({ rows: [ZONES] })
+      await handleOrder(request({ customer: { ...ENTREGA, gps }, expectedTotalCents: 800 }), deps)
+      expect(orders[0]).toMatchObject({ customer_lat: null, customer_lng: null, maps_url: null })
+    }
+  })
+
+  it('o mesmo pedido com outro GPS é outra tentativa (o ponto faz parte do pedido)', async () => {
+    const { deps } = fakeDeps({ rows: [ZONES] })
+    const first = await handleOrder(request({ customer: { ...ENTREGA, gps: GPS }, expectedTotalCents: 800 }), deps)
+    const moved = await handleOrder(request({ customer: { ...ENTREGA, gps: { lat: -7.221, lng: -37.254 } }, expectedTotalCents: 800 }), deps)
+    expect([first.ok && first.code, moved.ok && moved.code]).toEqual(['ADS-0001', 'ADS-0002'])
+  })
+
+  it('modalidade estranha: pede para escolher', async () => {
+    const { deps } = fakeDeps()
+    expect(await handleOrder(request({ customer: { ...MARIA, kind: 'mesa' } }), deps)).toEqual({
+      ok: false,
+      reason: 'dados-invalidos',
+      detail: 'Escolha entrega, retirada ou comer no local.',
+    })
+  })
+})
+

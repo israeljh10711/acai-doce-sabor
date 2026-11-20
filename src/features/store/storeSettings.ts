@@ -163,3 +163,8 @@ export function mapsUrl(address: string): string {
 export function storeAddressText(contact: StoreContact): string {
   return `${contact.street}, ${contact.city}, ${contact.uf}`
 }
+
+/** "Rua Francisco Tota, 12 — Teixeira, PB": o local na retirada e no consumo no local (2026-11-20). */
+export function storePlaceText(contact: StoreContact): string {
+  return `${contact.street} — ${contact.city}, ${contact.uf}`
+}

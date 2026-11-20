@@ -2081,6 +2081,10 @@ function resolveStoreSettings(change) {
 		}
 	};
 }
+/** "Rua Francisco Tota, 12 — Teixeira, PB": o local na retirada e no consumo no local (2026-11-20). */
+function storePlaceText(contact) {
+	return `${contact.street} — ${contact.city}, ${contact.uf}`;
+}
 // src/features/catalog/catalogChanges.ts
 /**
 * Mudanças do vendedor sobre o cardápio (modo vendedor, pedido de 2026-11-16).
@@ -2635,6 +2639,47 @@ function getStoreSettings() {
 	};
 	return settingsCache.value;
 }
+// src/features/checkout/gps.ts
+var round6 = (value) => Math.round(value * 1e6) / 1e6;
+/**
+* Confere o ponto vindo do aparelho ou do pedido: números finitos, dentro do mapa, e não o
+* (0, 0) que alguns aparelhos devolvem quando falham. Fora disso, `null`.
+*/
+function parseGpsPoint(raw) {
+	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+	const { lat, lng } = raw;
+	if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+	if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+	const point = {
+		lat: round6(lat),
+		lng: round6(lng)
+	};
+	if (point.lat === 0 && point.lng === 0) return null;
+	return {
+		lat: point.lat + 0,
+		lng: point.lng + 0
+	};
+}
+/** O ponto no Google Maps: `https://www.google.com/maps?q=LAT,LNG`. */
+function gpsMapsUrl({ lat, lng }) {
+	return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+// src/features/checkout/delivery.ts
+/**
+* Dados do cliente e frete no carrinho (pedido de 2026-11-17): nome, telefone (opcional),
+* a modalidade e o endereço. O frete segue o que o vendedor configurou em "Entrega / Frete":
+* grátis, por bairro (lista com o valor de cada um) ou a combinar no WhatsApp.
+*
+* Três modalidades (pedido de 2026-11-20): entrega (com GPS opcional), retirar na loja para levar
+* e comer no local. Retirar e comer no local são sempre grátis e não pedem endereço.
+* Regras puras, usadas pelo carrinho e pela função `pedido` do servidor, testadas sem tela.
+*/
+var DELIVERY_TYPES = [
+	"entrega",
+	"retirada",
+	"local"
+];
+var isDeliveryType = (value) => DELIVERY_TYPES.includes(value);
 var EMPTY_CUSTOMER = {
 	name: "",
 	phone: "",
@@ -2643,7 +2688,8 @@ var EMPTY_CUSTOMER = {
 	number: "",
 	district: "",
 	zoneId: null,
-	reference: ""
+	reference: "",
+	gps: null
 };
 /**
 * Dados guardados na aba (`sessionStorage`), conferidos: quem volta ao cardápio para pegar mais
@@ -2656,21 +2702,26 @@ function parseCustomerDraft(raw) {
 	return {
 		name: text("name"),
 		phone: text("phone"),
-		kind: data.kind === "entrega" || data.kind === "retirada" ? data.kind : null,
+		kind: isDeliveryType(data.kind) ? data.kind : null,
 		street: text("street"),
 		number: text("number"),
 		district: text("district"),
 		zoneId: typeof data.zoneId === "string" ? data.zoneId.slice(0, 40) : null,
-		reference: text("reference")
+		reference: text("reference"),
+		gps: parseGpsPoint(data.gps)
 	};
 }
 /** O carrinho mostra a lista de bairros (com o valor de cada um) só no modo de taxas com bairros. */
 function zoneList(delivery) {
 	return delivery.mode === "taxas" ? delivery.zones : [];
 }
-/** Frete do pedido. `null` enquanto não dá para saber: falta escolher entrega/retirada ou o bairro. */
+/**
+* Frete do pedido. `null` enquanto não dá para saber: falta escolher a modalidade ou o bairro.
+* Retirar e comer no local nunca têm frete, seja qual for o bairro guardado da entrega.
+*/
 function feeFor(draft, delivery) {
 	if (draft.kind === "retirada") return { kind: "retirada" };
+	if (draft.kind === "local") return { kind: "local" };
 	if (draft.kind !== "entrega") return null;
 	if (delivery.mode === "gratis") return { kind: "gratis" };
 	const zones = zoneList(delivery);
@@ -2694,8 +2745,8 @@ function checkCustomer(draft, delivery) {
 	if (!name) problems.name = "Escreva seu nome.";
 	const phone = clean(draft.phone) ? formatBrazilPhone(draft.phone) : null;
 	if (clean(draft.phone) && !phone) problems.phone = "Telefone com DDD, por exemplo (83) 99999-0000.";
-	if (!draft.kind) problems.kind = "Escolha entrega ou retirada na loja.";
-	let fulfillment = { kind: "retirada" };
+	if (!draft.kind) problems.kind = "Escolha entrega, retirada ou comer no local.";
+	let fulfillment = draft.kind === "local" ? { kind: "local" } : { kind: "retirada" };
 	if (draft.kind === "entrega") {
 		const street = clean(draft.street);
 		const number = clean(draft.number);
@@ -2715,7 +2766,8 @@ function checkCustomer(draft, delivery) {
 			street,
 			number,
 			district,
-			reference: clean(draft.reference) || null
+			reference: clean(draft.reference) || null,
+			gps: parseGpsPoint(draft.gps)
 		};
 	}
 	const fee = feeFor(draft, delivery);
@@ -2826,7 +2878,8 @@ function paymentProblemText(problem, totalCents) {
 /**
 * Comanda do pedido que vai para o WhatsApp da loja, no modelo aprovado em 2026-11-17: dividida em
 * blocos, com emojis para cada informação, fácil de ler na hora do pico.
-* - cliente: nome, telefone (se escrito), entrega ou retirada e o endereço (só na entrega);
+* - cliente: nome, telefone (se escrito), a modalidade (pedido de 2026-11-20: entrega, retirar ou
+*   comer no local), o endereço e o link do GPS (só na entrega) ou o local da loja;
 * - itens numerados (1️⃣, 2️⃣...), com a montagem do Completo, o que o cliente tirou, os pagos com
 *   o valor, os acompanhamentos por grupo e a observação do item;
 * - resumo com subtotal, frete e total; forma de pagamento com troco.
@@ -2892,9 +2945,32 @@ function itemLines(item, number) {
 	if (item.note) lines.push(`${ITEM_INDENT}📝 *Observação:* ${item.note}`);
 	return lines;
 }
+/** A modalidade como a loja lê na comanda (textos do pedido de 2026-11-20). */
+var MODALITY = {
+	entrega: "🛵 Entrega em Domicílio",
+	retirada: "🛍️ Retirar no Local (Levar para casa)",
+	local: "🍨 COMER NO LOCAL (Deixar pronto para chegada)"
+};
+/**
+* Modalidade e onde: na entrega, o endereço e o GPS (só quando anexado); em retirar e comer no
+* local, o endereço da loja de "Horários e Contato", nunca o endereço ou o GPS do cliente.
+*/
+function fulfillmentLines(fulfillment) {
+	const lines = [`• *Modalidade:* ${MODALITY[fulfillment.kind]}`];
+	if (fulfillment.kind === "entrega") {
+		const reference = fulfillment.reference ? ` — Ref.: ${fulfillment.reference}` : "";
+		lines.push(`• *Endereço:* ${fulfillment.street}, ${fulfillment.number}, ${fulfillment.district}${reference}`);
+		if (fulfillment.gps) lines.push(`• *Localização GPS:* ${gpsMapsUrl(fulfillment.gps)}`);
+		return lines;
+	}
+	const place = storePlaceText(getStoreSettings().contact);
+	lines.push(fulfillment.kind === "retirada" ? `• *Local de retirada:* ${place}` : `• *Local:* ${place}`);
+	return lines;
+}
 function feeLine(fee) {
 	switch (fee.kind) {
-		case "retirada": return "🏪 *Retirada na loja:* Grátis (R$ 0,00)";
+		case "retirada": return "🛍️ *Retirada na loja:* Grátis (R$ 0,00)";
+		case "local": return "🍨 *Consumo no local:* Grátis (R$ 0,00)";
 		case "gratis": return "🛵 *Frete / Entrega:* Grátis (R$ 0,00)";
 		case "combinar": return "🛵 *Frete / Entrega:* A combinar";
 		case "taxa": return `🛵 *Frete / Entrega (${fee.zoneName}):* ${fee.cents > 0 ? formatBRL(fee.cents) : "Grátis (R$ 0,00)"}`;
@@ -2929,11 +3005,7 @@ function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code, 
 	if (naoRegistrado) lines.push("⚠️ *Pedido não registrado no sistema*");
 	lines.push("", "👤 *DADOS DO CLIENTE*", `• *Nome:* ${customer.name}`);
 	if (customer.phone) lines.push(`• *Telefone:* ${customer.phone}`);
-	lines.push(`• *Tipo de Pedido:* ${delivery ? "🛵 Entrega em Domicílio" : "🏪 Retirada na Loja"}`);
-	if (fulfillment.kind === "entrega") {
-		const reference = fulfillment.reference ? ` — Ref.: ${fulfillment.reference}` : "";
-		lines.push(`• *Endereço:* ${fulfillment.street}, ${fulfillment.number}, ${fulfillment.district}${reference}`);
-	}
+	lines.push(...fulfillmentLines(fulfillment));
 	lines.push("", LINE, "🍨 *ITENS DO PEDIDO*", "");
 	cart.items.forEach((item, index) => lines.push(...itemLines(item, index + 1), ""));
 	lines.push(LINE, "🧾 *RESUMO FINANCEIRO*", `🛍️ *Subtotal dos itens:* ${formatBRL(subtotalCents)}`, feeLine(customer.fee), `💰 *TOTAL A PAGAR:* ${amount}`, "", LINE, "💳 *FORMA DE PAGAMENTO*", ...paymentLines(payment, amount, totalCents, feeKnown, delivery), "", `💜 _Obrigado pela preferência! ${storeInfo.name}_`);
@@ -3187,6 +3259,7 @@ function prepare(input, now) {
 	const { payment } = paymentCheck;
 	const antecipado = !status.open;
 	const { fulfillment, fee } = customer;
+	const gps = fulfillment.kind === "entrega" ? fulfillment.gps : null;
 	return {
 		ok: true,
 		row: {
@@ -3211,6 +3284,9 @@ function prepare(input, now) {
 			delivery_fee: fee.kind,
 			delivery_fee_cents: feeCents(fee),
 			delivery_zone: fee.kind === "taxa" ? fee.zoneName : null,
+			customer_lat: gps ? gps.lat : null,
+			customer_lng: gps ? gps.lng : null,
+			maps_url: gps ? gpsMapsUrl(gps) : null,
 			payment_method: payment.method,
 			change_for_cents: payment.method === "dinheiro" ? payment.changeForCents : null,
 			subtotal_cents: subtotalCents,

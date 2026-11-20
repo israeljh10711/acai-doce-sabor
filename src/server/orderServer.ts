@@ -14,7 +14,8 @@
  */
 import { type Cart, type CartItem, cartItemProblem, cartTotalCents, describeExtra, lineTotalCents, parseCart, serializeCart, summarizeSelection, unitPriceCents } from '../features/cart/cart.ts'
 import { getStoreSettings, setCatalogChanges } from '../features/catalog/catalogState.ts'
-import { type CustomerDraft, checkCustomer, feeCents, parseCustomerDraft } from '../features/checkout/delivery.ts'
+import { type CustomerDraft, type DeliveryFee, type DeliveryType, checkCustomer, feeCents, parseCustomerDraft } from '../features/checkout/delivery.ts'
+import { gpsMapsUrl } from '../features/checkout/gps.ts'
 import { EMPTY_PAYMENT, PAYMENT_METHODS, type PaymentDraft, type PaymentMethod, checkPayment, paymentProblemText } from '../features/checkout/payment.ts'
 import { buildOrderMessage } from '../features/orders/orderMessage.ts'
 import { effectiveStatus } from '../features/store-hours/hours.ts'
@@ -40,11 +41,16 @@ export type OrderRow = {
   whatsapp: string
   customer_name: string
   customer_phone: string | null
-  fulfillment: 'entrega' | 'retirada'
+  /** A modalidade (pedido de 2026-11-20): entrega, retirada (levar) ou local (comer na loja). */
+  fulfillment: DeliveryType
   address: { street: string; number: string; district: string; reference: string | null } | null
-  delivery_fee: 'retirada' | 'gratis' | 'taxa' | 'combinar'
+  delivery_fee: DeliveryFee['kind']
   delivery_fee_cents: number
   delivery_zone: string | null
+  /** GPS anexado pelo cliente: só na entrega, os três juntos ou nenhum. */
+  customer_lat: number | null
+  customer_lng: number | null
+  maps_url: string | null
   payment_method: PaymentMethod
   change_for_cents: number | null
   subtotal_cents: number
@@ -173,6 +179,8 @@ function prepare(input: OrderInput, now: number): Prepared | Rejection {
   const { payment } = paymentCheck
   const antecipado = !status.open
   const { fulfillment, fee } = customer
+  // O GPS só existe na entrega (checkCustomer descarta nas outras), conferido e com o mesmo link da comanda.
+  const gps = fulfillment.kind === 'entrega' ? fulfillment.gps : null
   return {
     ok: true,
     row: {
@@ -188,6 +196,9 @@ function prepare(input: OrderInput, now: number): Prepared | Rejection {
       delivery_fee: fee.kind,
       delivery_fee_cents: feeCents(fee),
       delivery_zone: fee.kind === 'taxa' ? fee.zoneName : null,
+      customer_lat: gps ? gps.lat : null,
+      customer_lng: gps ? gps.lng : null,
+      maps_url: gps ? gpsMapsUrl(gps) : null,
       payment_method: payment.method,
       change_for_cents: payment.method === 'dinheiro' ? payment.changeForCents : null,
       subtotal_cents: subtotalCents,

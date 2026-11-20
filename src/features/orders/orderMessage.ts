@@ -1,7 +1,8 @@
 /**
  * Comanda do pedido que vai para o WhatsApp da loja, no modelo aprovado em 2026-11-17: dividida em
  * blocos, com emojis para cada informação, fácil de ler na hora do pico.
- * - cliente: nome, telefone (se escrito), entrega ou retirada e o endereço (só na entrega);
+ * - cliente: nome, telefone (se escrito), a modalidade (pedido de 2026-11-20: entrega, retirar ou
+ *   comer no local), o endereço e o link do GPS (só na entrega) ou o local da loja;
  * - itens numerados (1️⃣, 2️⃣...), com a montagem do Completo, o que o cliente tirou, os pagos com
  *   o valor, os acompanhamentos por grupo e a observação do item;
  * - resumo com subtotal, frete e total; forma de pagamento com troco.
@@ -10,10 +11,13 @@
 import { storeInfo } from '../../services/storeInfo.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { type Cart, type CartItem, cartTotalCents, describeExtra, lineTotalCents, summarizeSelection } from '../cart/cart.ts'
+import { getStoreSettings } from '../catalog/catalogState.ts'
 import { PRODUCTS } from '../catalog/menu.ts'
 import { completeOmitted } from '../catalog/selection.ts'
-import { type Customer, type DeliveryFee, feeCents } from '../checkout/delivery.ts'
+import { type Customer, type DeliveryFee, type DeliveryType, type Fulfillment, feeCents } from '../checkout/delivery.ts'
+import { gpsMapsUrl } from '../checkout/gps.ts'
 import type { Payment } from '../checkout/payment.ts'
+import { storePlaceText } from '../store/storeSettings.ts'
 
 export type OrderDraft = {
   cart: Cart
@@ -108,10 +112,36 @@ function itemLines(item: CartItem, number: number): string[] {
   return lines
 }
 
+/** A modalidade como a loja lê na comanda (textos do pedido de 2026-11-20). */
+const MODALITY: Record<DeliveryType, string> = {
+  entrega: '🛵 Entrega em Domicílio',
+  retirada: '🛍️ Retirar no Local (Levar para casa)',
+  local: '🍨 COMER NO LOCAL (Deixar pronto para chegada)',
+}
+
+/**
+ * Modalidade e onde: na entrega, o endereço e o GPS (só quando anexado); em retirar e comer no
+ * local, o endereço da loja de "Horários e Contato", nunca o endereço ou o GPS do cliente.
+ */
+function fulfillmentLines(fulfillment: Fulfillment): string[] {
+  const lines = [`• *Modalidade:* ${MODALITY[fulfillment.kind]}`]
+  if (fulfillment.kind === 'entrega') {
+    const reference = fulfillment.reference ? ` — Ref.: ${fulfillment.reference}` : ''
+    lines.push(`• *Endereço:* ${fulfillment.street}, ${fulfillment.number}, ${fulfillment.district}${reference}`)
+    if (fulfillment.gps) lines.push(`• *Localização GPS:* ${gpsMapsUrl(fulfillment.gps)}`)
+    return lines
+  }
+  const place = storePlaceText(getStoreSettings().contact)
+  lines.push(fulfillment.kind === 'retirada' ? `• *Local de retirada:* ${place}` : `• *Local:* ${place}`)
+  return lines
+}
+
 function feeLine(fee: DeliveryFee): string {
   switch (fee.kind) {
     case 'retirada':
-      return '🏪 *Retirada na loja:* Grátis (R$ 0,00)'
+      return '🛍️ *Retirada na loja:* Grátis (R$ 0,00)'
+    case 'local':
+      return '🍨 *Consumo no local:* Grátis (R$ 0,00)'
     case 'gratis':
       return '🛵 *Frete / Entrega:* Grátis (R$ 0,00)'
     case 'combinar':
@@ -158,11 +188,7 @@ export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado,
 
   lines.push('', '👤 *DADOS DO CLIENTE*', `• *Nome:* ${customer.name}`)
   if (customer.phone) lines.push(`• *Telefone:* ${customer.phone}`)
-  lines.push(`• *Tipo de Pedido:* ${delivery ? '🛵 Entrega em Domicílio' : '🏪 Retirada na Loja'}`)
-  if (fulfillment.kind === 'entrega') {
-    const reference = fulfillment.reference ? ` — Ref.: ${fulfillment.reference}` : ''
-    lines.push(`• *Endereço:* ${fulfillment.street}, ${fulfillment.number}, ${fulfillment.district}${reference}`)
-  }
+  lines.push(...fulfillmentLines(fulfillment))
 
   lines.push('', LINE, '🍨 *ITENS DO PEDIDO*', '')
   cart.items.forEach((item, index) => lines.push(...itemLines(item, index + 1), ''))

@@ -25,6 +25,18 @@ Se você já rodou este arquivo antes de 2026-11-17, rode de novo: ele passou a 
 
 3. Em **New query** de novo, copie todo o arquivo `supabase/migrations/20261117120000_pedidos.sql`, cole e clique em **Run**. Ele cria a tabela dos pedidos (`orders`) e a numeração dos códigos. Tem de ser depois do primeiro arquivo.
 4. Em **New query** mais uma vez, copie todo o arquivo `supabase/migrations/20261120000000_permissoes.sql`, cole e clique em **Run**. Ele libera as tabelas para o site e para a função. Sem ele, projetos novos do Supabase respondem "permission denied for table catalog_changes". Tem de ser depois dos dois primeiros.
+5. Em **New query**, copie todo o arquivo `supabase/migrations/20261120120000_modalidades_gps.sql`, cole e clique em **Run**. Ele acrescenta "Comer no Local" e o GPS da entrega aos pedidos (veja "Modalidades e GPS nos pedidos", abaixo). Tem de ser depois dos três primeiros e **antes** de colar a função nova (passo 6).
+
+### Já tinha tudo funcionando antes de 2026-11-20?
+
+Para ligar as três modalidades e o GPS, siga esta ordem:
+1. rode o `20261120120000_modalidades_gps.sql` (passo 2.5);
+2. rode `npm run build:pedido` e cole de novo o arquivo `supabase/functions/pedido/index.ts` na função `pedido` (como em "Quando o cardápio do código mudar", no passo 6);
+3. publique o site novo.
+
+Fora dessa ordem:
+- **Site novo com a função antiga:** os pedidos "Comer no Local" são recusados ("Confira seus dados").
+- **Função nova sem o SQL:** o registro falha. O cliente vê "Enviar mesmo assim pelo WhatsApp" e a venda não se perde, mas fica sem código.
 
 ## 3. Criar a conta do vendedor
 
@@ -67,7 +79,7 @@ A função `pedido` confere os preços e as regras no servidor, grava o pedido e
 
 1. No menu da esquerda, abra **Edge Functions** e clique em **Deploy a new function** > **Via Editor**.
 2. Dê o nome **`pedido`** (exatamente assim, em minúsculas).
-3. Apague todo o código de exemplo do editor. Copie todo o arquivo `supabase/functions/pedido/index.ts` deste projeto (são umas 3.400 linhas) e cole no lugar.
+3. Apague todo o código de exemplo do editor. Copie todo o arquivo `supabase/functions/pedido/index.ts` deste projeto (são umas 3.500 linhas) e cole no lugar.
 4. Clique em **Deploy function** e espere a mensagem de sucesso.
 5. Na página da função, abra **Details** (ou **Settings**) e **desligue** a verificação de JWT (**Verify JWT** / **Enforce JWT verification**). Depois salve. Sem isso, a função recusa os pedidos que chegam com a chave publishable.
 
@@ -80,6 +92,42 @@ A função usa a chave de servidor que o próprio Supabase guarda no ambiente de
 
 O que o vendedor muda pelo modo vendedor não precisa disso: a função lê o banco a cada pedido.
 
+## Modalidades e GPS nos pedidos (2026-11-20)
+
+O cliente escolhe uma das três modalidades. A modalidade fica na coluna `fulfillment` da tabela `orders`, a mesma desde 2026-11-17:
+
+| No site | `fulfillment` | `delivery_fee` | Frete | Endereço (`address`) | GPS |
+|---|---|---|---|---|---|
+| 🛵 Entrega | `entrega` | `gratis`, `taxa` ou `combinar` | o do vendedor | obrigatório | opcional |
+| 🛍️ Retirar (buscar e levar) | `retirada` | `retirada` | sempre R$ 0,00 | vazio | nunca |
+| 🍨 Comer no Local | `local` | `local` | sempre R$ 0,00 | vazio | nunca |
+
+No código, o tipo é `DeliveryType = 'entrega' | 'retirada' | 'local'`, em `src/features/checkout/delivery.ts`. Corresponde a delivery, pickup e dine_in.
+
+**Colunas do GPS** (todas opcionais):
+- `customer_lat` e `customer_lng` (double precision): o ponto que o cliente anexou, com 6 casas decimais (cerca de 11 cm).
+- `maps_url` (text): `https://www.google.com/maps?q=LAT,LNG`, montado com essas mesmas coordenadas. É o mesmo link da comanda.
+
+**Regras que o próprio banco confere:**
+- as três colunas do GPS vêm juntas ou ficam todas vazias, nunca latitude sem longitude;
+- o GPS só pode existir na entrega, com as coordenadas dentro do mapa;
+- `retirada` e `local` têm sempre frete zero e nenhum endereço.
+
+A função `pedido` confere tudo isso de novo antes de gravar:
+- descarta o GPS fora da entrega;
+- descarta coordenadas inválidas;
+- calcula o frete pela modalidade, sem aceitar o valor que vem do navegador.
+
+**Pedidos antigos** (antes de 2026-11-20) continuam como estavam:
+- `entrega` ou `retirada`;
+- as três colunas novas vazias.
+
+O SQL não muda nem apaga nenhum pedido.
+
+**Quem vê o GPS:** só o vendedor logado (a mesma regra de leitura da tabela) e a função. Os visitantes não leem a tabela `orders`. O site só pede a localização quando o cliente toca em "📍 Usar minha localização atual", e o ponto nunca fica guardado no navegador. Depois do toque, o site faz uma consulta ao Nominatim (OpenStreetMap) com o ponto, para sugerir rua e bairro.
+
+**Tipos gerados:** o projeto não usa tipos gerados pelo Supabase. Os tipos da linha ficam em `OrderRow`, em `src/server/orderServer.ts`.
+
 ## 7. Conferir
 
 1. Abra o cardápio, clique em **Senha para vendedor** e entre com a senha do passo 3.3.
@@ -87,7 +135,9 @@ O que o vendedor muda pelo modo vendedor não precisa disso: a função lê o ba
 3. Mude o preço de um item e abra o site em outro aparelho: o preço novo aparece. Em quem já está com a página aberta, aparece em até 1 minuto ou ao voltar para a aba.
 4. Toque em **Loja Aberta** para fechar a loja: no outro aparelho, o topo passa a mostrar "Loja fechada no momento". Toque de novo para abrir.
 5. Faça um pedido de teste no site. No carrinho deve aparecer "Pedido ADS-0001 registrado", e o WhatsApp abre com a linha "🔖 Pedido: ADS-0001".
-6. Os pedidos ficam em **Table Editor > orders**, com o nome, o endereço, os itens, o total, a comanda e a situação ("novo").
+6. Os pedidos ficam em **Table Editor > orders**, com o nome, a modalidade (`fulfillment`), o endereço, o GPS (quando anexado), os itens, o total, a comanda e a situação ("novo").
+   Para conferir as modalidades, faça um pedido "Comer no Local" e veja `local` na coluna `fulfillment`. Depois, faça uma entrega tocando em "📍 Usar minha localização atual" e veja `customer_lat`, `customer_lng` e `maps_url` preenchidos.
+   O GPS só funciona com o site em **https** (ou em `localhost` no computador). Pelo endereço da rede (`http://10.0.0.x:5173`), o navegador do celular bloqueia a localização, e o site mostra a mensagem para preencher o endereço à mão.
 7. Para apagar o pedido de teste, marque a linha em **Table Editor > orders** e apague. O próximo código continua a numeração (ADS-0002).
 
 ## Se algo der errado
@@ -100,5 +150,6 @@ O que o vendedor muda pelo modo vendedor não precisa disso: a função lê o ba
   - confira se o arquivo `20261117120000_pedidos.sql` foi rodado (passo 2.3).
 
   Enquanto isso, o cliente pode tocar em **Enviar mesmo assim pelo WhatsApp**: o pedido chega pelo WhatsApp marcado "Pedido não registrado no sistema", e a venda não se perde.
+- **"Comer no Local" recusado com "Confira seus dados", ou "Não foi possível registrar" só depois de 2026-11-20:** falta um passo de "Já tinha tudo funcionando antes de 2026-11-20?" (passo 2): o SQL das modalidades ou a função nova.
 - **No carrinho aparece sempre "Os preços mudaram":** a função colada está com um cardápio mais antigo que o site. Faça os passos de "Quando o cardápio do código mudar" (passo 6).
 - **Mudanças feitas antes do Supabase, guardadas no aparelho:** no modo vendedor desse aparelho, use **Backup / Restaurar > Baixar backup**. Depois de ligar o Supabase, use **Restaurar backup** com o mesmo arquivo. As fotos também sobem.

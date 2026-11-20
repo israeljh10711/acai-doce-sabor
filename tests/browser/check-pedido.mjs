@@ -7,6 +7,8 @@
 // - servidor fora do ar: "Tentar de novo" e "Enviar mesmo assim pelo WhatsApp" (comanda marcada como
 //   não registrada), e a aba em branco fecha;
 // - esgotado e loja fechada no banco: o motivo, e o carrinho mostra o que mudou;
+// - Comer no Local e entrega com GPS (pedido de 2026-11-20): a modalidade, o frete, as coordenadas e
+//   o link do mapa gravados pela função, iguais aos da comanda;
 // - celular: sem rolagem lateral.
 //
 // Uso: node tests/browser/check-pedido.mjs
@@ -45,8 +47,22 @@ const helpers = `
   window.__q = (selector) => document.querySelector(selector);
   window.__button = (text) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(text));
   window.__set = (el, text) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, text);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
+    const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, text);
+    el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+    return true;
+  };
+  // GPS e Nominatim de mentira (pedido de 2026-11-20): nunca o GPS do computador nem a internet.
+  window.__fakeGps = () => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (success) => setTimeout(() => success({ coords: { latitude: -7.2209871234, longitude: -37.2541239876 }, timestamp: Date.now() }), 50) },
+    });
+    const realFetch = window.fetch;
+    window.fetch = (input, init) =>
+      String(input).startsWith('https://nominatim.openstreetmap.org/')
+        ? Promise.resolve(new Response(JSON.stringify({ address: { road: 'Rua Francisco Tota', suburb: 'Centro' } }), { status: 200 }))
+        : realFetch(input, init);
     return true;
   };
   // Abas de mentira: a aba em branco aberta no toque e o endereço que ela recebe depois.
@@ -189,6 +205,52 @@ try {
   await openCart(desktop)
   // O site leu "fechada" ao abrir: o botão já vem bloqueado, e nada vai para o servidor.
   check('loja fechada com bloqueio: botão desligado no site', await run(`__button('Loja fechada')?.disabled`), true)
+  fake.db.changes.splice(0, fake.db.changes.length, OPEN_NOW)
+
+  // --- Comer no Local e entrega com GPS gravados pela função (pedido de 2026-11-20) ---
+  const zones = { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] }
+  fake.db.changes.splice(0, fake.db.changes.length, { ...OPEN_NOW, data: { ...OPEN_NOW.data, delivery: zones } })
+  await openCart(desktop)
+  await name('Cliente Local')
+  await click(`__q('input[type="radio"][value="local"]')`)
+  await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`)
+  await send()
+  await waitFor(`__q('[data-order-registered]')`)
+  const local = fake.db.orders.at(-1)
+  check(
+    'comer no local gravado: modalidade "local", frete zero, sem endereço nem GPS',
+    [local.customer_name, local.fulfillment, local.delivery_fee, local.delivery_fee_cents, local.address, local.customer_lat, local.customer_lng, local.maps_url, local.total_cents],
+    ['Cliente Local', 'local', 'local', 0, null, null, null, null, 300],
+  )
+  const localText = ((await run(`__lastText()`)) ?? '').split('\n')
+  check(
+    'comanda do servidor: comer no local, com o código',
+    [localText[1], localText.includes('• *Modalidade:* 🍨 COMER NO LOCAL (Deixar pronto para chegada)'), localText.includes('🍨 *Consumo no local:* Grátis (R$ 0,00)')],
+    [`🔖 *Pedido:* ${local.code}`, true, true],
+  )
+
+  await openCart(desktop)
+  await run(`__fakeGps()`)
+  await name('Cliente GPS')
+  await click(`__q('input[type="radio"][value="entrega"]')`)
+  await run(`__set(__q('[data-field="number"]'), '12')`)
+  await run(`__set(__q('[data-field="zone"]'), 'centro')`)
+  await click(`__q('[data-gps-capture]')`, 600)
+  await waitFor(`__q('[data-gps="anexado"]') && __q('[data-field="street"]').value`)
+  await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`)
+  await send()
+  await waitFor(`__q('[data-order-registered]')`)
+  const delivered = fake.db.orders.at(-1)
+  check(
+    'entrega com GPS gravada: coordenadas, link, frete do bairro e a rua sugerida pelo GPS',
+    [delivered.customer_name, delivered.fulfillment, delivered.delivery_fee, delivered.delivery_fee_cents, delivered.address, delivered.customer_lat, delivered.customer_lng, delivered.maps_url, delivered.total_cents],
+    ['Cliente GPS', 'entrega', 'taxa', 300, { street: 'Rua Francisco Tota', number: '12', district: 'Centro', reference: null }, -7.220987, -37.254124, 'https://www.google.com/maps?q=-7.220987,-37.254124', 600],
+  )
+  check(
+    'a comanda do servidor leva o mesmo link do GPS gravado',
+    ((await run(`__lastText()`)) ?? '').split('\n').includes(`• *Localização GPS:* ${delivered.maps_url}`),
+    true,
+  )
   fake.db.changes.splice(0, fake.db.changes.length, OPEN_NOW)
 
   // --- Celular ---

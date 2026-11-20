@@ -19,7 +19,7 @@ const SENT_AT = Date.parse('2026-11-17T15:42:10-03:00')
 const MARIA: Customer = {
   name: 'Maria',
   phone: '(83) 99999-0000',
-  fulfillment: { kind: 'entrega', street: 'Rua das Flores', number: '12', district: 'Centro', reference: 'perto da praça' },
+  fulfillment: { kind: 'entrega', street: 'Rua das Flores', number: '12', district: 'Centro', reference: 'perto da praça', gps: null },
   fee: { kind: 'taxa', cents: 300, zoneName: 'Centro' },
 }
 const JOAO: Customer = { name: 'João', phone: null, fulfillment: { kind: 'retirada' }, fee: { kind: 'retirada' } }
@@ -58,7 +58,7 @@ describe('comanda do WhatsApp (pedido de 2026-11-17)', () => {
       '👤 *DADOS DO CLIENTE*',
       '• *Nome:* Maria',
       '• *Telefone:* (83) 99999-0000',
-      '• *Tipo de Pedido:* 🛵 Entrega em Domicílio',
+      '• *Modalidade:* 🛵 Entrega em Domicílio',
       '• *Endereço:* Rua das Flores, 12, Centro — Ref.: perto da praça',
       '',
       LINE,
@@ -100,9 +100,9 @@ describe('comanda do WhatsApp (pedido de 2026-11-17)', () => {
 
   it('retirada na loja: sem endereço, frete grátis; Pix com o comprovante; sem telefone quando não foi escrito', () => {
     const message = pay({ method: 'pix' }, JOAO)
-    expect(message).toContain('• *Tipo de Pedido:* 🏪 Retirada na Loja')
+    expect(message).toContain('• *Modalidade:* 🛍️ Retirar no Local (Levar para casa)')
     expect(message.some((line) => line.startsWith('• *Endereço:*') || line.startsWith('• *Telefone:*'))).toBe(false)
-    expect(message).toContain('🏪 *Retirada na loja:* Grátis (R$ 0,00)')
+    expect(message).toContain('🛍️ *Retirada na loja:* Grátis (R$ 0,00)')
     expect(message).toContain('💰 *TOTAL A PAGAR:* *R$ 31,00*')
     expect(message.slice(-4)).toEqual([
       '• *Método escolhido:* 💠 *Pix* — *R$ 31,00*',
@@ -201,4 +201,83 @@ describe('envio do pedido', () => {
     expect(new URL(orderWhatsAppUrl(order())).pathname).toBe('/5583988887777')
   })
 
+  it('o link do WhatsApp leva emojis, acentos, quebras de linha e o link do GPS intactos, codificados uma vez só', () => {
+    const draft = order({ customer: { ...MARIA, fulfillment: { ...ENTREGA_GPS } } })
+    const url = orderWhatsAppUrl(draft)
+    const text = new URL(url).searchParams.get('text')
+    expect(text).toBe(buildOrderMessage(draft))
+    expect(text).toContain('• *Localização GPS:* https://www.google.com/maps?q=-7.220987,-37.254124')
+    expect(text?.split(NEWLINE).length).toBeGreaterThan(20)
+    // Nada codificado duas vezes (%25), e o texto cru não aparece no link.
+    expect(url.includes('%25')).toBe(false)
+    expect(url.includes('🛵')).toBe(false)
+    expect(decodeURIComponent(url.split('?text=')[1])).toBe(buildOrderMessage(draft))
+  })
+})
+
+const GPS = { lat: -7.220987, lng: -37.254124 }
+const ENTREGA_GPS = { kind: 'entrega' as const, street: 'Rua das Flores', number: '12A', district: 'Centro', reference: 'portão azul', gps: GPS }
+const ANA_RETIRA: Customer = { name: 'Ana', phone: '(83) 98888-1111', fulfillment: { kind: 'retirada' }, fee: { kind: 'retirada' } }
+const ANA_LOCAL: Customer = { name: 'Ana', phone: '(83) 98888-1111', fulfillment: { kind: 'local' }, fee: { kind: 'local' } }
+/** O bloco do cliente: do título até a linha antes dos itens. */
+const clientBlock = (message: string[]) => message.slice(message.indexOf('👤 *DADOS DO CLIENTE*'), message.indexOf(LINE))
+
+describe('comanda das três modalidades (pedido de 2026-11-20)', () => {
+  it('entrega com GPS: modalidade, endereço, a linha do GPS e o frete do bairro', () => {
+    const message = lines(order({ customer: { ...MARIA, fulfillment: ENTREGA_GPS } }))
+    expect(clientBlock(message)).toEqual([
+      '👤 *DADOS DO CLIENTE*',
+      '• *Nome:* Maria',
+      '• *Telefone:* (83) 99999-0000',
+      '• *Modalidade:* 🛵 Entrega em Domicílio',
+      '• *Endereço:* Rua das Flores, 12A, Centro — Ref.: portão azul',
+      '• *Localização GPS:* https://www.google.com/maps?q=-7.220987,-37.254124',
+      '',
+    ])
+    expect(message).toContain('🛵 *Frete / Entrega (Centro):* R$ 3,00')
+    expect(message).toContain('💰 *TOTAL A PAGAR:* *R$ 34,00*')
+  })
+
+  it('entrega sem GPS: nenhuma linha de GPS vazia', () => {
+    const message = lines(order())
+    expect(message.some((line) => line.includes('GPS') || line.includes('google.com/maps'))).toBe(false)
+  })
+
+  it('retirar: modalidade, local de retirada da loja, frete zero; sem endereço nem GPS', () => {
+    const message = lines(order({ customer: ANA_RETIRA, payment: { method: 'pix' } }))
+    expect(clientBlock(message)).toEqual([
+      '👤 *DADOS DO CLIENTE*',
+      '• *Nome:* Ana',
+      '• *Telefone:* (83) 98888-1111',
+      '• *Modalidade:* 🛍️ Retirar no Local (Levar para casa)',
+      '• *Local de retirada:* Rua Francisco Tota, 12 — Teixeira, PB',
+      '',
+    ])
+    expect(message).toContain('🛍️ *Retirada na loja:* Grátis (R$ 0,00)')
+    expect(message).toContain('💰 *TOTAL A PAGAR:* *R$ 31,00*')
+    expect(message.some((line) => line.includes('Endereço') || line.includes('GPS') || line.includes('Frete'))).toBe(false)
+  })
+
+  it('comer no local: modalidade em destaque, local da loja, frete zero; sem endereço nem GPS', () => {
+    const message = lines(order({ customer: ANA_LOCAL, payment: { method: 'credito' } }))
+    expect(clientBlock(message)).toEqual([
+      '👤 *DADOS DO CLIENTE*',
+      '• *Nome:* Ana',
+      '• *Telefone:* (83) 98888-1111',
+      '• *Modalidade:* 🍨 COMER NO LOCAL (Deixar pronto para chegada)',
+      '• *Local:* Rua Francisco Tota, 12 — Teixeira, PB',
+      '',
+    ])
+    expect(message).toContain('🍨 *Consumo no local:* Grátis (R$ 0,00)')
+    expect(message).toContain('💰 *TOTAL A PAGAR:* *R$ 31,00*')
+    // Sem "Levar maquininha": ninguém sai da loja.
+    expect(message).toContain('• *Método escolhido:* 💳 *Cartão de crédito* — *R$ 31,00*')
+    expect(message.some((line) => line.includes('Endereço') || line.includes('GPS') || line.includes('Frete') || line.includes('Retirada'))).toBe(false)
+  })
+
+  it('o endereço da loja vem de "Horários e Contato" (uma fonte só)', () => {
+    setCatalogChanges({ ...NO_CHANGES, settings: { loja: { contact: { street: 'Av. Nova, 99', city: 'Patos' } } } })
+    expect(lines(order({ customer: ANA_LOCAL }))).toContain('• *Local:* Av. Nova, 99 — Patos, PB')
+    expect(lines(order({ customer: ANA_RETIRA }))).toContain('• *Local de retirada:* Av. Nova, 99 — Patos, PB')
+  })
 })
