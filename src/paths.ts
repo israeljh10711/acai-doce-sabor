@@ -9,6 +9,9 @@ export const routePatterns = {
   credits: '/creditos',
   /** Painel de pedidos do Modo Vendedor (2026-11-20). */
   orders: '/pedidos',
+  /** Acompanhamento do pedido pelo cliente (pedido 100% no site, 2026-11-20). */
+  track: '/acompanhar',
+  trackOrder: '/acompanhar/:codigo',
 } as const
 
 /** Endereços prontos para usar em links. */
@@ -21,4 +24,6 @@ export const paths = {
   cart: routePatterns.cart,
   credits: routePatterns.credits,
   orders: routePatterns.orders,
+  /** Sem código, a lista dos pedidos deste aparelho; com o código, aquele pedido. */
+  track: (code?: string) => (code ? `${routePatterns.track}/${encodeURIComponent(code)}` : routePatterns.track),
 } as const

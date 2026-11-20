@@ -36,6 +36,8 @@ export type OrderRow = {
   antecipado: boolean
   items: ItemSnapshot[]
   cart: unknown
+  /** A sessão anônima do cliente que fez o pedido (acompanhamento, 2026-11-20); nula sem sessão. */
+  customer_user_id: string | null
 }
 
 /** "Açaí Tradicional (Isopor M)", "Picolé Gourmet". */
@@ -45,7 +47,8 @@ export function itemName(item: CartItem): string {
   return summary.sizeLabel ? `${summary.productName} (${summary.sizeLabel})` : summary.productName
 }
 
-function snapshot(cart: Cart): ItemSnapshot[] {
+/** A cópia dos itens (nomes e preços do momento da compra). */
+export function itemSnapshots(cart: Cart): ItemSnapshot[] {
   return cart.items.map((item) => ({
     name: itemName(item),
     quantity: item.quantity,
@@ -58,7 +61,7 @@ function snapshot(cart: Cart): ItemSnapshot[] {
 export type OrderRowInput = { cart: Cart; customer: Customer; payment: Payment; antecipado: boolean; message: string; whatsapp: string }
 
 /** Os campos da linha que vêm do pedido (sem a chave de repetição, o número e o código). */
-export function orderRowFields({ cart, customer, payment, antecipado, message, whatsapp }: OrderRowInput): Omit<OrderRow, 'attempt_key' | 'number' | 'code'> {
+export function orderRowFields({ cart, customer, payment, antecipado, message, whatsapp }: OrderRowInput): Omit<OrderRow, 'attempt_key' | 'number' | 'code' | 'customer_user_id'> {
   const subtotalCents = cartTotalCents(cart)
   const { fulfillment, fee } = customer
   // O GPS só existe na entrega (checkCustomer descarta nas outras), conferido e com o mesmo link da comanda.
@@ -84,7 +87,7 @@ export function orderRowFields({ cart, customer, payment, antecipado, message, w
     subtotal_cents: subtotalCents,
     total_cents: subtotalCents + feeCents(fee),
     antecipado,
-    items: snapshot(cart),
+    items: itemSnapshots(cart),
     cart: JSON.parse(serializeCart(cart)) as unknown,
   }
 }

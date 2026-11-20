@@ -1,16 +1,19 @@
 import { AnimatePresence, m } from 'motion/react'
 import { type ComponentType, type ReactNode, useEffect, useId, useRef, useState } from 'react'
-import { Bag, Banknote, Chat, Check, Copy, CreditCard, IceCreamBowl, QrCode, Scooter } from '../../components/ui/icons.tsx'
+import { useNavigate } from 'react-router'
+import { Bag, Banknote, Check, Copy, CreditCard, IceCreamBowl, QrCode, Scooter } from '../../components/ui/icons.tsx'
+import { paths } from '../../paths.ts'
 import { storeInfo } from '../../services/storeInfo.ts'
 import { formatBRL } from '../../utils/money.ts'
-import { buildWhatsAppUrl } from '../../utils/whatsapp.ts'
 import { type Cart, cartItemProblem, cartTotalCents, serializeCart } from '../cart/cart.ts'
 import { cartActions } from '../cart/cartStore.ts'
 import { useStoreSettings } from '../catalog/catalogStore.ts'
 import { browserDemoDeps, saveDemoOrder } from '../orders/localOrdersSource.ts'
 import type { OrderDraft } from '../orders/orderMessage.ts'
-import { type SubmitResult, orderWhatsAppUrl, submitOrder } from '../orders/orderService.ts'
+import { type SubmitResult, submitOrder } from '../orders/orderService.ts'
 import { refreshCatalogNow, supabaseConfig } from '../seller/sellerBackend.ts'
+import type { TrackState } from '../tracking/trackState.ts'
+import { getAttempts, getCustomerLive, getCustomerSession, getTrackedOrders } from '../tracking/trackingRuntime.ts'
 import { StoreClosedCard } from '../store-hours/StoreClosedCard.tsx'
 import { serverNow } from '../store-hours/serverClock.ts'
 import { useStoreStatus } from '../store-hours/useStoreStatus.ts'
@@ -69,58 +72,34 @@ function loadCustomer(): CustomerDraft {
   }
 }
 
-/**
- * Abre a aba do WhatsApp já no toque: depois de esperar o servidor, o navegador bloquearia a janela.
- * A aba fica em branco até o pedido ser registrado e fecha se não der.
- */
-function openBlankTab(): Window | null {
-  try {
-    return window.open('', '_blank')
-  } catch {
-    return null
-  }
-}
-
-/** Leva a aba (ou, sem ela, a própria página) para o WhatsApp. */
-function showInTab(tab: Window | null, url: string) {
-  if (tab && !tab.closed) {
-    try {
-      tab.opener = null
-    } catch {
-      // Navegador que não deixa mexer: a aba abre o WhatsApp do mesmo jeito.
-    }
-    tab.location.href = url
-  } else {
-    window.location.assign(url)
-  }
-}
-
 /** O que o cliente lê quando o servidor recusa o pedido (pedido de 2026-11-17). */
 function rejectionText(result: Extract<SubmitResult, { kind: 'rejected' }>): string {
   switch (result.reason) {
     case 'total-mudou':
-      return `Os preços mudaram: o total agora é ${formatBRL(result.totalCents ?? 0)}. Confira o carrinho e envie de novo.`
+      return `Os preços mudaram: o total agora é ${formatBRL(result.totalCents ?? 0)}. Confira o carrinho e finalize de novo.`
     case 'esgotado':
-      return `Esgotou: ${result.detail ?? 'um item do carrinho'}. Remova ou edite o item marcado para enviar.`
+      return `Esgotou: ${result.detail ?? 'um item do carrinho'}. Remova ou edite o item marcado para finalizar.`
     case 'loja-fechada':
       return `A loja fechou e não está recebendo pedidos agora${result.detail ? `. Volte ${result.detail}` : ''}.`
     case 'item-indisponivel':
-      return 'Um item do carrinho não está mais no cardápio. Remova o item marcado e envie de novo.'
+      return 'Um item do carrinho não está mais no cardápio. Remova o item marcado e finalize de novo.'
     case 'dados-invalidos':
       return `Confira seus dados: ${result.detail ?? ''}`
     case 'pagamento-invalido':
       return `Confira o pagamento: ${result.detail ?? ''}`
     default:
-      return 'Não foi possível registrar o pedido.'
+      return 'Não foi possível confirmar o pedido.'
   }
 }
 
-/** Registro no Supabase: o resultado vale enquanto o pedido não muda. */
-type Registration =
-  | { key: string; state: 'sending' }
-  | { key: string; state: 'registered'; code: string; url: string }
-  | { key: string; state: 'rejected'; text: string; retry: boolean }
-  | { key: string; state: 'failed' }
+/**
+ * A finalização (pedido 100% no site, 2026-11-20): o resultado vale enquanto o pedido não muda.
+ * Confirmado, o site vai direto para o acompanhamento (não há estado "enviado" nesta tela).
+ */
+type Finalize = { key: string; state: 'sending' } | { key: string; state: 'rejected'; text: string } | { key: string; state: 'failed'; text: string }
+
+/** Um pedido confirmado: guardado neste aparelho para o acompanhamento. */
+type Placed = { id: string; code: string; createdAt: string; demo: boolean; tracked: boolean }
 
 const sectionTitle = 'font-display text-lg font-extrabold tracking-tight text-acai-800 uppercase'
 const inputClass =
@@ -130,26 +109,29 @@ const inputClass =
 const FIELD_ORDER: readonly CustomerField[] = ['name', 'phone', 'kind', 'street', 'number', 'zone', 'district']
 
 /**
- * Finalização no carrinho (pedido de 2026-11-17): o total com o frete, os dados do cliente,
- * entrega ou retirada, a forma de pagamento e o botão que abre o WhatsApp da loja com a comanda.
- * A tela nunca diz que o pedido foi enviado: o WhatsApp abre com a mensagem pronta e quem toca em
- * Enviar é o cliente. Com a loja fechada, o pedido vai como antecipado ou o envio fica bloqueado,
- * como o vendedor escolheu; com item esgotado no carrinho, o envio espera o cliente tirar.
+ * Finalização no carrinho: o total com o frete, os dados do cliente, a modalidade, a forma de
+ * pagamento e "Finalizar pedido". Desde o pedido 100% no site (2026-11-20), não há WhatsApp: o
+ * pedido vai para a loja pelo site, e só com a confirmação do servidor (ou, na demonstração, do
+ * armazenamento deste navegador) o cliente vai para o acompanhamento com "Pedido recebido". Uma
+ * falha nunca vira confirmação: o cliente vê o aviso e tenta de novo com a mesma tentativa (o
+ * servidor não grava duas vezes). Com a loja fechada, o pedido vai como antecipado ou fica
+ * bloqueado, como o vendedor escolheu; com item esgotado no carrinho, espera o cliente tirar.
  */
-export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () => void }) {
+export function CheckoutPanel({ cart }: { cart: Cart }) {
   const settings = useStoreSettings()
   const status = useStoreStatus()
   const uid = useId()
+  const navigate = useNavigate()
   const [customer, setCustomer] = useState<CustomerDraft>(loadCustomer)
   const [draft, setDraft] = useState<PaymentDraft>(EMPTY_PAYMENT)
   // Os avisos de "falta escolher" só aparecem depois da primeira tentativa de envio.
   const [attempted, setAttempted] = useState(false)
-  // Pedido aberto por último. O aviso de "WhatsApp aberto" some se o pedido mudar depois.
-  const [opened, setOpened] = useState<{ key: string; url: string; unregistered: boolean } | null>(null)
-  // Registro do pedido no Supabase (pedido de 2026-11-17, opção A); sem o Supabase ligado, fica nulo.
-  const [registration, setRegistration] = useState<Registration | null>(null)
+  const [finalize, setFinalize] = useState<Finalize | null>(null)
   // Dois toques seguidos não mandam duas vezes (o estado só muda no desenho seguinte).
   const submitting = useRef(false)
+  // Confirmado, o botão não volta a valer (a tela já está indo para o acompanhamento): um segundo
+  // toque no mesmo instante seria outra tentativa e outro pedido.
+  const confirmed = useRef(false)
   const functionConfig = supabaseConfig()
   const panel = useRef<HTMLDivElement>(null)
   const methods = useRef<HTMLFieldSetElement>(null)
@@ -178,9 +160,8 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
   const changeProblem = liveChangeProblem(draft, totalCents) ?? (paymentProblem && paymentProblem !== 'no-method' ? paymentProblem : null)
   const changeDue = feePending ? null : changeDueCents(draft, totalCents)
   const orderKey = JSON.stringify([serializeCart(cart), customerCheck, paymentCheck, antecipado])
-  const openedNow = opened !== null && opened.key === orderKey
-  const registered = registration && registration.key === orderKey ? registration : null
-  const sending = registration?.state === 'sending'
+  const outcome = finalize && finalize.key === orderKey ? finalize : null
+  const sending = finalize?.state === 'sending'
 
   const updateCustomer = (patch: Partial<CustomerDraft>) => setCustomer((current) => ({ ...current, ...patch }))
   const updatePayment = (patch: Partial<PaymentDraft>) => setDraft((current) => ({ ...current, ...patch }))
@@ -209,62 +190,74 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
     return { cart, customer: customerCheck.customer, payment: paymentCheck.payment, sentAt: serverNow(), antecipado }
   }
 
-  /** WhatsApp com a comanda feita no aparelho (sem Supabase, ou "Enviar mesmo assim"). */
-  const openLocal = (order: OrderDraft, unregistered: boolean) => {
-    // Sem o Supabase configurado: o pedido também fica no modo de demonstração local deste
-    // navegador, para o painel do vendedor (2026-11-20). Com o Supabase e uma falha, nunca.
-    if (!functionConfig) {
-      try {
-        saveDemoOrder(order, browserDemoDeps())
-      } catch {
-        // Sem armazenamento: o WhatsApp abre do mesmo jeito.
-      }
-    }
-    const url = orderWhatsAppUrl({ ...order, ...(unregistered ? { naoRegistrado: true } : {}) })
-    const tab = window.open(url, '_blank')
-    if (tab) tab.opener = null
-    else window.location.assign(url)
-    setOpened({ key: orderKey, url, unregistered })
-    setRegistration(null)
+  /** Pedido confirmado: fica neste aparelho para o acompanhamento, o carrinho esvazia e a tela muda. */
+  const placed = (order: Placed) => {
+    confirmed.current = true
+    getAttempts().done('pedido')
+    getTrackedOrders().upsert({ ...order, status: 'novo', fulfillment: customer.kind })
+    // O primeiro pedido pode ter criado a sessão agora: a escuta ao vivo passa a usá-la.
+    getCustomerLive().restart()
+    const state: TrackState = { placed: true }
+    navigate(paths.track(order.code), { state })
+    cartActions.clear()
   }
 
   const send = async () => {
     const order = localOrder()
-    if (!order || submitting.current) return
-    if (!functionConfig) return openLocal(order, false)
-
-    // Com o Supabase ligado: registra no servidor antes do WhatsApp (pedido de 2026-11-17).
+    if (!order || submitting.current || confirmed.current) return
     const key = orderKey
     submitting.current = true
-    const tab = openBlankTab()
-    setOpened(null)
-    setRegistration({ key, state: 'sending' })
-    let result: Awaited<ReturnType<typeof submitOrder>>
+    setFinalize({ key, state: 'sending' })
+    // A mesma tentativa em todo reenvio deste pedido: o servidor nunca grava duas vezes.
+    const attemptId = getAttempts().idFor('pedido', key)
     try {
-      result = await submitOrder({ cart, customer, payment: draft, expectedTotalCents: totalCents }, functionConfig)
+      if (!functionConfig) {
+        // Modo de demonstração (sem o Supabase): o pedido fica só neste navegador, para o painel.
+        let saved: ReturnType<typeof saveDemoOrder> = null
+        try {
+          saved = saveDemoOrder(order, browserDemoDeps(), attemptId)
+        } catch {
+          saved = null
+        }
+        if (!saved) {
+          setFinalize({ key, state: 'failed', text: 'Este navegador não deixou guardar o pedido de demonstração.' })
+          return
+        }
+        placed({ id: saved.id, code: saved.code, createdAt: saved.createdAt, demo: true, tracked: true })
+        return
+      }
+      // A sessão anônima do cliente (criada no primeiro pedido): é ela que liga o pedido a ele.
+      const token = (await getCustomerSession()?.token({ create: true })) ?? null
+      const result = await submitOrder({ cart, customer, payment: draft, expectedTotalCents: totalCents, attemptId }, { ...functionConfig, token })
+      if (result.kind === 'registered') {
+        placed({
+          id: result.id ?? `codigo-${result.code}`,
+          code: result.code,
+          createdAt: result.createdAt ?? new Date(serverNow()).toISOString(),
+          demo: false,
+          tracked: result.tracked,
+        })
+        return
+      }
+      if (result.kind === 'rejected') {
+        // O cardápio do aparelho pode estar atrasado: lê de novo, e o carrinho mostra o que mudou.
+        void refreshCatalogNow()
+        setFinalize({ key, state: 'rejected', text: rejectionText(result) })
+        return
+      }
+      setFinalize({
+        key,
+        state: 'failed',
+        text:
+          result.why === 'tempo'
+            ? 'A loja demorou para responder.'
+            : result.why === 'rede'
+              ? 'Parece que a internet caiu.'
+              : 'O sistema da loja não respondeu como esperado.',
+      })
     } finally {
       submitting.current = false
     }
-    if (result.kind === 'registered') {
-      const url = buildWhatsAppUrl(result.whatsapp, result.message)
-      showInTab(tab, url)
-      setRegistration({ key, state: 'registered', code: result.code, url })
-      return
-    }
-    tab?.close()
-    if (result.kind === 'rejected') {
-      // O cardápio do aparelho pode estar atrasado: lê de novo, e o carrinho mostra o que mudou.
-      void refreshCatalogNow()
-      setRegistration({ key, state: 'rejected', text: rejectionText(result), retry: result.reason === 'total-mudou' })
-      return
-    }
-    setRegistration({ key, state: 'failed' })
-  }
-
-  /** "Enviar mesmo assim pelo WhatsApp" (opção 1): a comanda vai marcada como não registrada. */
-  const sendUnregistered = () => {
-    const order = localOrder()
-    if (order) openLocal(order, true)
   }
 
   const zones = zoneList(settings.delivery)
@@ -578,7 +571,7 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
       <div>
         {stockProblem && (
           <p role={attempted ? 'alert' : undefined} className="mb-3 rounded-xl bg-red-50 px-3 py-2.5 text-sm font-bold text-red-800 ring-1 ring-red-200">
-            Tem item esgotado no carrinho: remova ou edite o item marcado para enviar o pedido.
+            Tem item esgotado no carrinho: remova ou edite o item marcado para finalizar o pedido.
           </p>
         )}
         {closedBlocked && (
@@ -594,99 +587,50 @@ export function CheckoutPanel({ cart, onCleared }: { cart: Cart; onCleared: () =
         )}
         <button
           type="button"
+          data-finalize=""
           onClick={() => void send()}
           disabled={closedBlocked || sending}
           aria-busy={sending || undefined}
           className="btn-gold inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2 text-base leading-tight font-extrabold tracking-tight focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none"
         >
-          <Chat className="size-5" />
-          {closedBlocked ? 'Loja fechada: envio bloqueado' : sending ? 'Registrando o pedido…' : 'Confirmar e Enviar Pedido no WhatsApp'}
+          <Check className="size-5" />
+          {closedBlocked ? 'Loja fechada: pedidos bloqueados' : sending ? 'Enviando o pedido…' : 'Finalizar pedido'}
         </button>
-        <p className="mt-2 text-xs leading-relaxed text-ink-soft">
-          {functionConfig
-            ? 'Registra o pedido e abre o WhatsApp da loja com ele escrito. Ele só chega à loja quando você tocar em Enviar.'
-            : 'Abre o WhatsApp da loja com o pedido escrito. Ele só chega à loja quando você tocar em Enviar.'}
+        <p data-finalize-hint="" className="mt-2 text-xs leading-relaxed text-ink-soft">
+          {functionConfig ? (
+            'O pedido vai direto para a loja, sem sair do site. Depois é só acompanhar cada etapa aqui.'
+          ) : (
+            <>
+              <strong className="font-bold text-acai-800">Modo de demonstração:</strong> o pedido fica só neste navegador e a loja não recebe.
+            </>
+          )}
         </p>
 
-        {registered?.state === 'rejected' && (
+        {outcome?.state === 'rejected' && (
           <div data-order-rejected="" role="alert" className="mt-4 rounded-2xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
-            <p className="font-bold">{registered.text}</p>
-            {registered.retry && (
-              <UnregisteredChoices
-                hint="Se o total não mudar depois de conferir, envie mesmo assim: a loja confere o valor na conversa."
-                onRetry={() => void send()}
-                onSend={sendUnregistered}
-              />
-            )}
+            <p className="font-bold">{outcome.text}</p>
           </div>
         )}
-        {registered?.state === 'failed' && (
+        {outcome?.state === 'failed' && (
           <div data-order-failed="" role="alert" className="mt-4 rounded-2xl bg-red-50 p-4 text-sm text-red-900 ring-1 ring-red-200">
-            <p className="font-bold">Não foi possível registrar o pedido agora.</p>
-            <UnregisteredChoices
-              hint="Pode ser a internet ou o sistema da loja. Tente de novo, ou envie mesmo assim pelo WhatsApp: a loja recebe o pedido do mesmo jeito, só sem o código."
-              onRetry={() => void send()}
-              onSend={sendUnregistered}
-            />
+            <p className="font-bold">Não foi possível confirmar o pedido agora.</p>
+            <p className="mt-1 leading-relaxed">
+              {outcome.text} O pedido ainda não foi confirmado. Toque em Tentar de novo: se ele já tiver chegado à loja, não é registrado duas vezes.
+            </p>
+            <button
+              type="button"
+              data-order-retry=""
+              onClick={() => void send()}
+              disabled={sending}
+              className="mt-3 inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-full bg-white px-4 text-sm font-bold text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-wait disabled:opacity-60"
+            >
+              Tentar de novo
+            </button>
           </div>
         )}
-
-        <div role="status">
-          {registered?.state === 'registered' && (
-            <div data-order-registered="" className="mt-4 rounded-2xl bg-acai-50 p-4 text-sm text-acai-950 ring-1 ring-line">
-              <p className="font-bold">
-                Pedido <span className="nums">{registered.code}</span> registrado.
-              </p>
-              <p className="mt-1 leading-relaxed">
-                Falta enviar a mensagem: confira no WhatsApp e toque em Enviar para a loja receber.{' '}
-                <a
-                  href={registered.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-bold text-acai-700 underline underline-offset-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
-                >
-                  Não abriu? Abrir o WhatsApp
-                </a>
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  cartActions.clear()
-                  onCleared()
-                }}
-                className="mt-3 inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-full px-4 text-sm font-bold text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
-              >
-                Já enviei, esvaziar o carrinho
-              </button>
-            </div>
-          )}
-          {openedNow && opened && (
-            <div className="mt-4 rounded-2xl bg-acai-50 p-4 text-sm text-acai-950 ring-1 ring-line">
-              <p className="font-bold">{opened.unregistered ? 'Abrimos o WhatsApp com o seu pedido (sem registro no sistema).' : 'Abrimos o WhatsApp com o seu pedido.'}</p>
-              <p className="mt-1 leading-relaxed">
-                Confira a mensagem e toque em Enviar para a loja receber.{' '}
-                <a
-                  href={opened.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-bold text-acai-700 underline underline-offset-2 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
-                >
-                  Não abriu? Abrir o WhatsApp
-                </a>
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  cartActions.clear()
-                  onCleared()
-                }}
-                className="mt-3 inline-flex min-h-11 w-full cursor-pointer items-center justify-center rounded-full px-4 text-sm font-bold text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
-              >
-                Já enviei, esvaziar o carrinho
-              </button>
-            </div>
-          )}
-        </div>
+        <p role="status" className="sr-only">
+          {sending ? 'Enviando o pedido…' : ''}
+        </p>
       </div>
     </div>
   )
@@ -730,7 +674,7 @@ function StorePlaceCard({ kind, contact }: { kind: 'retirada' | 'local'; contact
       </p>
       <p className="mt-1 text-sm leading-relaxed text-acai-950">
         {local
-          ? 'Assim que você enviar o pedido, já começamos a preparar para você só chegar e aproveitar.'
+          ? 'Assim que você finalizar o pedido, já começamos a preparar para você só chegar e aproveitar.'
           : 'Faça seu pedido e retire diretamente na nossa loja.'}
       </p>
       <p className="mt-2 text-sm font-bold text-acai-950">📍 {storePlaceText(contact)}</p>
@@ -790,26 +734,6 @@ function ChoiceCard({
   )
 }
 
-/** "Tentar de novo" e "Enviar mesmo assim pelo WhatsApp" (falha ou total que não bate). */
-function UnregisteredChoices({ hint, onRetry, onSend }: { hint: string; onRetry: () => void; onSend: () => void }) {
-  const button =
-    'inline-flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-sm font-bold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
-  return (
-    <>
-      <p className="mt-1 leading-relaxed">{hint}</p>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-        <button type="button" data-order-retry="" onClick={onRetry} className={`${button} bg-white text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100`}>
-          Tentar de novo
-        </button>
-        <button type="button" data-order-unregistered="" onClick={onSend} className={`${button} btn-gold`}>
-          <Chat className="size-4" />
-          Enviar mesmo assim pelo WhatsApp
-        </button>
-      </div>
-    </>
-  )
-}
-
 /** Chave Pix da loja, com o botão de copiar. */
 function PixCard() {
   const { key, type, holder } = storeInfo.pix
@@ -844,7 +768,7 @@ function PixCard() {
         )}
       </p>
       <p className="mt-2 text-sm leading-relaxed text-acai-950">
-        Realize o Pix e envie o comprovante junto com o seu pedido no WhatsApp.
+        Faça o Pix e guarde o comprovante. Se a loja pedir, envie pelo botão de dúvidas no WhatsApp, na tela do pedido.
       </p>
     </div>
   )

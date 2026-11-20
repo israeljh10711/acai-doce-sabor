@@ -72,9 +72,13 @@ export type PanelOrder = {
   totalCents: number
   antecipado: boolean
   items: { name: string; quantity: number; totalCents: number; note: string | null }[]
-  /** A comanda gravada (a mesma que foi para o WhatsApp). */
+  /** A comanda gravada no momento da compra. */
   message: string
+  /** Os itens que o cliente acrescentou depois (2026-11-20), cada lote com a hora e o valor. */
+  additions: OrderAddition[]
 }
+
+export type OrderAddition = { createdAt: number; subtotalCents: number; itemsBlock: string; items: PanelOrder['items'] }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
@@ -129,7 +133,18 @@ export function parseOrderRow(raw: unknown): PanelOrder | null {
     antecipado: raw.antecipado === true,
     items: parseItems(raw.items),
     message: typeof raw.message === 'string' ? raw.message : '',
+    additions: parseAdditions(raw.additions),
   }
+}
+
+/** Os lotes acrescentados pelo cliente; o que não dá para ler fica de fora. */
+function parseAdditions(raw: unknown): OrderAddition[] {
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((entry) => {
+    if (!isRecord(entry)) return []
+    const at = typeof entry.created_at === 'string' ? Date.parse(entry.created_at) : Number.NaN
+    return [{ createdAt: Number.isFinite(at) ? at : 0, subtotalCents: cents(entry.subtotal_cents), itemsBlock: typeof entry.itemsBlock === 'string' ? entry.itemsBlock : '', items: parseItems(entry.items) }]
+  })
 }
 
 /**
@@ -203,7 +218,7 @@ export function filterCounts(orders: readonly PanelOrder[]): Record<OrderFilter,
 }
 
 /** "💠 Pix", "💳 Cartão de crédito (levar maquininha)", "💵 Dinheiro — Troco para R$ 50,00 (levar R$ 16,00)". */
-export function paymentText(order: PanelOrder): string {
+export function paymentText(order: Pick<PanelOrder, 'paymentMethod' | 'changeForCents' | 'fee' | 'totalCents' | 'deliveryType'>): string {
   switch (order.paymentMethod) {
     case 'pix':
       return '💠 Pix'
@@ -226,7 +241,7 @@ export function paymentText(order: PanelOrder): string {
 }
 
 /** A linha do frete no cartão, distinguindo grátis de a combinar. */
-export function feeLine(order: PanelOrder): { label: string; value: string } {
+export function feeLine(order: Pick<PanelOrder, 'fee'>): { label: string; value: string } {
   switch (order.fee.kind) {
     case 'retirada':
       return { label: 'Retirada na loja', value: 'Grátis' }

@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { formatBRL } from '../../utils/money.ts'
 import { toWhatsAppNumber } from '../../utils/whatsapp.ts'
+import { ComandaItems } from './ComandaItems.tsx'
 import {
-  type ComandaItem,
   type OrderStatus,
   type PanelOrder,
   STATUS_LABEL,
   canCancel,
   feeLine,
   nextStep,
-  parseComandaItems,
   paymentText,
 } from './ordersPanel.ts'
 
@@ -61,46 +60,6 @@ export function ModalityBadge({ type }: { type: PanelOrder['deliveryType'] }) {
   }
 }
 
-function ItemView({ item }: { item: ComandaItem }) {
-  return (
-    <li data-order-item="" className="flex flex-col gap-1">
-      <p className="flex items-baseline justify-between gap-3 font-bold text-acai-950">
-        <span className="min-w-0">
-          {item.quantity}x {item.name}
-        </span>
-        <span className="nums shrink-0 whitespace-nowrap">{item.total}</span>
-      </p>
-      {item.details && <p className="text-ink-soft">{item.details}</p>}
-      {item.rows.map((row) => (
-        <p key={row.label}>
-          <span className="font-semibold">{row.label}:</span> {row.value}
-        </p>
-      ))}
-      {item.montagem && <p className="font-semibold text-acai-800">✨ {item.montagem}</p>}
-      {item.removed.length > 0 && (
-        <p data-item-removed="" className="rounded-lg bg-red-50 px-2 py-1 font-extrabold text-red-800 ring-1 ring-red-200">
-          🚫 SEM: {item.removed.join(', ')}
-        </p>
-      )}
-      {item.paid && (
-        <p data-item-paid="" className="rounded-lg bg-gold-100 px-2 py-1 font-bold text-acai-950 ring-1 ring-gold-400">
-          ➕ Extras pagos: {item.paid}
-        </p>
-      )}
-      {item.included.map((group) => (
-        <p key={group.label} className="text-acai-950">
-          <span className="font-semibold">{group.label}:</span> {group.names}
-        </p>
-      ))}
-      {item.note && (
-        <p data-item-note="" className="rounded-lg bg-acai-50 px-2 py-1.5 font-semibold text-acai-950 ring-1 ring-line">
-          📝 Observação: {item.note}
-        </p>
-      )}
-    </li>
-  )
-}
-
 const actionButton =
   'inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-extrabold transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-wait disabled:opacity-60'
 
@@ -125,7 +84,6 @@ export function OrderCard({
 }) {
   const [confirmingCancel, setConfirmingCancel] = useState(false)
   const next = nextStep(order)
-  const items = parseComandaItems(order.message)
   const fee = feeLine(order)
   const whatsapp = customerWhatsApp(order.customerPhone)
   const { address } = order
@@ -205,26 +163,30 @@ export function OrderCard({
       )}
 
       <section aria-label="Itens do pedido">
-        {items.length > 0 ? (
-          <ul data-order-items="" className="flex flex-col gap-3 text-sm leading-snug">
-            {items.map((item, index) => (
-              <ItemView key={index} item={item} />
-            ))}
-          </ul>
-        ) : (
-          <ul data-order-items="" className="flex flex-col gap-1 text-sm text-acai-950">
-            {order.items.map((item, index) => (
-              <li key={index}>
-                <span className="font-bold">
-                  {item.quantity}x {item.name}
-                </span>{' '}
-                — {formatBRL(item.totalCents)}
-                {item.note && <span className="mt-1 block rounded-lg bg-acai-50 px-2 py-1 font-semibold ring-1 ring-line">📝 Observação: {item.note}</span>}
-              </li>
-            ))}
-          </ul>
-        )}
+        <ComandaItems comanda={order.message} fallback={order.items} />
       </section>
+
+      {order.additions.map((addition, index) => (
+        <section
+          key={index}
+          data-order-addition=""
+          aria-label={'Itens adicionados pelo cliente às ' + whenText(addition.createdAt, now)}
+          className="rounded-xl bg-gold-100 p-3 ring-2 ring-gold-400"
+        >
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm font-extrabold text-acai-950">
+            <span>➕ Novos itens adicionados pelo cliente</span>
+            <span data-addition-time="" className="nums font-bold text-acai-800">
+              {whenText(addition.createdAt, now)}
+            </span>
+          </p>
+          <div className="mt-2">
+            <ComandaItems comanda={addition.itemsBlock} fallback={addition.items} />
+          </div>
+          <p data-addition-total="" className="nums mt-2 text-right text-sm font-extrabold text-acai-800">
+            + {formatBRL(addition.subtotalCents)}
+          </p>
+        </section>
+      ))}
 
       <dl className="flex flex-col gap-1 border-t border-line pt-3 text-sm text-acai-950">
         <Row label="Subtotal" value={formatBRL(order.subtotalCents)} />

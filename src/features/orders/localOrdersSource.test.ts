@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { EMPTY_CART, addExtraItem } from '../cart/cart.ts'
+import { EMPTY_CART, addExtraItem, setQuantity } from '../cart/cart.ts'
 import { NO_CHANGES } from '../catalog/catalogChanges.ts'
 import { setCatalogChanges } from '../catalog/catalogState.ts'
 import type { Customer } from '../checkout/delivery.ts'
-import { DEMO_KEY, type DemoChannel, type LocalDeps, MAX_DEMO_ORDERS, createLocalOrdersSource, readDemo, saveDemoOrder } from './localOrdersSource.ts'
+import { DEMO_KEY, type DemoChannel, type LocalDeps, MAX_DEMO_ORDERS, addDemoItems, createLocalOrdersSource, findDemoOrder, readDemo, saveDemoOrder } from './localOrdersSource.ts'
 import type { OrderDraft } from './orderMessage.ts'
 import { parseOrderRow } from './ordersPanel.ts'
 import type { OrderChange } from './ordersSource.ts'
@@ -62,7 +62,7 @@ const draft = (patch: Partial<OrderDraft> = {}): OrderDraft => ({
 describe('modo de demonstração local: guardar o pedido (painel ao vivo, 2026-11-20)', () => {
   it('guarda no localStorage com a estrutura da tabela, código DEMO e a comanda enviada', () => {
     const browser = fakeBrowser()
-    expect(saveDemoOrder(draft(), browser.tab(1))).toEqual({ code: 'DEMO-0001', created: true })
+    expect(saveDemoOrder(draft(), browser.tab(1))).toEqual({ id: 'id-1', code: 'DEMO-0001', createdAt: '2026-11-20T18:42:00.000Z', created: true })
     const [row] = readDemo(browser.tab(1).storage).orders
     expect(row).toMatchObject({
       id: 'id-1',
@@ -85,8 +85,8 @@ describe('modo de demonstração local: guardar o pedido (painel ao vivo, 2026-1
   it('o mesmo pedido de novo (toque duplo) não duplica; outro pedido ganha o próximo código', () => {
     const browser = fakeBrowser()
     saveDemoOrder(draft(), browser.tab(1))
-    expect(saveDemoOrder(draft(), browser.tab(1))).toEqual({ code: 'DEMO-0001', created: false })
-    expect(saveDemoOrder(draft({ payment: { method: 'credito' } }), browser.tab(1))).toEqual({ code: 'DEMO-0002', created: true })
+    expect(saveDemoOrder(draft(), browser.tab(1))).toMatchObject({ code: 'DEMO-0001', created: false })
+    expect(saveDemoOrder(draft({ payment: { method: 'credito' } }), browser.tab(1))).toMatchObject({ code: 'DEMO-0002', created: true })
     expect(readDemo(browser.tab(1).storage).orders.map((row) => row.code)).toEqual(['DEMO-0001', 'DEMO-0002'])
   })
 
@@ -160,5 +160,47 @@ describe('modo de demonstração local: o painel (painel ao vivo, 2026-11-20)', 
     createLocalOrdersSource(browser.tab(1)).listen((change) => changes.push(change), () => undefined)
     saveDemoOrder(draft(), browser.tab(1))
     expect(changes.map((change) => change.type)).toEqual(['INSERT'])
+  })
+})
+
+describe('modo de demonstração: o mesmo caminho do pedido no site (2026-11-20)', () => {
+  const twoJujubas = () => setQuantity(addExtraItem(EMPTY_CART, 'jujuba', {}, 'n1').cart, 'n1', 2)
+
+  it('com a tentativa do site: reenvio devolve o mesmo pedido; tentativa nova é pedido novo (mesmo carrinho)', () => {
+    const browser = fakeBrowser()
+    expect(saveDemoOrder(draft(), browser.tab(1), 'tentativa-0000000001')).toMatchObject({ code: 'DEMO-0001', created: true })
+    expect(saveDemoOrder(draft(), browser.tab(1), 'tentativa-0000000001')).toMatchObject({ code: 'DEMO-0001', created: false })
+    expect(saveDemoOrder(draft(), browser.tab(1), 'tentativa-0000000002')).toMatchObject({ code: 'DEMO-0002', created: true })
+  })
+
+  it('o histórico guarda o recebido e cada situação, com o horário', async () => {
+    const browser = fakeBrowser()
+    saveDemoOrder(draft(), browser.tab(1))
+    await createLocalOrdersSource(browser.tab(1)).setStatus('id-1', 'preparando')
+    expect(findDemoOrder('id-1', browser.tab(1))?.events.map((event) => [event.kind, event.status])).toEqual([
+      ['status', 'novo'],
+      ['status', 'preparando'],
+    ])
+  })
+
+  it('acrescentar: soma sem frete, guarda o lote, não repete a mesma tentativa e o painel recebe UPDATE', () => {
+    const browser = fakeBrowser()
+    const changes: OrderChange[] = []
+    createLocalOrdersSource(browser.tab(2)).listen((change) => changes.push(change), () => undefined)
+    saveDemoOrder(draft(), browser.tab(1))
+    expect(addDemoItems('id-1', { attemptId: 'acrescimo-01', cart: twoJujubas() }, browser.tab(1))).toEqual({ ok: true, totalCents: 300, subtotalCents: 300, changeForCents: null, repeated: false })
+    expect(addDemoItems('id-1', { attemptId: 'acrescimo-01', cart: twoJujubas() }, browser.tab(1))).toMatchObject({ ok: true, repeated: true, totalCents: 300 })
+    const row = findDemoOrder('id-1', browser.tab(1))
+    expect([row?.additions.length, row?.items.length, row?.events.at(-1)?.kind, changes.map((change) => change.type)]).toEqual([1, 1, 'itens', ['INSERT', 'UPDATE']])
+  })
+
+  it('acrescentar depois de pronto, ou com troco menor que o total novo: recusado sem mudar nada', async () => {
+    const browser = fakeBrowser()
+    saveDemoOrder(draft({ payment: { method: 'dinheiro', changeForCents: 200 } }), browser.tab(1))
+    expect(addDemoItems('id-1', { attemptId: 'acrescimo-02', cart: twoJujubas() }, browser.tab(1))).toEqual({ ok: false, reason: 'troco', totalCents: 300 })
+    expect(addDemoItems('id-1', { attemptId: 'acrescimo-03', cart: twoJujubas(), changeForCents: 500, changeSet: true }, browser.tab(1))).toMatchObject({ ok: true, changeForCents: 500 })
+    await createLocalOrdersSource(browser.tab(1)).setStatus('id-1', 'pronto_consumo')
+    expect(addDemoItems('id-1', { attemptId: 'acrescimo-04', cart: twoJujubas() }, browser.tab(1))).toEqual({ ok: false, reason: 'situacao', detail: 'pronto_consumo' })
+    expect(findDemoOrder('id-1', browser.tab(1))?.total_cents).toBe(300)
   })
 })

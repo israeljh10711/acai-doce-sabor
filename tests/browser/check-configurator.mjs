@@ -48,9 +48,12 @@ const helpers = `
     el.dispatchEvent(new Event('input', { bubbles: true }));
     return true;
   };
-  // Troca window.open para guardar o link do WhatsApp em vez de abrir outra aba.
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
-  window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
+  // Desde 2026-11-20 o pedido é finalizado no site: nenhuma aba deve abrir (o window.open só conta).
+  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
+  // Sem o Supabase, a comanda fica guardada no modo de demonstração deste navegador.
+  window.__demoOrders = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders } catch { return [] } };
+  window.__demoCount = () => __demoOrders().length;
+  window.__openedText = () => __demoOrders().at(-1)?.message ?? null;
   // Transparência (alfa, 0 a 255) de pontos de uma foto, em frações da largura e da altura.
   window.__alpha = async (img, points) => {
     await img.decode();
@@ -377,33 +380,45 @@ try {
     await click(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] > li')][2].querySelector('button[class*="red"]')`)
     check(`${at} remover o milk-shake: R$ 71,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 71,00')`), true)
 
-    // --- Finalização: forma de pagamento, troco, Pix e mensagem do WhatsApp ---
+    // --- Finalização: forma de pagamento, troco, Pix e a comanda (pedido 100% no site, 2026-11-20) ---
+    // Sem o Supabase, o pedido fica no modo de demonstração deste navegador; nenhuma aba abre.
     await browser.evaluate(`__stubOpen()`)
     await browser.evaluate(FILL_CUSTOMER)
     await sleep(300)
-    const sendButton = `__button('Confirmar e Enviar Pedido no WhatsApp')`
+    const savedCart = await browser.evaluate(`localStorage.getItem('acai-doce-sabor:carrinho')`)
+    /** Volta ao carrinho com os mesmos itens (cada pedido confirmado esvazia o carrinho). */
+    const backToCart = async () => {
+      await browser.evaluate(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(savedCart)}); true`)
+      await browser.goto(baseUrl + '/carrinho', viewport)
+      await browser.evaluate(helpers)
+      await browser.evaluate(`__stubOpen()`)
+      await waitFor(`__q('[data-finalize]')`)
+    }
+    const sendButton = `__q('[data-finalize]')`
+    const demoBefore = await browser.evaluate(`__demoCount()`)
     await click(sendButton)
-    check(`${at} sem forma de pagamento: aviso e nada aberto`, await browser.evaluate(`[__text().includes('Selecione uma forma de pagamento para continuar'), window.__opened.length]`), [true, 0])
+    check(`${at} sem forma de pagamento: aviso e nada salvo`, await browser.evaluate(`[__text().includes('Selecione uma forma de pagamento para continuar'), __demoCount() - ${demoBefore}]`), [true, 0])
     check(`${at} sem forma de pagamento: foco nas opções`, await browser.evaluate(`document.activeElement.name`), 'forma-de-pagamento')
     await click(`__radio('dinheiro')`)
     await browser.evaluate(`__type('#troco-para', '50')`)
     await sleep(200)
     check(`${at} troco para 50: aviso de valor menor que o total`, await browser.evaluate(`__text().includes('O valor informado é menor que o total do pedido (R$ 71,00)')`), true)
     await click(sendButton)
-    check(`${at} troco menor que o total bloqueia o envio`, await browser.evaluate(`window.__opened.length`), 0)
+    check(`${at} troco menor que o total bloqueia a finalização`, await browser.evaluate(`__demoCount() - ${demoBefore}`), 0)
     await browser.evaluate(`__type('#troco-para', '100')`)
     await sleep(200)
     check(`${at} troco calculado na hora: R$ 29,00`, await browser.evaluate(`__liveText().includes('Troco a levar:R$ 29,00')`), true)
     await click(sendButton)
+    await waitFor(`location.pathname.startsWith('/acompanhar/DEMO-') && __q('[data-order-success="pedido"]')`)
     check(
-      `${at} abre a conversa do WhatsApp oficial`,
-      await browser.evaluate(`[window.__opened.length, new URL(window.__opened[0]).origin + new URL(window.__opened[0]).pathname]`),
-      [1, 'https://wa.me/5583996999980'],
+      `${at} finalizado no site: acompanhamento com "Pedido recebido", aviso de demonstração, nenhuma aba aberta`,
+      await browser.evaluate(`[!!__q('[data-demo-notice]'), window.__opened.length, __demoCount() - ${demoBefore}]`),
+      [true, 0, 1],
     )
     const message = await browser.evaluate(`__openedText()`)
     // Comanda de 2026-11-17: itens numerados, pagos com o valor, acompanhamentos por grupo.
     check(
-      `${at} mensagem: cabeçalho, itens com escolhas e total`,
+      `${at} comanda: cabeçalho, itens com escolhas e total`,
       [
         '🍧 *NOVO PEDIDO — AÇAÍ DOCE SABOR* 🍧',
         '🍨 *ITENS DO PEDIDO*',
@@ -417,19 +432,25 @@ try {
       Array(8).fill(true),
     )
     check(
-      `${at} mensagem: dinheiro com troco`,
+      `${at} comanda: dinheiro com troco`,
       ['• *Método escolhido:* 💵 *Dinheiro* — *R$ 71,00*', '  🪙 *Troco para:* R$ 100,00 *(Levar R$ 29,00 de troco)*'].map((t) => message.split('\n').includes(t)),
       [true, true],
     )
-    check(`${at} avisa que abriu o WhatsApp, sem dizer que enviou`, await browser.evaluate(`[__text().includes('Abrimos o WhatsApp com o seu pedido.'), /pedido (foi )?enviado/i.test(__text())]`), [true, false])
+    check(`${at} o carrinho esvaziou depois da confirmação`, await browser.evaluate(`__cartCount()`), '0')
+
+    await backToCart()
+    await click(`__radio('dinheiro')`)
     await click(`[...document.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label').textContent.includes('Não preciso de troco'))`)
-    check(`${at} "não preciso de troco" desliga o campo; aviso antigo some`, await browser.evaluate(`[__q('#troco-para').disabled, __text().includes('Abrimos o WhatsApp')]`), [true, false])
+    check(`${at} "não preciso de troco" desliga o campo`, await browser.evaluate(`__q('#troco-para').disabled`), true)
     await click(sendButton)
-    check(`${at} mensagem sem troco`, (await browser.evaluate(`__openedText()`)).split('\n').includes('  ✅ *Troco:* Não precisa (valor exato)'), true)
+    await waitFor(`location.pathname.startsWith('/acompanhar/')`)
+    check(`${at} comanda sem troco`, (await browser.evaluate(`__openedText()`)).split('\n').includes('  ✅ *Troco:* Não precisa (valor exato)'), true)
+
+    await backToCart()
     await click(`__radio('pix')`)
     check(
       `${at} Pix: chave, tipo, titular e instrução`,
-      await browser.evaluate(`['83996999980', 'Chave Pix (Celular)', 'Titular: Açaí Doce Sabor', 'Realize o Pix e envie o comprovante junto com o seu pedido no WhatsApp.'].map((t) => document.body.textContent.includes(t))`),
+      await browser.evaluate(`['83996999980', 'Chave Pix (Celular)', 'Titular: Açaí Doce Sabor', 'Faça o Pix e guarde o comprovante.'].map((t) => document.body.textContent.includes(t))`),
       [true, true, true, true],
     )
     await realClick(`__button('Copiar chave Pix')`)
@@ -438,14 +459,13 @@ try {
     await sleep(2600)
     check(`${at} depois de 2,5 s o botão volta a "Copiar chave Pix"`, await browser.evaluate(`!!__button('Copiar chave Pix')`), true)
     await click(sendButton)
+    await waitFor(`location.pathname.startsWith('/acompanhar/')`)
     const pixLines = (await browser.evaluate(`__openedText()`)).split('\n')
     check(
-      `${at} mensagem com Pix`,
-      ['• *Método escolhido:* 💠 *Pix* — *R$ 71,00*', '  📎 _Envio o comprovante do Pix nesta conversa._'].map((t) => pixLines.includes(t)),
+      `${at} comanda com Pix`,
+      ['• *Método escolhido:* 💠 *Pix* — *R$ 71,00*', '  📎 _Conferir o comprovante do Pix._'].map((t) => pixLines.includes(t)),
       [true, true],
     )
-    await click(`__button('Já enviei, esvaziar o carrinho')`)
-    check(`${at} "Já enviei" esvazia o carrinho`, await browser.evaluate(`[document.body.textContent.includes('Seu carrinho está vazio'), __cartCount()]`), [true, '0'])
     check(`${at} console sem erros`, browser.consoleProblems(), [])
   }
 

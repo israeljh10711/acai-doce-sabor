@@ -36,7 +36,7 @@ function fakeDeps({ rows = [] as ChangeRow[], now = OPEN } = {}) {
     insertOrder: async (row) => {
       calls.insert++
       if (orders.some((order) => order.attempt_key === row.attempt_key)) return null
-      const stored = { ...row, code: row.code, message: row.message, total_cents: row.total_cents, whatsapp: row.whatsapp }
+      const stored = { ...row, id: `pedido-${row.number}`, created_at: new Date(now).toISOString() }
       orders.push(stored)
       return stored
     },

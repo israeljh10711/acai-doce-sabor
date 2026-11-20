@@ -1,12 +1,13 @@
 /**
- * Comanda do pedido que vai para o WhatsApp da loja, no modelo aprovado em 2026-11-17: dividida em
+ * Comanda do pedido (o modelo aprovado em 2026-11-17; desde 2026-11-20 gravada com o pedido e lida
+ * no painel do vendedor, sem passar pelo WhatsApp): dividida em
  * blocos, com emojis para cada informação, fácil de ler na hora do pico.
  * - cliente: nome, telefone (se escrito), a modalidade (pedido de 2026-11-20: entrega, retirar ou
  *   comer no local), o endereço e o link do GPS (só na entrega) ou o local da loja;
  * - itens numerados (1️⃣, 2️⃣...), com a montagem do Completo, o que o cliente tirou, os pagos com
  *   o valor, os acompanhamentos por grupo e a observação do item;
  * - resumo com subtotal, frete e total; forma de pagamento com troco.
- * Usa o negrito (`*texto*`) e o itálico (`_texto_`) do WhatsApp.
+ * Usa o negrito (`*texto*`) e o itálico (`_texto_`) no estilo do WhatsApp (o painel entende).
  */
 import { storeInfo } from '../../services/storeInfo.ts'
 import { formatBRL } from '../../utils/money.ts'
@@ -29,11 +30,6 @@ export type OrderDraft = {
   antecipado: boolean
   /** Código do pedido, quando o banco de pedidos existir e devolver um. */
   code?: string
-  /**
-   * O registro no banco falhou (internet ou servidor) e o cliente enviou mesmo assim (opção 1,
-   * pedido de 2026-11-17): a comanda avisa a loja.
-   */
-  naoRegistrado?: boolean
 }
 
 const LINE = '━'.repeat(20)
@@ -155,7 +151,7 @@ function paymentLines(payment: Payment, amount: string, totalCents: number, feeK
   const chosen = '• *Método escolhido:*'
   switch (payment.method) {
     case 'pix':
-      return [`${chosen} 💠 *Pix* — ${amount}`, '  📎 _Envio o comprovante do Pix nesta conversa._']
+      return [`${chosen} 💠 *Pix* — ${amount}`, '  📎 _Conferir o comprovante do Pix._']
     case 'credito':
     case 'debito': {
       const card = payment.method === 'credito' ? 'Cartão de crédito' : 'Cartão de débito'
@@ -172,7 +168,29 @@ function paymentLines(payment: Payment, amount: string, totalCents: number, feeK
   }
 }
 
-export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code, naoRegistrado }: OrderDraft): string {
+/** O título dos itens na comanda (o painel e o acompanhamento procuram por ele). */
+export const ITEMS_TITLE = '🍨 *ITENS DO PEDIDO*'
+
+/**
+ * O bloco dos itens da comanda: o título e os itens numerados, cada um seguido de uma linha em
+ * branco. O mesmo bloco vai na comanda inteira e em cada lote acrescentado pelo cliente (2026-11-20).
+ */
+export function itemsBlockLines(cart: Cart): string[] {
+  const lines = [ITEMS_TITLE, '']
+  cart.items.forEach((item, index) => lines.push(...itemLines(item, index + 1), ''))
+  return lines
+}
+
+/** O bloco dos itens de uma comanda gravada (sem nome, telefone, endereço ou pagamento). */
+export function orderItemsBlock(message: string): string {
+  const lines = message.split('\n')
+  const start = lines.findIndex((line) => line === ITEMS_TITLE)
+  if (start === -1) return ''
+  const end = lines.findIndex((line, index) => index > start && line.startsWith('━'))
+  return lines.slice(start, end === -1 ? undefined : end).join('\n').trimEnd()
+}
+
+export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code }: OrderDraft): string {
   const subtotalCents = cartTotalCents(cart)
   const totalCents = subtotalCents + feeCents(customer.fee)
   const feeKnown = customer.fee.kind !== 'combinar'
@@ -184,14 +202,12 @@ export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado,
   if (code) lines.push(`🔖 *Pedido:* ${code}`)
   lines.push(`📅 *Data/Hora:* ${dateTimeText(sentAt)}`)
   if (antecipado) lines.push('⏰ *Pedido antecipado:* enviado com a loja fechada')
-  if (naoRegistrado) lines.push('⚠️ *Pedido não registrado no sistema*')
 
   lines.push('', '👤 *DADOS DO CLIENTE*', `• *Nome:* ${customer.name}`)
   if (customer.phone) lines.push(`• *Telefone:* ${customer.phone}`)
   lines.push(...fulfillmentLines(fulfillment))
 
-  lines.push('', LINE, '🍨 *ITENS DO PEDIDO*', '')
-  cart.items.forEach((item, index) => lines.push(...itemLines(item, index + 1), ''))
+  lines.push('', LINE, ...itemsBlockLines(cart))
 
   lines.push(
     LINE,

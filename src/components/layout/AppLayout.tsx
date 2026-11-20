@@ -2,6 +2,7 @@ import { Outlet, ScrollRestoration } from 'react-router'
 import { LightboxProvider } from '../../features/lightbox/LightboxProvider.tsx'
 import { SellerBarSlot } from '../../features/seller/SellerAccess.tsx'
 import { SellerModeProvider } from '../../features/seller/SellerModeProvider.tsx'
+import { TrackingBar } from '../../features/tracking/TrackingBar.tsx'
 import { SiteFooter } from './SiteFooter.tsx'
 import { SiteHeader } from './SiteHeader.tsx'
 
@@ -29,6 +30,8 @@ function Layout() {
 
       <SellerBarSlot />
       <SiteHeader />
+      {/* Pedido em andamento ou itens sendo acrescentados (2026-11-20): a faixa logo abaixo do cabeçalho. */}
+      <TrackingBar />
 
       {/* Cada página cuida da própria largura, com o Container, para poder ter faixas de ponta a ponta. */}
       <main id="conteudo" tabIndex={-1} className="flex-1 focus:outline-none">

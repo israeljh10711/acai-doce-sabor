@@ -49,6 +49,9 @@ const ORDER_COLUMNS = [
   'antecipado',
   'items',
   'message',
+  // Acompanhamento do cliente (2026-11-20): os itens acrescentados e a hora da última mudança.
+  'additions',
+  'updated_at',
 ].join(',')
 
 /** Os pedidos de dias anteriores que ainda aparecem: os que não foram concluídos nem cancelados. */

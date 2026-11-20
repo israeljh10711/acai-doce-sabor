@@ -1,37 +1,32 @@
 /**
  * Envio do pedido: ponto único que o carrinho usa.
  *
- * - **Sem o Supabase ligado:** o pedido vai só pela mensagem do WhatsApp (como desde 2026-11-14).
- * - **Com o Supabase ligado (pedido de 2026-11-17, opção A):** antes do WhatsApp, o site manda o
- *   pedido à função `pedido`, que confere os preços e as regras no servidor, grava com o código
- *   (ADS-0001) e devolve a comanda com o código. Repetir o mesmo pedido devolve o mesmo código.
- * - **Falha de internet ou do servidor (opção 1):** o carrinho oferece "Tentar de novo" e "Enviar
- *   mesmo assim pelo WhatsApp", com a comanda marcada como não registrada.
- *
- * Em todos os casos o pedido só chega à loja quando o cliente toca em Enviar no WhatsApp.
+ * Desde o pedido 100% no site (2026-11-20), o pedido é finalizado aqui, sem WhatsApp: o site manda
+ * o pedido à função `pedido`, que confere os preços e as regras no servidor, grava com o código
+ * (ADS-0001) e liga o pedido à sessão anônima do cliente (o token vai no `Authorization`). Só com
+ * a resposta do servidor o site diz que o pedido foi recebido. `attemptId` identifica a tentativa:
+ * mandar de novo (falha de internet, toque duplo) devolve o mesmo pedido, nunca grava outro.
  */
-import { buildWhatsAppUrl } from '../../utils/whatsapp.ts'
 import type { RejectReason } from '../../server/orderServer.ts'
 import { type Cart, serializeCart } from '../cart/cart.ts'
-import { getStoreSettings } from '../catalog/catalogStore.ts'
 import type { CustomerDraft } from '../checkout/delivery.ts'
 import type { PaymentDraft } from '../checkout/payment.ts'
-import { type OrderDraft, buildOrderMessage } from './orderMessage.ts'
 
 /** O que o carrinho manda à função: o servidor confere tudo de novo. */
-export type OrderSubmission = { cart: Cart; customer: CustomerDraft; payment: PaymentDraft; expectedTotalCents: number }
+export type OrderSubmission = { cart: Cart; customer: CustomerDraft; payment: PaymentDraft; expectedTotalCents: number; attemptId?: string }
 
-export type FunctionConfig = { url: string; key: string }
+/** `token`: a sessão anônima do cliente (sem ela, o pedido é gravado, mas sem acompanhamento). */
+export type FunctionConfig = { url: string; key: string; token?: string | null }
 
 export type SubmitResult =
-  | { kind: 'registered'; code: string; message: string; whatsapp: string; totalCents: number }
+  | { kind: 'registered'; id: string | null; code: string; createdAt: string | null; tracked: boolean; totalCents: number; repeated: boolean }
   | { kind: 'rejected'; reason: RejectReason; detail?: string; totalCents?: number }
   | { kind: 'failed'; why: 'rede' | 'servidor' | 'tempo' | 'resposta' }
 
-/** Recusas que o cliente resolve no carrinho; as outras viram falha (com o envio sem registro). */
+/** Recusas que o cliente resolve no carrinho; as outras viram falha (o cliente tenta de novo). */
 const FIXABLE: readonly RejectReason[] = ['esgotado', 'loja-fechada', 'dados-invalidos', 'pagamento-invalido', 'total-mudou', 'item-indisponivel']
 
-/** Tempo máximo esperando a função antes de oferecer o envio sem registro. */
+/** Tempo máximo esperando a função antes de dizer que não deu para confirmar. */
 export const SUBMIT_TIMEOUT_MS = 15_000
 
 export function orderFunctionUrl({ url }: FunctionConfig): string {
@@ -39,6 +34,12 @@ export function orderFunctionUrl({ url }: FunctionConfig): string {
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+/** O `Authorization`: a sessão do cliente; sem ela, a chave anon antiga (JWT) ou nada (publishable). */
+function authorization(config: FunctionConfig): Record<string, string> {
+  if (config.token) return { Authorization: `Bearer ${config.token}` }
+  return config.key.startsWith('eyJ') ? { Authorization: `Bearer ${config.key}` } : {}
+}
 
 /** Manda o pedido à função `pedido` do Supabase e diz o que aconteceu. Nunca lança erro. */
 export async function submitOrder(
@@ -52,13 +53,15 @@ export async function submitOrder(
   try {
     const response = await fetchImpl(orderFunctionUrl(config), {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: config.key,
-        // A chave anon antiga é um JWT: vale também como Bearer (a publishable, não).
-        ...(config.key.startsWith('eyJ') ? { Authorization: `Bearer ${config.key}` } : {}),
-      },
-      body: JSON.stringify({ cart: serializeCart(order.cart), customer: order.customer, payment: order.payment, expectedTotalCents: order.expectedTotalCents }),
+      headers: { 'Content-Type': 'application/json', apikey: config.key, ...authorization(config) },
+      body: JSON.stringify({
+        op: 'criar',
+        cart: serializeCart(order.cart),
+        customer: order.customer,
+        payment: order.payment,
+        expectedTotalCents: order.expectedTotalCents,
+        ...(order.attemptId ? { attemptId: order.attemptId } : {}),
+      }),
       signal: controller.signal,
     })
     if (!response.ok) return { kind: 'failed', why: 'servidor' }
@@ -69,8 +72,18 @@ export async function submitOrder(
       return { kind: 'failed', why: 'resposta' }
     }
     if (!isRecord(body)) return { kind: 'failed', why: 'resposta' }
-    if (body.ok === true && typeof body.code === 'string' && typeof body.message === 'string' && typeof body.whatsapp === 'string' && typeof body.totalCents === 'number') {
-      return { kind: 'registered', code: body.code, message: body.message, whatsapp: body.whatsapp, totalCents: body.totalCents }
+    if (body.ok === true && typeof body.code === 'string' && typeof body.totalCents === 'number') {
+      const id = typeof body.id === 'string' ? body.id : null
+      return {
+        kind: 'registered',
+        id,
+        code: body.code,
+        createdAt: typeof body.createdAt === 'string' ? body.createdAt : null,
+        // Sem o id (função antiga), não dá para acompanhar, mesmo com a sessão.
+        tracked: body.tracked === true && id !== null,
+        totalCents: body.totalCents,
+        repeated: body.repeated === true,
+      }
     }
     if (body.ok === false && FIXABLE.includes(body.reason as RejectReason)) {
       return {
@@ -86,12 +99,4 @@ export async function submitOrder(
   } finally {
     clearTimeout(timer)
   }
-}
-
-/**
- * Link que abre a conversa com a loja já com a comanda escrita (feita no aparelho). Quem envia é o
- * cliente. O número é o WhatsApp da loja em "Horários e Contato" (pedido de 2026-11-17).
- */
-export function orderWhatsAppUrl(order: OrderDraft): string {
-  return buildWhatsAppUrl(getStoreSettings().contact.whatsapp, buildOrderMessage(order))
 }

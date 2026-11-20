@@ -6,7 +6,7 @@
  * loja aberta ou fechada, dados do cliente, frete do bairro, troco e preços. Só grava quando o
  * total bate com o que o cliente viu; o código sai em sequência (ADS-0001, ADS-0002...).
  *
- * A chave de repetição é calculada aqui, a partir do conteúdo inteiro do pedido: o mesmo pedido
+ * A chave de repetição vem do id da tentativa sorteado no aparelho (2026-11-20; antes, do conteúdo do pedido): o mesmo pedido
  * enviado de novo (toque duplo, página recarregada) devolve o mesmo código, e ninguém consegue
  * ler um pedido gravado sem saber o conteúdo dele inteiro (que inclui ids sorteados no aparelho).
  *
@@ -33,7 +33,15 @@ const CODE_MARK = '{{CODIGO_DO_PEDIDO}}'
 export type { ItemSnapshot, OrderRow } from '../features/orders/orderRow.ts'
 
 /** O que volta do banco para responder ao cliente. */
-export type StoredOrder = { code: string; message: string; total_cents: number; whatsapp: string }
+export type StoredOrder = {
+  id: string
+  code: string
+  message: string
+  total_cents: number
+  whatsapp: string
+  created_at: string
+  customer_user_id: string | null
+}
 
 export type OrderDeps = {
   /** As mudanças do vendedor (tabela `catalog_changes`). */
@@ -49,6 +57,12 @@ export type OrderDeps = {
 
 export type RejectReason =
   | 'pedido-invalido'
+  // Acompanhamento e acréscimo (2026-11-20).
+  | 'sem-sessao'
+  | 'nao-encontrado'
+  | 'expirado'
+  | 'situacao'
+  | 'troco'
   | 'carrinho-vazio'
   | 'item-indisponivel'
   | 'esgotado'
@@ -58,7 +72,19 @@ export type RejectReason =
   | 'total-mudou'
 
 export type OrderResponse =
-  | { ok: true; code: string; message: string; totalCents: number; whatsapp: string; repeated: boolean }
+  | {
+      ok: true
+      /** O id do pedido (para o acompanhamento) e se ele ficou ligado à sessão do cliente. */
+      id: string
+      code: string
+      createdAt: string
+      tracked: boolean
+      totalCents: number
+      repeated: boolean
+      /** A comanda e o WhatsApp da loja: só o site antigo (antes de 2026-11-20) usa. */
+      message: string
+      whatsapp: string
+    }
   | { ok: false; reason: RejectReason; detail?: string; totalCents?: number }
 
 type Rejection = Extract<OrderResponse, { ok: false }>
@@ -78,14 +104,32 @@ function parsePayment(raw: unknown): PaymentDraft {
   return { method, changeFor: typeof raw.changeFor === 'string' ? raw.changeFor.slice(0, 20) : '', exact: raw.exact === true }
 }
 
-type OrderInput = { cart: string; customer: CustomerDraft; payment: PaymentDraft; expectedTotalCents: number }
+type OrderInput = { cart: string; customer: CustomerDraft; payment: PaymentDraft; expectedTotalCents: number; attemptId: string | null }
+
+/** O id de uma tentativa de finalização, sorteado no aparelho (2026-11-20). */
+export const ATTEMPT_ID = /^[A-Za-z0-9-]{16,64}$/
 
 function parseInput(raw: unknown): OrderInput | null {
   if (!isRecord(raw)) return null
-  const { cart, expectedTotalCents } = raw
+  const { cart, expectedTotalCents, attemptId } = raw
   if (typeof cart !== 'string' || cart.length > MAX_CART_LENGTH) return null
   if (typeof expectedTotalCents !== 'number' || !Number.isSafeInteger(expectedTotalCents) || expectedTotalCents < 0) return null
-  return { cart, customer: parseCustomerDraft(raw.customer), payment: parsePayment(raw.payment), expectedTotalCents }
+  if (attemptId !== undefined && (typeof attemptId !== 'string' || !ATTEMPT_ID.test(attemptId))) return null
+  return {
+    cart,
+    customer: parseCustomerDraft(raw.customer),
+    payment: parsePayment(raw.payment),
+    expectedTotalCents,
+    attemptId: typeof attemptId === 'string' ? attemptId : null,
+  }
+}
+
+/** O pagamento como o site manda (também no acréscimo). */
+export { parsePayment }
+
+/** Quantas linhas o carrinho recebido diz ter: usado também no acréscimo. */
+export function cartLines(cart: string): number {
+  return declaredLines(cart)
 }
 
 /** Quantas linhas o carrinho recebido diz ter (para saber se alguma ficou de fora na leitura). */
@@ -98,7 +142,7 @@ function declaredLines(cart: string): number {
   }
 }
 
-type Prepared = { ok: true; row: Omit<OrderRow, 'attempt_key' | 'number' | 'code'> }
+type Prepared = { ok: true; row: Omit<OrderRow, 'attempt_key' | 'number' | 'code' | 'customer_user_id'> }
 
 /**
  * Confere o pedido com o cardápio em uso e monta a linha e a comanda (com a marca do código).
@@ -140,21 +184,41 @@ function prepare(input: OrderInput, now: number): Prepared | Rejection {
 
 const accepted = (order: StoredOrder, repeated: boolean): OrderResponse => ({
   ok: true,
+  id: order.id,
   code: order.code,
-  message: order.message,
+  createdAt: order.created_at,
+  tracked: order.customer_user_id !== null,
   totalCents: order.total_cents,
-  whatsapp: order.whatsapp,
   repeated,
+  message: order.message,
+  whatsapp: order.whatsapp,
 })
 
-/** Confere e grava o pedido. Erro do banco (rede, chave) sobe: a função responde 500. */
-export async function handleOrder(raw: unknown, deps: OrderDeps): Promise<OrderResponse> {
+/**
+ * A chave de repetição: com o id da tentativa que o site sorteou (2026-11-20), o mesmo pedido
+ * reenviado por toque duplo ou internet caída devolve o mesmo código, e um pedido igual feito
+ * depois é outro pedido. Sem o id (site antigo), o resumo do conteúdo, como antes.
+ */
+async function attemptKeyOf(input: OrderInput, deps: OrderDeps): Promise<string> {
+  return deps.sha256(input.attemptId ? `tentativa:${input.attemptId}` : JSON.stringify([input.cart, input.customer, input.payment]))
+}
+
+/**
+ * Confere e grava o pedido. `customerId`: a sessão anônima do cliente, já conferida (o pedido fica
+ * ligado a ela para o acompanhamento); sem sessão, o pedido é gravado do mesmo jeito, sem
+ * acompanhamento. Erro do banco (rede, chave) sobe: a função responde 500.
+ */
+export async function handleOrder(raw: unknown, deps: OrderDeps, customerId: string | null = null): Promise<OrderResponse> {
   const input = parseInput(raw)
   if (!input) return reject('pedido-invalido')
 
-  const attemptKey = await deps.sha256(JSON.stringify([input.cart, input.customer, input.payment]))
+  const attemptKey = await attemptKeyOf(input, deps)
   const existing = await deps.findOrder(attemptKey)
-  if (existing) return accepted(existing, true)
+  if (existing) {
+    // A mesma tentativa vinda de outra sessão: não devolve o pedido de ninguém.
+    if (existing.customer_user_id && customerId && existing.customer_user_id !== customerId) return reject('pedido-invalido')
+    return accepted(existing, true)
+  }
 
   const rows = await deps.readChanges()
   // Daqui até a comanda ficar pronta, nada de await: o cardápio é um estado do módulo.
@@ -164,7 +228,14 @@ export async function handleOrder(raw: unknown, deps: OrderDeps): Promise<OrderR
 
   const number = await deps.nextNumber()
   const code = orderCode(number)
-  const row: OrderRow = { ...prepared.row, attempt_key: attemptKey, number, code, message: prepared.row.message.replace(CODE_MARK, code) }
+  const row: OrderRow = {
+    ...prepared.row,
+    attempt_key: attemptKey,
+    number,
+    code,
+    message: prepared.row.message.replace(CODE_MARK, code),
+    customer_user_id: customerId,
+  }
   const stored = (await deps.insertOrder(row)) ?? (await deps.findOrder(attemptKey))
   if (!stored) throw new Error('O pedido não foi gravado.')
   return accepted(stored, stored.code !== code)

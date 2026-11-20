@@ -47,8 +47,10 @@ const helpers = `
   window.__total = () => __q('[aria-labelledby="total-titulo"]')?.innerText ?? '';
   window.__lines = () => [...document.querySelectorAll('[aria-label="Itens do carrinho"] > li article')].map((a) => a.getAttribute('aria-label'));
   window.__top = (id) => Math.round(document.getElementById(id).getBoundingClientRect().top);
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
-  window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
+  // Desde 2026-11-20 o pedido é finalizado no site: nenhuma aba deve abrir (o window.open só conta).
+  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
+  // Sem o Supabase, a comanda fica guardada no modo de demonstração deste navegador.
+  window.__openedText = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders.at(-1).message } catch { return null } };
   true;
 `
 
@@ -368,19 +370,22 @@ try {
     await waitFor(`location.pathname === '/carrinho' && __q('[aria-label="Itens do carrinho"]')`)
     check(`${at} carrinho completo: total R$ 111,00 (6 + 41 + 30 + 34)`, await browser.evaluate(`[__lines().length, __total().includes('R$ 111,00')]`), [4, true])
 
-    // --- Mensagem do WhatsApp com tudo ---
+    // --- A comanda com tudo (finalizada no site, 2026-11-20) ---
+    const fullCart = await browser.evaluate(`localStorage.getItem('acai-doce-sabor:carrinho')`)
     await browser.evaluate(`__stubOpen()`)
     await browser.evaluate(FILL_CUSTOMER)
     await sleep(300)
     await click(`__q('input[value="dinheiro"]')`)
     await browser.evaluate(`__type('#troco-para', '150')`)
     await sleep(250)
-    await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`)
+    await click(`__q('[data-finalize]')`)
+    await waitFor(`location.pathname.startsWith('/acompanhar/DEMO-')`)
+    check(`${at} finalizado no site, sem abrir o WhatsApp`, await browser.evaluate(`window.__opened.length`), 0)
     const message = await browser.evaluate(`__openedText()`)
     // Comanda de 2026-11-17: o título vem depois do número (1️⃣, 2️⃣...); as outras linhas, inteiras.
     const has = (text) => (message ?? '').split('\n').some((line) => line === text || line.endsWith(` ${text}`))
     check(
-      `${at} WhatsApp: cada item com quantidade, sabor, adicionais e valor`,
+      `${at} comanda: cada item com quantidade, sabor, adicionais e valor`,
       [
         '*2x Picolé Gourmet* (Sabor: Nutella) — *R$ 6,00*',
         '*1x Kit Completo Casquinha DUO* — *R$ 41,00*',
@@ -397,12 +402,18 @@ try {
       ].map(has),
       Array(12).fill(true),
     )
+    // O carrinho esvaziou com o pedido confirmado: volta com os mesmos itens.
+    await browser.evaluate(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(fullCart)}); true`)
+    await browser.goto(baseUrl + '/carrinho', viewport)
+    await browser.evaluate(helpers)
+    await waitFor(`__q('[data-finalize]')`)
     await click(`__q('input[value="pix"]')`)
-    await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`)
+    await click(`__q('[data-finalize]')`)
+    await waitFor(`location.pathname.startsWith('/acompanhar/DEMO-')`)
     const pixLines = (await browser.evaluate(`__openedText()`)).split('\n')
     check(
-      `${at} WhatsApp com Pix`,
-      ['• *Método escolhido:* 💠 *Pix* — *R$ 111,00*', '  📎 _Envio o comprovante do Pix nesta conversa._'].map((t) => pixLines.includes(t)),
+      `${at} comanda com Pix`,
+      ['• *Método escolhido:* 💠 *Pix* — *R$ 111,00*', '  📎 _Conferir o comprovante do Pix._'].map((t) => pixLines.includes(t)),
       [true, true],
     )
     check(`${at} console sem erros`, browser.consoleProblems(), [])

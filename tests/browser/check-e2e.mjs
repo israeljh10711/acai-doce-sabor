@@ -48,9 +48,11 @@ const helpers = `
   window.__lines = () => [...document.querySelectorAll('[aria-label="Itens do carrinho"] > li article')].map((a) => a.getAttribute('aria-label'));
   window.__line = (title) => [...document.querySelectorAll('[aria-label="Itens do carrinho"] > li')].find((li) => li.querySelector('article')?.getAttribute('aria-label') === title);
   window.__liveText = () => [...document.querySelectorAll('p[aria-live]')].map((p) => p.textContent).join('|');
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
-  window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
-  window.__openedTarget = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).origin + new URL(window.__opened.at(-1)).pathname : null);
+  // Desde 2026-11-20 o pedido é finalizado no site: nenhuma aba deve abrir (o window.open só conta).
+  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
+  // Sem o Supabase, a comanda fica guardada no modo de demonstração deste navegador.
+  window.__demoOrders = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders } catch { return [] } };
+  window.__openedText = () => __demoOrders().at(-1)?.message ?? null;
   true;
 `
 
@@ -248,12 +250,17 @@ try {
     const sum = orderable.reduce((total, item) => total + item.priceCents, 0)
     check(`${at} carrinho: ${orderable.length} linhas, uma por item`, await run(`__lines().length`), orderable.length)
     check(`${at} carrinho: total ${brl(sum)}`, await run(`__total().includes(${JSON.stringify(brl(sum))})`), true)
-    await run(`__stubOpen()`)
-    await run(FILL_CUSTOMER)
-    await sleep(300)
+    const fullCart = await run(`localStorage.getItem('acai-doce-sabor:carrinho')`)
     for (const [method, label] of [['credito', 'Cartão de crédito'], ['debito', 'Cartão de débito']]) {
+      // Cada pedido confirmado esvazia o carrinho (2026-11-20): volta com os mesmos itens.
+      await run(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(fullCart)}); true`)
+      await page('/carrinho', viewport)
+      await run(`__stubOpen()`)
+      await run(FILL_CUSTOMER)
+      await sleep(300)
       await click(`__q('input[name="forma-de-pagamento"][value="${method}"]')`)
-      await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`)
+      await click(`__q('[data-finalize]')`)
+      check(`${at} ${label}: finalizado no site, sem abrir o WhatsApp`, [await waitFor(`location.pathname.startsWith('/acompanhar/DEMO-')`), await run(`window.__opened.length`)], [true, 0])
       const message = (await run(`__openedText()`)) ?? ''
       const lines = message.split('\n')
       // Comanda de 2026-11-17: "1️⃣ *1x Nome* (Sabor: X) — *R$ 3,00*"; com 2 escolhas ou mais, uma por linha.
@@ -264,8 +271,7 @@ try {
         .flatMap((item) => choiceGroupsOf(item).map((group) => [group.label, group.options[0]]))
         .filter(([groupLabel, option]) => !message.includes(`(${groupLabel}: ${option})`) && !message.includes(`• *${groupLabel}:* ${option}`))
         .map(([groupLabel, option]) => `${groupLabel}: ${option}`)
-      check(`${at} ${label}: WhatsApp oficial (5583996999980)`, await run(`__openedTarget()`), 'https://wa.me/5583996999980')
-      check(`${at} ${label}: mensagem com os ${orderable.length} itens e os sabores`, [missing, [...new Set(flavorsMissing)]], [[], []])
+      check(`${at} ${label}: comanda com os ${orderable.length} itens e os sabores`, [missing, [...new Set(flavorsMissing)]], [[], []])
       check(
         `${at} ${label}: total e forma de pagamento`,
         [lines.includes(`💰 *TOTAL A PAGAR:* *${brl(sum)}*`), lines.includes(`• *Método escolhido:* 💳 *${label}* — *${brl(sum)}*`)],
@@ -293,22 +299,31 @@ try {
     await run(`__type('#troco-para', '45')`)
     await sleep(250)
     check(`${at} troco para R$ 45,00: aviso de valor menor`, await run(`document.body.textContent.includes('O valor informado é menor que o total do pedido (R$ 48,00)')`), true)
-    await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`)
-    check(`${at} troco menor bloqueia o envio`, await run(`window.__opened.length`), 0)
+    const demoBefore = await run(`__demoOrders().length`)
+    await click(`__q('[data-finalize]')`)
+    check(`${at} troco menor bloqueia a finalização`, await run(`[__demoOrders().length - ${demoBefore}, location.pathname]`), [0, '/carrinho'])
     await run(`__type('#troco-para', '50')`)
     await sleep(250)
-    await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`)
+    const cashCart = await run(`localStorage.getItem('acai-doce-sabor:carrinho')`)
+    await click(`__q('[data-finalize]')`)
+    await waitFor(`location.pathname.startsWith('/acompanhar/')`)
     const cashLines = ((await run(`__openedText()`)) ?? '').split('\n')
     check(
-      `${at} mensagem: dinheiro, troco para R$ 50,00, levar R$ 2,00`,
+      `${at} comanda: dinheiro, troco para R$ 50,00, levar R$ 2,00`,
       ['• *Método escolhido:* 💵 *Dinheiro* — *R$ 48,00*', '  🪙 *Troco para:* R$ 50,00 *(Levar R$ 2,00 de troco)*'].map((t) => cashLines.includes(t)),
       [true, true],
     )
+    await run(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(cashCart)}); true`)
+    await page('/carrinho', viewport)
+    await click(`__q('input[name="forma-de-pagamento"][value="dinheiro"]')`)
     await click(`[...document.querySelectorAll('input[type=checkbox]')].find((i) => i.closest('label').textContent.includes('Não preciso de troco'))`)
-    await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`)
-    check(`${at} "Não preciso de troco (valor exato)" na mensagem`, ((await run(`__openedText()`)) ?? '').split('\n').includes('  ✅ *Troco:* Não precisa (valor exato)'), true)
+    await click(`__q('[data-finalize]')`)
+    await waitFor(`location.pathname.startsWith('/acompanhar/')`)
+    check(`${at} "Não preciso de troco (valor exato)" na comanda`, ((await run(`__openedText()`)) ?? '').split('\n').includes('  ✅ *Troco:* Não precisa (valor exato)'), true)
 
     // --- Mais, menos e remover no carrinho ---
+    await run(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(cashCart)}); true`)
+    await page('/carrinho', viewport)
     await click(`__line('Picolé Gourmet').querySelector('button[aria-label="Aumentar quantidade"]')`)
     check(`${at} carrinho: + no picolé = R$ 51,00`, await run(`__total().includes('R$ 51,00')`), true)
     await click(`__line('Picolé Gourmet').querySelector('button[aria-label="Diminuir quantidade"]')`)

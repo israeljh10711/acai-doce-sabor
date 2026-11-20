@@ -4,7 +4,9 @@
 //   [join_ref, ref, tópico, evento, conteúdo]): heartbeat, phx_join com postgres_changes,
 //   access_token e phx_leave;
 // - as mudanças da tabela orders (INSERT e UPDATE) só para quem entrou com o token do vendedor,
-//   como o RLS do Supabase.
+//   como o RLS do Supabase;
+// - os eventos de order_events (acompanhamento do cliente, 2026-11-20) só para o dono da sessão
+//   (customer_user_id = auth.uid()) e para o vendedor, respeitando o filtro da inscrição.
 import { createHash } from 'node:crypto'
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -32,8 +34,8 @@ function frame(text) {
  * Liga o Realtime de mentira ao servidor HTTP. `isPublicKey(apikey)` confere a chave do endereço;
  * `sellerToken` é o token que o "RLS" aceita.
  */
-export function attachFakeRealtime(server, { isPublicKey, sellerToken }) {
-  const stats = { connections: 0, joins: 0, leaves: 0, closed: 0, sockets: new Set(), subscriptions: [] }
+export function attachFakeRealtime(server, { isPublicKey, sellerToken, userOf = () => null }) {
+  const stats = { connections: 0, joins: 0, leaves: 0, closed: 0, sockets: new Set(), subscriptions: [], delivered: [] }
   let nextId = 1000
 
   server.on('upgrade', (request, socket) => {
@@ -60,7 +62,9 @@ export function attachFakeRealtime(server, { isPublicKey, sellerToken }) {
         const ids = filters.map(() => nextId++)
         stats.subscriptions = stats.subscriptions.filter((sub) => !(sub.socket === socket && sub.topic === topic))
         stats.subscriptions.push({ socket, send, topic, joinRef, token: payload?.access_token ?? null, ids, filters })
-        return reply(joinRef, ref, topic, { postgres_changes: filters.map((filter, index) => ({ id: ids[index], event: filter.event, schema: filter.schema, table: filter.table })) })
+        return reply(joinRef, ref, topic, {
+          postgres_changes: filters.map((filter, index) => ({ id: ids[index], event: filter.event, schema: filter.schema, table: filter.table, ...(filter.filter ? { filter: filter.filter } : {}) })),
+        })
       }
       if (event === 'access_token') {
         for (const sub of stats.subscriptions) if (sub.socket === socket && sub.topic === topic) sub.token = payload?.access_token ?? null
@@ -123,21 +127,36 @@ export function attachFakeRealtime(server, { isPublicKey, sellerToken }) {
     socket.on('error', gone)
   })
 
-  /** Uma mudança na tabela orders: vai só para as inscrições com o token do vendedor (RLS). */
-  const publish = (type, record) => {
+  /** O filtro da inscrição ("coluna=eq.valor"): sem filtro, tudo. */
+  const passes = (filter, record) => {
+    if (!filter) return true
+    const match = /^(\w+)=eq\.(.+)$/.exec(filter)
+    return match ? String(record[match[1]]) === match[2] : false
+  }
+  /** O RLS: orders só para o vendedor; order_events para o dono da sessão e para o vendedor. */
+  const allowed = (sub, table, record) => {
+    if (sub.token === sellerToken) return true
+    if (table !== 'order_events') return false
+    const user = userOf(sub.token)
+    return user !== null && record.customer_user_id === user
+  }
+
+  /** Uma mudança numa tabela publicada: vai só para quem pode ler (RLS) e passou no filtro. */
+  const publish = (type, record, table = 'orders') => {
     for (const sub of stats.subscriptions) {
-      if (sub.token !== sellerToken) continue
+      if (!allowed(sub, table, record)) continue
       const ids = sub.ids.filter((_, index) => {
         const filter = sub.filters[index]
-        return filter.table === 'orders' && (filter.event === '*' || filter.event === type)
+        return filter.table === table && (filter.event === '*' || filter.event === type) && passes(filter.filter, record)
       })
       if (ids.length === 0) continue
+      stats.delivered.push({ table, type, token: sub.token, record })
       sub.send([
         sub.joinRef,
         null,
         sub.topic,
         'postgres_changes',
-        { ids, data: { schema: 'public', table: 'orders', commit_timestamp: new Date().toISOString(), type, columns: [], record, ...(type === 'UPDATE' ? { old_record: { id: record.id } } : {}), errors: null } },
+        { ids, data: { schema: 'public', table, commit_timestamp: new Date().toISOString(), type, columns: [], record, ...(type === 'UPDATE' ? { old_record: { id: record.id } } : {}), errors: null } },
       ])
     }
   }
@@ -147,6 +166,8 @@ export function attachFakeRealtime(server, { isPublicKey, sellerToken }) {
     publish,
     /** Inscrições ativas em orders com o token do vendedor. */
     sellerSubscriptions: () => stats.subscriptions.filter((sub) => sub.token === sellerToken).length,
+    /** Inscrições de clientes (sessão anônima) em order_events. */
+    customerSubscriptions: () => stats.subscriptions.filter((sub) => sub.token && sub.token !== sellerToken && sub.filters.some((filter) => filter.table === 'order_events')),
     closeAll: () => {
       for (const socket of stats.sockets) socket.destroy()
     },

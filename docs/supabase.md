@@ -4,9 +4,10 @@ Com o Supabase ligado:
 - o que o vendedor muda no site chega a todos os clientes:
   - preço, foto, esgotado, produto ou complemento novo, sabores;
   - loja aberta ou fechada, tempo de entrega, entrega e frete, horários e contato;
-- cada pedido é conferido e registrado no banco antes de abrir o WhatsApp, com o código ADS-0001, ADS-0002... (desde 2026-11-17).
+- o cliente finaliza o pedido no próprio site, sem WhatsApp (desde 2026-11-20). A função `pedido` confere e grava cada pedido com o código ADS-0001, ADS-0002...;
+- o cliente acompanha cada etapa ao vivo e pode acrescentar itens ao mesmo pedido enquanto ele está em Novo ou Preparando.
 
-Sem ele, as mudanças ficam só no aparelho em que foram feitas, e o pedido vai só pelo WhatsApp.
+Sem ele, o site funciona em modo de demonstração: as mudanças e os pedidos ficam só no navegador em que foram feitos, e a loja não recebe os pedidos.
 
 O plano gratuito do Supabase basta. Não cadastre cartão de crédito.
 
@@ -27,6 +28,7 @@ Se você já rodou este arquivo antes de 2026-11-17, rode de novo: ele passou a 
 4. Em **New query** mais uma vez, copie todo o arquivo `supabase/migrations/20261120000000_permissoes.sql`, cole e clique em **Run**. Ele libera as tabelas para o site e para a função. Sem ele, projetos novos do Supabase respondem "permission denied for table catalog_changes". Tem de ser depois dos dois primeiros.
 5. Em **New query**, copie todo o arquivo `supabase/migrations/20261120120000_modalidades_gps.sql`, cole e clique em **Run**. Ele acrescenta "Comer no Local" e o GPS da entrega aos pedidos (veja "Modalidades e GPS nos pedidos", abaixo). Tem de ser depois dos três primeiros e **antes** de colar a função nova (passo 6).
 6. Em **New query**, copie todo o arquivo `supabase/migrations/20261120180000_painel_ao_vivo.sql`, cole e clique em **Run**. Ele liga o Realtime da tabela `orders` e acrescenta as situações "pronto para retirada" e "pronto para consumo" (veja "Painel de pedidos ao vivo", abaixo). Tem de ser depois do passo 5.
+7. Em **New query**, copie todo o arquivo `supabase/migrations/20261120200000_acompanhamento_cliente.sql`, cole e clique em **Run**. Ele cria o acompanhamento do cliente e a adição de itens (veja "Pedido 100% no site", abaixo). Tem de ser depois do passo 6 e **antes** de colar a função nova e de publicar o site novo.
 
 ### Já tinha tudo funcionando antes de 2026-11-20?
 
@@ -37,9 +39,17 @@ Para ligar as três modalidades e o GPS, siga esta ordem:
 
 Para o **painel ao vivo** (também de 2026-11-20): rode o `20261120180000_painel_ao_vivo.sql` (passo 2.6) antes de publicar o site novo. Sem ele, o painel funciona, mas sem receber na hora (confere a cada 15 s), e os botões "Pronto para Retirada" e "Pronto para Consumo" são recusados pelo banco. A função `pedido` não precisa ser colada de novo por causa do painel.
 
+Para o **pedido 100% no site** (acompanhamento e adição de itens, também de 2026-11-20), siga esta ordem:
+1. rode o `20261120200000_acompanhamento_cliente.sql` (passo 2.7);
+2. ligue o login anônimo e o gancho (passos 3.6 e 3.7);
+3. rode `npm run build:pedido` e cole de novo o arquivo `supabase/functions/pedido/index.ts` na função `pedido`;
+4. publique o site novo.
+
 Fora dessa ordem:
-- **Site novo com a função antiga:** os pedidos "Comer no Local" são recusados ("Confira seus dados").
-- **Função nova sem o SQL:** o registro falha. O cliente vê "Enviar mesmo assim pelo WhatsApp" e a venda não se perde, mas fica sem código.
+- **Site novo com a função antiga:** os pedidos "Comer no Local" são recusados ("Confira seus dados"). Os outros são gravados, mas sem acompanhamento ao vivo.
+- **Função nova sem o SQL:** a gravação falha. O cliente vê "Não foi possível confirmar o pedido agora" e "Tentar de novo", e nada é gravado pela metade.
+- **Site novo sem o SQL 2.7:** o painel do vendedor mostra o erro "column orders.additions does not exist".
+- **Sem o login anônimo (passo 3.6):** os pedidos são gravados, mas o cliente vê "o acompanhamento ao vivo não ficou disponível".
 
 ## 3. Criar a conta do vendedor
 
@@ -53,7 +63,15 @@ Fora dessa ordem:
    insert into public.sellers (user_id) select id from auth.users where email = 'vendedor@acaidocesabor.app' on conflict do nothing;
    ```
 
-6. Em **Authentication > Sign In / Providers**, desligue **Allow new users to sign up**. Assim ninguém cria conta pelo site.
+6. Em **Authentication > Sign In / Providers**, **ligue** **Allow anonymous sign-ins** e deixe **Allow new users to sign up** ligado. O login anônimo é a sessão de acompanhamento do cliente (sem e-mail nem dados), e o Supabase só cria sessões anônimas com o cadastro ligado. Quem impede contas com e-mail é o gancho do passo 7.
+7. Em **Authentication > Hooks**, clique em **Add hook > Before User Created**:
+   - tipo **Postgres**;
+   - schema `public`;
+   - função `antes_de_criar_usuario` (criada no passo 2.7).
+
+   Salve. A partir daí, só a sessão anônima de acompanhamento pode ser criada pelo site; cadastro com e-mail ou telefone é recusado.
+
+   Para criar outra conta de vendedor depois, desligue o gancho por um instante, crie a conta (passos 1 a 5) e ligue de novo.
 
 ## 4. Pegar o endereço e a chave pública
 
@@ -78,7 +96,7 @@ O `.env.local` não vai para o Git. Depois de salvar, reinicie o site (`npm run 
 
 ## 6. Criar a função que registra os pedidos
 
-A função `pedido` confere os preços e as regras no servidor, grava o pedido e devolve a mensagem com o código.
+A função `pedido` confere os preços e as regras no servidor, grava o pedido ligado à sessão do cliente, responde as consultas do acompanhamento e acrescenta itens (veja "Pedido 100% no site", abaixo).
 
 1. No menu da esquerda, abra **Edge Functions** e clique em **Deploy a new function** > **Via Editor**.
 2. Dê o nome **`pedido`** (exatamente assim, em minúsculas).
@@ -183,8 +201,8 @@ Nenhuma chave de servidor vai para o site.
 ### Modo de demonstração local (sem o Supabase)
 
 Sem as três variáveis do Supabase no `.env.local`, o painel funciona em **modo de demonstração local**:
-- O pedido enviado pelo carrinho também fica guardado no `localStorage` do próprio navegador, com o código `DEMO-0001`, `DEMO-0002`... e a mesma estrutura da tabela `orders`.
-- A comanda do WhatsApp não muda. O mesmo pedido mandado duas vezes não é repetido.
+- O pedido finalizado no carrinho fica guardado no `localStorage` do próprio navegador, com o código `DEMO-0001`, `DEMO-0002`... e a mesma estrutura da tabela `orders`. A mesma tentativa mandada duas vezes não é repetida.
+- O cliente vai para o acompanhamento, marcado como demonstração, e pode acrescentar itens (veja "Pedido 100% no site").
 - O painel mostra esses pedidos com a marca "Modo de demonstração local". Dá para filtrar, mudar a situação e cancelar, e tudo fica guardado no navegador.
 - As outras abas do mesmo navegador recebem as mudanças na hora.
 
@@ -192,9 +210,89 @@ Sem as três variáveis do Supabase no `.env.local`, o painel funciona em **modo
 - os pedidos ficam só naquele navegador, sem sincronização com nada. Num site publicado sem Supabase, o vendedor não vê os pedidos feitos nos celulares dos clientes;
 - a senha `vendedor2026` desse modo é conferida só no navegador e protege apenas os dados daquele navegador. No Supabase, o desbloqueio é o login de verdade (Supabase Auth), e o RLS protege os pedidos;
 - ao ligar o Supabase, os pedidos de demonstração **não** são levados para lá, para não duplicar;
-- com o Supabase configurado, uma falha de conexão nunca faz o site passar para o modo local: o cliente vê o aviso e "Enviar mesmo assim pelo WhatsApp".
+- com o Supabase configurado, uma falha de conexão nunca faz o site passar para o modo local: o cliente vê "Não foi possível confirmar o pedido agora" e "Tentar de novo".
 
 **Tipos gerados:** o projeto não usa tipos gerados pelo Supabase. Os tipos da linha ficam em `OrderRow`, em `src/features/orders/orderRow.ts`.
+
+## Pedido 100% no site, acompanhamento e adição de itens (2026-11-20)
+
+O cliente finaliza, acompanha e complementa o pedido sem sair do site. O WhatsApp fica só como atalho opcional de dúvidas ("💬 Dúvidas? Falar no WhatsApp", que abre a conversa com a loja e o código do pedido, sem comanda).
+
+### Como o cliente é reconhecido
+
+- **Sessão anônima do Supabase Auth.** No primeiro "Finalizar pedido", o site cria uma sessão anônima (sem e-mail, sem senha, sem dados pessoais). Ela fica no `localStorage` do aparelho e é renovada sozinha.
+- **O pedido fica ligado à sessão.** A função `pedido` confere o token da sessão no servidor de login do Supabase (`/auth/v1/user`) e grava o id dela em `orders.customer_user_id`.
+- **O código não autoriza nada.** `ADS-0001` só escolhe qual pedido deste aparelho mostrar. Quem abre `/acompanhar/ADS-0001` em outro aparelho vê "Pedido não encontrado neste aparelho". Pela função, outra sessão recebe a recusa, sem dados.
+- **O token nunca vai na URL nem para log.** Vai só no cabeçalho `Authorization`. O aparelho guarda, além da sessão, só o id, o código, a data, a situação e a modalidade de cada pedido. Nada de nome, telefone, endereço ou pagamento.
+- **Sem a sessão** (login anônimo desligado no Supabase, ou uma falha ao criar): o pedido é gravado mesmo assim, sem `customer_user_id`. O cliente vê "Pedido recebido" com o aviso de que o acompanhamento ao vivo não ficou disponível.
+
+### O que o `20261120200000_acompanhamento_cliente.sql` cria
+
+- **Em `orders`:**
+  - `customer_user_id` (a sessão do cliente; vazio nos pedidos antigos);
+  - `updated_at` (atualizado sozinho a cada mudança);
+  - `additions` (lista dos lotes acrescentados, cada um com os itens, o bloco da comanda, a hora e o valor).
+- **`order_events`:** o histórico de cada pedido, com a hora real:
+  - uma linha por situação nova e uma por lote de itens acrescentado;
+  - gravado por um gatilho do banco, nunca pelo site;
+  - os pedidos antigos ganham a linha "novo".
+- **RLS de `order_events`:**
+  - o cliente lê só os eventos da própria sessão (`customer_user_id = auth.uid()`);
+  - o vendedor lê todos;
+  - ninguém grava pelo site.
+- **Realtime:** `order_events` entra na publicação `supabase_realtime`. O site do cliente se inscreve com o filtro `customer_user_id=eq.<sessão>` e o token da sessão. O Realtime aplica o RLS, então cada cliente só recebe os eventos dos próprios pedidos.
+- **`adicionar_itens_pedido`:** a função do banco que acrescenta itens de uma vez só:
+  - trava a linha do pedido, então o vendedor mudando a situação ou outro acréscimo espera;
+  - confere o dono, a situação (só `novo` ou `preparando`), a repetição e o troco;
+  - soma ao total sem cobrar a entrega de novo e registra o evento.
+
+  Só a função `pedido` pode chamá-la (chave de servidor).
+- **`antes_de_criar_usuario`:** o gancho "Before User Created" (passo 3.7). Ele só deixa criar a sessão anônima de acompanhamento. Cadastro com e-mail ou telefone é recusado.
+
+O SQL não apaga nenhum pedido. Pode rodar de novo sem duplicar nada.
+
+### O que a função `pedido` faz (operações)
+
+| `op` | O que faz | Precisa da sessão |
+|---|---|---|
+| `criar` (ou nada: o site antigo) | confere preços, estoque, loja e dados; grava o pedido ligado à sessão | não (sem ela, grava sem acompanhamento) |
+| `consultar` | a visão reduzida do próprio pedido: situação, histórico, itens, valores, modalidade, endereço só na entrega. Nunca nome, telefone ou GPS | sim |
+| `meus` | os próprios pedidos dos últimos 30 dias | sim |
+| `adicionar` | confere preços, estoque e loja pelo cardápio do banco; chama `adicionar_itens_pedido` | sim |
+
+**Repetição sem duplicar (idempotência):**
+- **Na finalização:** o site manda um `attemptId` sorteado para aquela tentativa. "Tentar de novo" depois de uma falha reaproveita o mesmo id, então se o pedido já tinha chegado, a função devolve o mesmo pedido. Depois de confirmado, o próximo pedido é outra tentativa.
+- **No acréscimo:** o mesmo vale, com a chave guardada dentro do lote, em `additions`.
+- **Sem confirmação falsa:** o site só mostra "✅ Pedido recebido com sucesso!" depois da resposta do servidor. Uma falha mostra "Não foi possível confirmar o pedido agora" e "Tentar de novo".
+
+### Acompanhamento (`/acompanhar`)
+
+- **`/acompanhar/ADS-0001`:**
+  - a linha do tempo: recebido, preparando, o "pronto" da modalidade, concluído; ou cancelado;
+  - o horário real de cada etapa;
+  - o resumo com os itens acrescentados;
+  - "➕ Adicionar mais itens a este pedido" (só em Novo ou Preparando);
+  - "💬 Dúvidas? Falar no WhatsApp".
+- **`/acompanhar`:** os pedidos deste aparelho nos últimos 30 dias.
+- **Nas outras páginas:** enquanto houver pedido em andamento, a faixa "📦 Acompanhar pedido #ADS-0001 · Preparando" aparece logo abaixo do cabeçalho.
+- **Ao vivo:** pelo Realtime; o estado oficial vem sempre da função. Sem a conexão ao vivo, a tela confere sozinha a cada 20 segundos, ao reconectar e ao voltar para a aba.
+
+### Adicionar itens
+
+1. Em "➕ Adicionar mais itens a este pedido", o site entra no modo de adição. A faixa "➕ Adicionando itens ao pedido #ADS-0001" fica no topo (sobrevive a recarregar) e tem "Cancelar adição".
+2. O carrinho mostra o pedido atual, os novos itens, o novo total (sem frete de novo) e, no dinheiro, o troco. O site confere se o troco cobre o novo total.
+3. "Confirmar adição ao pedido" acrescenta ao MESMO pedido, com o mesmo código.
+4. No painel do vendedor, o mesmo cartão ganha "➕ Novos itens adicionados pelo cliente", com a hora, os itens e o valor. Não vira cartão novo, não aumenta o contador e não toca o bipe.
+5. Se a loja terminar de preparar enquanto o cliente escolhe, a tela bloqueia na hora. O banco também recusa, e o cliente pode fazer um pedido novo com os mesmos itens.
+
+### Modo de demonstração (sem o Supabase)
+
+O mesmo caminho, no `localStorage` do navegador:
+- finalizar leva ao acompanhamento do `DEMO-0001`, com o aviso de demonstração;
+- as mudanças feitas no painel deste navegador chegam na hora (outras abas também);
+- dá para acrescentar itens com as mesmas regras.
+
+A loja não recebe nada desse modo.
 
 ## 7. Conferir
 
@@ -202,23 +300,32 @@ Sem as três variáveis do Supabase no `.env.local`, o painel funciona em **modo
 2. A faixa do topo deve dizer "Salvo na nuvem: vale para todos os clientes".
 3. Mude o preço de um item e abra o site em outro aparelho: o preço novo aparece. Em quem já está com a página aberta, aparece em até 1 minuto ou ao voltar para a aba.
 4. Toque em **Loja Aberta** para fechar a loja: no outro aparelho, o topo passa a mostrar "Loja fechada no momento". Toque de novo para abrir.
-5. Faça um pedido de teste no site. No carrinho deve aparecer "Pedido ADS-0001 registrado", e o WhatsApp abre com a linha "🔖 Pedido: ADS-0001".
+5. Faça um pedido de teste no site e toque em **Finalizar pedido**:
+   - o site vai para "Acompanhar pedido", com "✅ Pedido recebido com sucesso!" e o código ADS-0001;
+   - nenhum WhatsApp abre;
+   - em **Table Editor > orders**, a coluna `customer_user_id` vem preenchida (sem ela, confira os passos 3.6 e 3.7).
 6. Os pedidos ficam em **Table Editor > orders**, com o nome, a modalidade (`fulfillment`), o endereço, o GPS (quando anexado), os itens, o total, a comanda e a situação ("novo").
    Para conferir as modalidades, faça um pedido "Comer no Local" e veja `local` na coluna `fulfillment`. Depois, faça uma entrega tocando em "📍 Usar minha localização atual" e veja `customer_lat`, `customer_lng` e `maps_url` preenchidos.
    O GPS só funciona com o site em **https** (ou em `localhost` no computador). Pelo endereço da rede (`http://10.0.0.x:5173`), o navegador do celular bloqueia a localização, e o site mostra a mensagem para preencher o endereço à mão.
 7. **Painel ao vivo:** no computador do balcão, entre no Modo Vendedor, abra **📋 Pedidos** e toque em **🔔 Ativar som**. O topo deve dizer "🟢 Ao vivo". Faça um pedido pelo celular: ele aparece no painel em segundos, com o bipe e o selo vermelho na faixa, sem recarregar. Toque em **Aceitar / Preparar** e confira a coluna `status` em **Table Editor > orders**.
+   - No celular, a tela do pedido muda sozinha para "🍨 Preparando seu pedido", com o horário.
+   - Em **Table Editor > order_events** aparece uma linha por etapa.
+   - No celular, toque em **➕ Adicionar mais itens a este pedido**, escolha um item e toque em **Confirmar adição ao pedido**. No painel, o mesmo cartão mostra "➕ Novos itens adicionados pelo cliente", sem bipe.
 8. Para apagar o pedido de teste, marque a linha em **Table Editor > orders** e apague. O próximo código continua a numeração (ADS-0002).
 
 ## Se algo der errado
 
 - **Senha certa não entra:** confira se o e-mail do `.env.local` é igual ao da conta e se a linha do passo 3.5 foi rodada.
 - **Supabase fora do ar ou chave errada:** o site continua funcionando com o último cardápio que ele conseguiu ler.
-- **No carrinho aparece "Não foi possível registrar o pedido agora":**
+- **No carrinho aparece "Não foi possível confirmar o pedido agora":**
   - confira se a função se chama `pedido`;
   - confira se a verificação de JWT dela está desligada (passo 6.5);
   - confira se o arquivo `20261117120000_pedidos.sql` foi rodado (passo 2.3).
 
-  Enquanto isso, o cliente pode tocar em **Enviar mesmo assim pelo WhatsApp**: o pedido chega pelo WhatsApp marcado "Pedido não registrado no sistema", e a venda não se perde.
-- **"Comer no Local" recusado com "Confira seus dados", ou "Não foi possível registrar" só depois de 2026-11-20:** falta um passo de "Já tinha tudo funcionando antes de 2026-11-20?" (passo 2): o SQL das modalidades ou a função nova.
+  O cliente toca em **Tentar de novo** (o mesmo pedido nunca é gravado duas vezes) ou fala com a loja pelo WhatsApp do rodapé.
+- **"O acompanhamento ao vivo não ficou disponível para este pedido":** o login anônimo está desligado ou o gancho está recusando. Confira os passos 3.6 e 3.7 e se o `20261120200000_acompanhamento_cliente.sql` foi rodado (passo 2.7).
+- **O painel do vendedor mostra "column orders.additions does not exist":** falta rodar o `20261120200000_acompanhamento_cliente.sql` (passo 2.7).
+- **A tela do cliente não muda sozinha ("Sem conexão ao vivo"):** confira se `order_events` aparece em **Database > Publications > supabase_realtime**. Enquanto isso, a tela confere a cada 20 segundos.
+- **"Comer no Local" recusado com "Confira seus dados", ou "Não foi possível confirmar" só depois de 2026-11-20:** falta um passo de "Já tinha tudo funcionando antes de 2026-11-20?" (passo 2): o SQL das modalidades ou a função nova.
 - **No carrinho aparece sempre "Os preços mudaram":** a função colada está com um cardápio mais antigo que o site. Faça os passos de "Quando o cardápio do código mudar" (passo 6).
 - **Mudanças feitas antes do Supabase, guardadas no aparelho:** no modo vendedor desse aparelho, use **Backup / Restaurar > Baixar backup**. Depois de ligar o Supabase, use **Restaurar backup** com o mesmo arquivo. As fotos também sobem.

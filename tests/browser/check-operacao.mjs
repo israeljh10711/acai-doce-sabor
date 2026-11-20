@@ -43,10 +43,12 @@ const helpers = `
   window.__values = () => __q('[data-order-values]')?.innerText.replace(/\\s+/g, ' ') ?? '';
   window.__badge = () => [...document.querySelectorAll('[data-store-badge]')].find((el) => el.getBoundingClientRect().width > 0)?.textContent ?? '';
   window.__switch = () => __q('[data-store-switch]')?.dataset.storeSwitch ?? null;
-  window.__send = () => __button('Confirmar e Enviar Pedido no WhatsApp') ?? __button('Loja fechada');
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
-  window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
-  window.__openedTarget = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).origin + new URL(window.__opened.at(-1)).pathname : null);
+  // Desde 2026-11-20 o pedido é finalizado no site ("Finalizar pedido"), sem WhatsApp.
+  window.__send = () => __q('[data-finalize]');
+  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
+  // Sem o Supabase, a comanda fica guardada no modo de demonstração deste navegador.
+  window.__demoOrders = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders } catch { return [] } };
+  window.__openedText = () => __demoOrders().at(-1)?.message ?? null;
   true;
 `
 
@@ -87,10 +89,35 @@ const CART = JSON.stringify({
 })
 const fillName = (name = 'Cliente Teste') => set(`__q('input[autocomplete="name"]')`, name)
 const choose = (kind) => click(`__q('input[type="radio"][value="${kind}"]')`, 400)
+/** Espera uma condição da página (até 8 s). */
+const waitUntil = async (condition, timeout = 8000) => {
+  for (let waited = 0; waited < timeout; waited += 100) {
+    if (await run(`!!(${condition})`)) return true
+    await sleep(100)
+  }
+  return false
+}
+/** Abas abertas na última finalização (deve ser sempre 0). */
+let lastOpened = null
+/**
+ * Finaliza no site e devolve a comanda guardada. O pedido confirmado leva ao acompanhamento e
+ * esvazia o carrinho: volta ao carrinho com os mesmos itens (e observações) e a mesma forma de
+ * pagamento; os dados do cliente voltam da aba.
+ */
 const sendOrder = async () => {
+  const cart = await run(`localStorage.getItem('acai-doce-sabor:carrinho')`)
+  const method = await run(`document.querySelector('input[name="forma-de-pagamento"]:checked')?.value ?? null`)
+  const changeFor = await run(`document.querySelector('#troco-para')?.value ?? ''`)
   await run(`__stubOpen()`)
   await click(`__send()`, 700)
-  return ((await run(`__openedText()`)) ?? '').split('\n')
+  if (!(await waitUntil(`location.pathname.startsWith('/acompanhar/DEMO-')`))) throw new Error('A finalização não levou ao acompanhamento.')
+  lastOpened = await run(`window.__opened.length`)
+  const lines = ((await run(`__openedText()`)) ?? '').split('\n')
+  await run(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(cart)}); true`)
+  await goto('/carrinho', { width: 1280, height: 800 })
+  if (method) await click(`document.querySelector('input[name="forma-de-pagamento"][value="${method}"]')`, 300)
+  if (changeFor) await set(`document.querySelector('#troco-para')`, changeFor)
+  return lines
 }
 /** A comanda sem a linha de pedido antecipado (que depende da hora em que a conferência roda). */
 const withoutAntecipado = (lines) => lines.filter((line) => !line.startsWith('⏰'))
@@ -188,6 +215,7 @@ try {
   await choose('retirada')
   await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`, 300)
   let lines = await sendOrder()
+  check('finalizado no site: nenhuma aba do WhatsApp aberta', lastOpened, 0)
   check('comanda com a loja fechada: "Pedido antecipado" logo abaixo da data', [/^📅 \*Data\/Hora:\* \d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}$/.test(lines[1] ?? ''), lines[2]], [true, '⏰ *Pedido antecipado:* enviado com a loja fechada'])
 
   // Bloquear o envio com a loja fechada.
@@ -197,7 +225,7 @@ try {
   check(
     'loja fechada e "Bloquear o envio": botão desligado com o motivo',
     await run(`[__send()?.textContent.trim(), __send()?.disabled, document.body.textContent.includes('não está recebendo pedidos agora')]`),
-    ['Loja fechada: envio bloqueado', true, true],
+    ['Loja fechada: pedidos bloqueados', true, true],
   )
   await click(`__q('[data-hours-contact]')`, 800)
   await click(`__dialog().querySelector('input[value="antecipado"]')`, 200)
@@ -239,7 +267,7 @@ try {
       LINE,
       '💳 *FORMA DE PAGAMENTO*',
       '• *Método escolhido:* 💠 *Pix* — *R$ 3,00*',
-      '  📎 _Envio o comprovante do Pix nesta conversa._',
+      '  📎 _Conferir o comprovante do Pix._',
       '',
       '💜 _Obrigado pela preferência! Açaí Doce Sabor_',
     ],
@@ -277,9 +305,9 @@ try {
   await run(`__stubOpen()`)
   await click(`__send()`, 500)
   check(
-    'entrega sem endereço: avisos nos campos e nada enviado',
-    await run(`[document.body.textContent.includes('Escreva a rua.'), document.body.textContent.includes('Escolha o bairro.'), window.__opened.length]`),
-    [true, true, 0],
+    'entrega sem endereço: avisos nos campos e nada finalizado',
+    await run(`[document.body.textContent.includes('Escreva a rua.'), document.body.textContent.includes('Escolha o bairro.'), window.__opened.length, location.pathname]`),
+    [true, true, 0, '/carrinho'],
   )
   await set(`__q('input[data-field="street"]')`, 'Rua das Flores')
   await set(`__q('input[data-field="number"]')`, '12')
@@ -357,13 +385,14 @@ try {
   // A forma de pagamento não fica guardada ao recarregar a página (só os dados do cliente).
   await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`, 300)
   check(
-    'horário e WhatsApp novos: rodapé, link do WhatsApp e o número que recebe o pedido',
+    'horário e WhatsApp novos: rodapé e link do WhatsApp',
     await run(`[__q('footer').textContent.includes('Todos os dias, das 14h à meia-noite'), [...__q('footer').querySelectorAll('a')].some((a) => a.href === 'https://wa.me/5583988887777')]`),
     [true, true],
   )
   await run(`__stubOpen()`)
   await click(`__send()`, 700)
-  check('o pedido vai para o WhatsApp novo', await run(`__openedTarget()`), 'https://wa.me/5583988887777')
+  await waitUntil(`__q('[data-support-whatsapp]')`)
+  check('"Dúvidas? Falar no WhatsApp" do pedido usa o WhatsApp novo', await run(`__q('[data-support-whatsapp]')?.href.split('?')[0]`), 'https://wa.me/5583988887777')
   await click(`__q('[data-hours-contact]')`, 800)
   await set(`__dialog().querySelector('[data-hours="abre"]')`, '04:00')
   await submitDialog(600)

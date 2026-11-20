@@ -1,10 +1,13 @@
 // Confere no navegador o modo de demonstração local do painel de pedidos (2026-11-20), num site
 // na porta 5180 SEM o Supabase:
-// - o pedido enviado pelo carrinho fica no localStorage (DEMO-0001), sem duplicar no toque duplo,
-//   e o cliente não vê nada do painel;
+// - o pedido finalizado no carrinho (2026-11-20: no site, sem WhatsApp) fica no localStorage
+//   (DEMO-0001), sem duplicar no toque duplo; o cliente vai para o acompanhamento, com o aviso de
+//   demonstração, e não vê nada do painel;
 // - o vendedor desbloqueia com a senha (vendedor2026) e vê "📋 Pedidos" com o selo;
 // - o painel mostra "Modo de demonstração local" e o pedido; muda a situação e cancela (guardado);
 // - outras abas do mesmo navegador: a mudança e o pedido novo aparecem sozinhos, com o bipe;
+// - a aba do cliente acompanha a mudança na hora; "Adicionar mais itens" acrescenta ao mesmo pedido
+//   e o painel mostra os novos itens no mesmo cartão, sem bipe;
 // - recarregar mantém os pedidos, sem repetir.
 //
 // Uso: node tests/browser/check-pedidos-demo.mjs
@@ -101,19 +104,23 @@ try {
   await browser.goto(`${baseUrl}/`, desktop)
   await run(`localStorage.clear(); sessionStorage.clear(); localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(CART)}); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', ${JSON.stringify(OPEN_NOW)}); ${quiet}`)
 
-  // --- O cliente envia (sem Supabase) ---
+  // --- O cliente finaliza (sem Supabase) ---
   await browser.goto(`${baseUrl}/carrinho`, desktop)
   await run(quiet)
   await waitFor(`__q('[data-order-values]')`)
   await run(`__set(__q('input[autocomplete="name"]'), 'Cliente Demo')`)
   await click(`__q('input[type="radio"][value="local"]')`, 400)
   await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`, 300)
-  await run(`window.__opened = []; window.open = (url) => { window.__opened.push(url); return {} }; true`)
-  await run(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes('Confirmar e Enviar Pedido')); b.click(); b.click(); return true })()`)
-  await sleep(600)
-  check('o WhatsApp abre com a comanda de sempre (sem código de demonstração)', await run(`[window.__opened.length > 0, new URL(window.__opened[0]).origin, new URL(window.__opened[0]).searchParams.get('text').includes('DEMO')]`), [true, 'https://wa.me', false])
+  await run(`window.__opened = []; window.open = (url) => { window.__opened.push(url); return null }; true`)
+  await run(`(() => { const b = __q('[data-finalize]'); b.click(); b.click(); return true })()`)
+  check(
+    'finalizado no site: acompanhamento do DEMO-0001 com o aviso de demonstração, sem abrir o WhatsApp',
+    [await waitFor(`location.pathname === '/acompanhar/DEMO-0001' && __q('[data-order-success="pedido"]') && __q('[data-demo-notice]')`), await run(`window.__opened.length`)],
+    [true, 0],
+  )
   check('o pedido fica no localStorage, uma vez só (toque duplo)', await run(`__demo()`), ['DEMO-0001:novo'])
-  check('o cliente não vê nada do painel nem da demonstração', await run(`[!!__q('[data-orders-link]'), document.body.textContent.includes('demonstração')]`), [false, false])
+  check('a comanda guardada é a de sempre (sem código de demonstração)', await run(`JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders[0].message.includes('DEMO')`), false)
+  check('o cliente não vê nada do painel', await run(`!!__q('[data-orders-link]')`), false)
 
   // --- O vendedor desbloqueia ---
   await browser.goto(`${baseUrl}/monte-seu-pedido`, desktop)
@@ -135,10 +142,32 @@ try {
   // --- Outras abas ---
   await gesture(`window.__b = window.open('/pedidos'); true`)
   check('outra aba do painel abre com o mesmo pedido', await waitFor(`window.__b?.document.querySelectorAll('[data-order-card]').length === 1`, 10_000), true)
+  // A aba do cliente (2026-11-20): o acompanhamento do pedido, ao vivo pelo BroadcastChannel.
+  await gesture(`window.__t = window.open('/acompanhar/DEMO-0001'); true`)
+  check('aba do cliente: acompanhamento do DEMO-0001', await waitFor(`window.__t?.document.querySelector('[data-step="recebido"]')?.dataset.stepState === 'current'`, 10_000), true)
   await click(`__q('[data-order-next]')`, 700)
   check('aceitar: guardado no navegador', await run(`__demo()`), ['DEMO-0001:preparando'])
   check('a outra aba mostra a mudança sozinha', await waitFor(`__codes(window.__b.document).join() === 'DEMO-0001:preparando'`, 4000), true)
+  check('a aba do cliente mostra "Preparando" sozinha', await waitFor(`window.__t.document.querySelector('[data-step="preparando"]')?.dataset.stepState === 'current'`, 4000), true)
 
+  // --- O cliente acrescenta itens ao mesmo pedido ---
+  const tonesBeforeAdd = await run(`window.__tones`)
+  await run(`window.__t.document.querySelector('[data-add-items]').click(); true`)
+  check('aba do cliente: modo de adição no cardápio', await waitFor(`window.__t.document.querySelector('[data-add-mode-banner="DEMO-0001"]')`, 6000), true)
+  await run(`localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'z1', itemId: 'jujuba', choices: [], quantity: 2 }] })); window.__t.location.href = '/carrinho'; true`)
+  await sleep(1500)
+  check('o carrinho confirma a adição (novo total R$ 5,00)', await waitFor(`window.__t.document?.querySelector('[data-add-new-total]')?.textContent === 'R$ 5,00'`, 10_000), true)
+  await run(`window.__t.document.querySelector('[data-add-confirm]').click(); true`)
+  check('itens acrescentados ao mesmo pedido', await waitFor(`window.__t.document.querySelector('[data-order-success="itens"]')`, 6000), true)
+  check(
+    'painel: o mesmo cartão com "➕ Novos itens", sem cartão novo e sem bipe',
+    [await waitFor(`__q('[data-order-card="DEMO-0001"] [data-order-addition]')`, 4000), await run(`[__codes(), window.__tones - ${tonesBeforeAdd}, __q('[data-order-card="DEMO-0001"] [data-addition-total]')?.textContent]`)],
+    [true, [['DEMO-0001:preparando'], 0, '+ R$ 2,00']],
+  )
+  await run(`window.__t.close(); true`)
+
+  // Cada pedido confirmado esvazia o carrinho: a outra cliente monta o dela.
+  await run(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(CART)}); true`)
   await gesture(`window.__c = window.open('/carrinho'); true`)
   await waitFor(`window.__c?.document.querySelector('[data-order-values]')`, 10_000)
   await sleep(600)
@@ -147,11 +176,11 @@ try {
     __set(doc.querySelector('input[autocomplete="name"]'), 'Outra Cliente');
     doc.querySelector('input[type="radio"][value="retirada"]').click();
     doc.querySelector('input[name="forma-de-pagamento"][value="pix"]').click();
-    window.__c.open = () => ({});
+    window.__c.open = () => null;
     return true;
   })()`)
   await sleep(500)
-  await run(`[...window.__c.document.querySelectorAll('button')].find((x) => x.textContent.includes('Confirmar e Enviar Pedido')).click(); true`)
+  await run(`window.__c.document.querySelector('[data-finalize]').click(); true`)
   check('pedido de outra aba aparece sozinho no painel', await waitFor(`__codes().includes('DEMO-0002:novo')`, 4000), true)
   check('com o bipe e o selo atualizado', [await run(`window.__tones`), await run(`__q('[data-orders-badge]')?.dataset.ordersBadge`)], [2, '1'])
   check('e também na outra aba do painel', await waitFor(`__codes(window.__b.document).includes('DEMO-0002:novo')`, 4000), true)

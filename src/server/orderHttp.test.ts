@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createOrderHandler } from './orderHttp.ts'
-import type { OrderDeps } from './orderServer.ts'
+import type { PedidoDeps } from './customerOrders.ts'
+import { createOrderHandler, customerToken } from './orderHttp.ts'
 
 /** Banco que não deve ser chamado (entrada recusada antes). */
-const untouched = (): OrderDeps => {
+const untouched = (): PedidoDeps => {
   throw new Error('não devia chegar ao banco')
 }
 
@@ -35,7 +35,7 @@ describe('entrada HTTP da função pedido', () => {
 
   it('erro do banco ou da configuração: 500, e o motivo vai para o log da função', async () => {
     const logged: string[] = []
-    const failing = (): OrderDeps => {
+    const failing = (): PedidoDeps => {
       throw new Error('SUPABASE_URL ausente')
     }
     const response = await createOrderHandler(failing, (message) => logged.push(message))(
@@ -43,5 +43,23 @@ describe('entrada HTTP da função pedido', () => {
     )
     expect([response.status, await response.json()]).toEqual([500, { ok: false, reason: 'erro-servidor' }])
     expect(logged.join(' ')).toContain('SUPABASE_URL ausente')
+  })
+
+  it('a sessão do cliente vem no Authorization; a chave pública antiga no mesmo lugar não conta', () => {
+    expect(customerToken(post('{}', { Authorization: 'Bearer token-do-cliente', apikey: 'sb_publishable_x' }))).toBe('token-do-cliente')
+    expect(customerToken(post('{}', { Authorization: 'Bearer eyJchave', apikey: 'eyJchave' }))).toBeNull()
+    expect(customerToken(post('{}', { apikey: 'sb_publishable_x' }))).toBeNull()
+    expect(customerToken(post('{}', { Authorization: 'Basic abc' }))).toBeNull()
+  })
+
+  it('o erro no log nunca leva o token do cliente', async () => {
+    const logged: string[] = []
+    const failing = (): PedidoDeps => {
+      throw new Error('banco fora do ar')
+    }
+    await createOrderHandler(failing, (message) => logged.push(message))(
+      post(JSON.stringify({ op: 'consultar', orderId: 'abc' }), { Authorization: 'Bearer segredo-do-cliente-123' }),
+    )
+    expect([logged.length, logged.join(' ').includes('segredo-do-cliente-123')]).toEqual([1, false])
   })
 })

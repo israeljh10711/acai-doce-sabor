@@ -1,5 +1,5 @@
 import { m } from 'motion/react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
@@ -30,6 +30,11 @@ import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
 import { formatBRL } from '../utils/money.ts'
 import { StoreClosedCard } from '../features/store-hours/StoreClosedCard.tsx'
+import type { AddMode } from '../features/tracking/addMode.ts'
+import { useAddMode } from '../features/tracking/trackingRuntime.ts'
+
+// O modo de adição só aparece depois de um pedido feito: carregado sob demanda.
+const AddItemsPanel = lazy(async () => ({ default: (await import('../features/tracking/AddItemsPanel.tsx')).AddItemsPanel }))
 
 /** Carrinho: cada item com a foto do que foi montado, as escolhas, a quantidade e os valores. */
 export function CartPage() {
@@ -37,6 +42,8 @@ export function CartPage() {
   useCatalogVersion()
   usePageTitle('Carrinho', { noindex: true })
   const cart = useCart()
+  // Adicionar itens a um pedido já feito (2026-11-20): o carrinho confirma a adição no lugar da finalização.
+  const addMode = useAddMode()
   const [announcement, setAnnouncement] = useState('')
   const count = cartCount(cart)
 
@@ -58,7 +65,11 @@ export function CartPage() {
           </Link>
           <h1 className="mt-1 font-display text-4xl font-black tracking-tight uppercase sm:text-5xl">Seu carrinho</h1>
           <p className="mt-2 text-lg text-white/85">
-            {count === 0 ? 'Nenhum item ainda.' : `${count} ${count === 1 ? 'item' : 'itens'}, salvos neste aparelho.`}
+            {addMode
+              ? count === 0
+                ? `Nada escolhido ainda para o pedido #${addMode.code}.`
+                : `${count} ${count === 1 ? 'item' : 'itens'} para acrescentar ao pedido #${addMode.code}.`
+              : count === 0 ? 'Nenhum item ainda.' : `${count} ${count === 1 ? 'item' : 'itens'}, salvos neste aparelho.`}
           </p>
         </Container>
       </div>
@@ -68,7 +79,7 @@ export function CartPage() {
           <>
             {/* Loja fechada (pedido de 2026-11-17): o aviso com o endereço e o WhatsApp. */}
             <StoreClosedCard className="mx-auto mb-6 max-w-2xl" />
-            <EmptyCart />
+            <EmptyCart addMode={addMode} />
           </>
         ) : (
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -77,7 +88,7 @@ export function CartPage() {
                 <CartLine key={item.id} item={item} onRemove={() => remove(item)} />
               ))}
             </ul>
-            <Checkout cart={cart} onCleared={() => setAnnouncement('Carrinho esvaziado.')} />
+            {addMode ? <AddItems cart={cart} mode={addMode} /> : <Checkout cart={cart} />}
           </div>
         )}
         <p aria-live="polite" className="sr-only">
@@ -88,12 +99,16 @@ export function CartPage() {
   )
 }
 
-function EmptyCart() {
+function EmptyCart({ addMode }: { addMode: AddMode | null }) {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl bg-acai-50 px-6 py-12 text-center ring-1 ring-line">
       <Bag className="size-10 text-acai-700" />
       <h2 className="font-display text-2xl font-black tracking-tight text-acai-800 uppercase">Seu carrinho está vazio</h2>
-      <p className="text-ink-soft">Monte um açaí ou escolha um picolé, uma bebida ou um doce do cardápio e ele aparece aqui.</p>
+      <p className="text-ink-soft">
+        {addMode
+          ? `Escolha no cardápio o que deseja acrescentar ao pedido #${addMode.code}: os itens aparecem aqui para você confirmar.`
+          : 'Monte um açaí ou escolha um picolé, uma bebida ou um doce do cardápio e ele aparece aqui.'}
+      </p>
       <ButtonLink to={paths.buildOrder}>Ver o cardápio</ButtonLink>
     </div>
   )
@@ -261,7 +276,7 @@ function ProblemNotice({ problem, editTo, onRemove, title }: { problem: CartItem
       <p className="font-bold">
         {problem.kind === 'item' ? 'Esgotado: este item não está disponível agora.' : `Esgotou: ${problem.names.join(', ')}.`}
       </p>
-      <p className="mt-0.5">{problem.kind === 'item' ? 'Remova para enviar o pedido.' : 'Edite o item para tirar o que esgotou, ou remova.'}</p>
+      <p className="mt-0.5">{problem.kind === 'item' ? 'Remova para finalizar o pedido.' : 'Edite o item para tirar o que esgotou, ou remova.'}</p>
       <div className="mt-2 flex flex-wrap gap-2">
         {problem.kind === 'toppings' && editTo && (
           <Link to={editTo} className={`${action} bg-white text-acai-800 ring-acai-800/30 hover:bg-acai-100`}>
@@ -370,17 +385,34 @@ function QuantityControl({ item, title }: { item: CartItem; title: string }) {
 
 /**
  * Total e finalização: valores com o frete, dados do cliente, entrega ou retirada, forma de
- * pagamento e envio do pedido pelo WhatsApp da loja (pedidos de 2026-11-14 e 2026-11-17).
+ * pagamento e "Finalizar pedido" pelo próprio site (2026-11-20, sem WhatsApp).
  * Ver `features/checkout/CheckoutPanel.tsx`.
  */
-function Checkout({ cart, onCleared }: { cart: Cart; onCleared: () => void }) {
+function Checkout({ cart }: { cart: Cart }) {
   return (
     <aside aria-labelledby="total-titulo" className="overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-line">
       <h2 id="total-titulo" className="bg-acai-800 px-5 py-4 font-display text-xl font-black tracking-tight text-white uppercase">
         Resumo do pedido
       </h2>
       <div className="flex flex-col gap-5 p-5">
-        <CheckoutPanel cart={cart} onCleared={onCleared} />
+        <CheckoutPanel cart={cart} />
+        <p className="text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
+      </div>
+    </aside>
+  )
+}
+
+/** O modo de adição (2026-11-20): o pedido atual, os novos itens e "Confirmar adição ao pedido". */
+function AddItems({ cart, mode }: { cart: Cart; mode: AddMode }) {
+  return (
+    <aside aria-labelledby="adicao-titulo" className="overflow-hidden rounded-3xl bg-white shadow-card ring-1 ring-line">
+      <h2 id="adicao-titulo" className="nums bg-acai-800 px-5 py-4 font-display text-xl font-black tracking-tight text-white uppercase">
+        Adicionar ao pedido #{mode.code}
+      </h2>
+      <div className="flex flex-col gap-5 p-5">
+        <Suspense fallback={<p role="status" className="text-center font-bold text-acai-800">Carregando o pedido #{mode.code}…</p>}>
+          <AddItemsPanel cart={cart} mode={mode} />
+        </Suspense>
         <p className="text-xs text-ink-soft">{ILLUSTRATIVE_NOTICE}</p>
       </div>
     </aside>

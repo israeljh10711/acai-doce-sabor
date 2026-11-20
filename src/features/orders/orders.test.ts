@@ -7,7 +7,7 @@ import { type Cart, EMPTY_CART, addExtraItem, addItem, setNote, setQuantity } fr
 import type { Payment } from '../checkout/payment.ts'
 import type { Customer, DeliveryFee } from '../checkout/delivery.ts'
 import { type OrderDraft, buildOrderMessage, keycap } from './orderMessage.ts'
-import { orderWhatsAppUrl } from './orderService.ts'
+import { supportMessage, supportWhatsAppUrl } from '../tracking/support.ts'
 
 afterEach(() => setCatalogChanges(NO_CHANGES))
 
@@ -106,7 +106,7 @@ describe('comanda do WhatsApp (pedido de 2026-11-17)', () => {
     expect(message).toContain('💰 *TOTAL A PAGAR:* *R$ 31,00*')
     expect(message.slice(-4)).toEqual([
       '• *Método escolhido:* 💠 *Pix* — *R$ 31,00*',
-      '  📎 _Envio o comprovante do Pix nesta conversa._',
+      '  📎 _Conferir o comprovante do Pix._',
       '',
       '💜 _Obrigado pela preferência! Açaí Doce Sabor_',
     ])
@@ -139,13 +139,6 @@ describe('comanda do WhatsApp (pedido de 2026-11-17)', () => {
       '⏰ *Pedido antecipado:* enviado com a loja fechada',
     ])
     expect(lines(order({ code: 'ADS-0001' }))[1]).toBe('🔖 *Pedido:* ADS-0001')
-  })
-
-  it('pedido não registrado no sistema (falha de internet ou servidor): aviso logo abaixo da data', () => {
-    expect(lines(order({ naoRegistrado: true })).slice(1, 3)).toEqual([
-      '📅 *Data/Hora:* 17/11/2026 às 15:42',
-      '⚠️ *Pedido não registrado no sistema*',
-    ])
   })
 
   it('itens sem Completo: pagos com o valor e os grátis agrupados; sabor e tamanho entre parênteses', () => {
@@ -189,29 +182,24 @@ describe('comanda do WhatsApp (pedido de 2026-11-17)', () => {
   })
 })
 
-describe('envio do pedido', () => {
-  it('abre a conversa do WhatsApp da loja com a comanda escrita', () => {
-    const url = new URL(orderWhatsAppUrl(order()))
-    expect(`${url.origin}${url.pathname}`).toBe('https://wa.me/5583996999980')
-    expect(url.searchParams.get('text')).toBe(buildOrderMessage(order()))
+describe('dúvidas pelo WhatsApp (pedido 100% no site, 2026-11-20)', () => {
+  it('abre a conversa do WhatsApp da loja só com a dúvida e o código do pedido (sem comanda)', () => {
+    const url = new URL(supportWhatsAppUrl('ADS-0001'))
+    expect(url.origin + url.pathname).toBe('https://wa.me/5583996999980')
+    expect(url.searchParams.get('text')).toBe('Olá! Tenho uma dúvida sobre o pedido #ADS-0001.')
+    expect(supportMessage(null)).toBe('Olá! Tenho uma dúvida sobre o meu pedido.')
   })
 
   it('usa o WhatsApp que o vendedor gravou em "Horários e Contato"', () => {
     setCatalogChanges({ ...NO_CHANGES, settings: { loja: { contact: { whatsapp: '(83) 98888-7777' } } } })
-    expect(new URL(orderWhatsAppUrl(order())).pathname).toBe('/5583988887777')
+    expect(new URL(supportWhatsAppUrl('ADS-0002')).pathname).toBe('/5583988887777')
   })
 
-  it('o link do WhatsApp leva emojis, acentos, quebras de linha e o link do GPS intactos, codificados uma vez só', () => {
-    const draft = order({ customer: { ...MARIA, fulfillment: { ...ENTREGA_GPS } } })
-    const url = orderWhatsAppUrl(draft)
-    const text = new URL(url).searchParams.get('text')
-    expect(text).toBe(buildOrderMessage(draft))
-    expect(text).toContain('• *Localização GPS:* https://www.google.com/maps?q=-7.220987,-37.254124')
-    expect(text?.split(NEWLINE).length).toBeGreaterThan(20)
-    // Nada codificado duas vezes (%25), e o texto cru não aparece no link.
+  it('o link leva acentos e o # intactos, codificados uma vez só', () => {
+    const url = supportWhatsAppUrl('ADS-0003')
     expect(url.includes('%25')).toBe(false)
-    expect(url.includes('🛵')).toBe(false)
-    expect(decodeURIComponent(url.split('?text=')[1])).toBe(buildOrderMessage(draft))
+    expect(url.includes('#')).toBe(false)
+    expect(decodeURIComponent(url.split('?text=')[1])).toBe('Olá! Tenho uma dúvida sobre o pedido #ADS-0003.')
   })
 })
 

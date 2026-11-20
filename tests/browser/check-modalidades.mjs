@@ -6,7 +6,8 @@
 // - GPS com geolocalização e Nominatim de mentira (nunca o GPS do computador): carregando, um toque
 //   só, selo, link do pino, endereço sugerido só nos campos vazios, Remover GPS, resposta atrasada
 //   ignorada, permissão negada com a mensagem amigável, e o GPS fora da aba guardada;
-// - a comanda das três modalidades no link do WhatsApp;
+// - a comanda das três modalidades, finalizada no site (2026-11-20: sem WhatsApp, guardada no modo
+//   de demonstração deste navegador);
 // - computador (1280 px), celular (390 px) e celular estreito (320 px): três lado a lado quando
 //   cabem, um por linha no estreito, sem texto cortado e sem rolagem lateral.
 //
@@ -54,8 +55,10 @@ const helpers = `
   };
   window.__values = () => __q('[data-order-values]')?.innerText.replace(/\\s+/g, ' ') ?? '';
   window.__field = (name) => __q('[data-field="' + name + '"]');
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
-  window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
+  // Desde 2026-11-20 o pedido é finalizado no site: nenhuma aba deve abrir (o window.open só conta).
+  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
+  window.__demoOrders = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders } catch { return [] } };
+  window.__openedText = () => __demoOrders().at(-1)?.message ?? null;
   // GPS de mentira: 'ok' devolve um ponto; um número é o código de erro do navegador (1 negado).
   window.__geo = (mode, delay = 0) => {
     window.__geoCalls = [];
@@ -127,10 +130,26 @@ const waitFor = async (condition, timeout = 6000) => {
   return false
 }
 const choose = (kind) => click(`__q('input[type="radio"][value="${kind}"]')`, 450)
+/** Abas abertas na última finalização (deve ser sempre 0). */
+let lastOpened = null
+/**
+ * Finaliza no site e devolve a comanda guardada (modo de demonstração). O pedido confirmado leva ao
+ * acompanhamento e esvazia o carrinho: volta ao carrinho com os mesmos itens e o Pix. Os dados do
+ * cliente voltam da aba; o GPS não (como numa página nova), então quem precisa dele anexa de novo.
+ */
 const sendOrder = async () => {
   await run(`__stubOpen()`)
-  await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`, 600)
-  return ((await run(`__openedText()`)) ?? '').split('\n')
+  await click(`__q('[data-finalize]')`, 600)
+  if (!(await waitFor(`location.pathname.startsWith('/acompanhar/DEMO-')`))) throw new Error('A finalização não levou ao acompanhamento.')
+  lastOpened = await run(`window.__opened.length`)
+  const lines = ((await run(`__openedText()`)) ?? '').split('\n')
+  await openCart({ width: 1280, height: 900 })
+  await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`, 300)
+  return lines
+}
+const attachGps = async () => {
+  await run(`__geo('ok'); __nominatim(${JSON.stringify(NOMINATIM)})`)
+  await click(`__q('[data-gps-capture]')`, 900)
 }
 const shot = async (name) => writeFileSync(join(outDir, `${name}.png`), await browser.screenshot())
 
@@ -216,7 +235,7 @@ try {
   check(
     'comer no local: cartão próprio (dourado), sem endereço',
     await run(`[!!__field('street'), __q('[data-store-place="local"]')?.innerText.split('\\n').filter(Boolean), getComputedStyle(__q('[data-store-place="local"]')).backgroundColor]`),
-    [false, ['🍨 Consumo no Local — Vamos deixar tudo pronto!', 'Assim que você enviar o pedido, já começamos a preparar para você só chegar e aproveitar.', '📍 Rua Francisco Tota, 12 — Teixeira, PB', '🗺️ Ver localização da sorveteria no Google Maps'], 'rgb(254, 249, 195)'],
+    [false, ['🍨 Consumo no Local — Vamos deixar tudo pronto!', 'Assim que você finalizar o pedido, já começamos a preparar para você só chegar e aproveitar.', '📍 Rua Francisco Tota, 12 — Teixeira, PB', '🗺️ Ver localização da sorveteria no Google Maps'], 'rgb(254, 249, 195)'],
   )
   check('comer no local: frete grátis', await run(`__values()`), 'Subtotal R$ 3,00 Consumo no local Grátis (R$ 0,00) TOTAL R$ 3,00')
   await shot('1280-comer-no-local')
@@ -273,9 +292,10 @@ try {
       '💰 *TOTAL A PAGAR:* *R$ 6,00*',
     ],
   )
-  check('WhatsApp da loja', await run(`new URL(window.__opened.at(-1)).origin + new URL(window.__opened.at(-1)).pathname`), 'https://wa.me/5583996999980')
+  check('finalizado no site: nenhuma aba do WhatsApp aberta', lastOpened, 0)
 
-  // --- Remover GPS ---
+  // --- Remover GPS (anexado de novo: a volta ao carrinho é uma página nova) ---
+  await attachGps()
   await click(`__q('[data-gps-remove]')`, 400)
   check(
     'Remover GPS: botão de volta, endereço mantido',
@@ -307,17 +327,21 @@ try {
     await run(`[__q('[data-gps-error]')?.textContent.trim(), __q('[data-gps-capture]')?.textContent.trim(), __q('[data-gps-capture]')?.disabled]`),
     ['Não foi possível obter sua localização automaticamente. Você pode preencher seu endereço manualmente abaixo.', '📍 Usar minha localização atual', false],
   )
-  await run(`__stubOpen()`)
-  await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`, 500)
-  check('entrega sem GPS e sem rua: os avisos dos campos, nada enviado', await run(`[document.body.textContent.includes('Escreva a rua.'), window.__opened.length]`), [true, 0])
+  const demoBefore = await run(`__demoOrders().length`)
+  await click(`__q('[data-finalize]')`, 500)
+  check('entrega sem GPS e sem rua: os avisos dos campos, nada guardado', await run(`[document.body.textContent.includes('Escreva a rua.'), __demoOrders().length - ${demoBefore}, location.pathname]`), [true, 0, '/carrinho'])
   await set(`__field('street')`, 'Rua das Flores')
   await set(`__field('number')`, 'S/N', 300)
   lines = await sendOrder()
   check('entrega concluída sem GPS (S/N)', [lines.includes('• *Endereço:* Rua das Flores, S/N, Centro — Ref.: portão azul'), lines.some((line) => line.includes('GPS'))], [true, false])
 
   // --- GPS anexado e troca para retirar / comer no local: nada de GPS ou endereço na comanda ---
-  await run(`__geo('ok'); __nominatim(${JSON.stringify(NOMINATIM)})`)
-  await click(`__q('[data-gps-capture]')`, 800)
+  await choose('entrega')
+  await attachGps()
+  await choose('retirada')
+  await choose('local')
+  await choose('entrega')
+  check('de volta à entrega: o GPS anexado nesta tela continua', await run(`!!__q('[data-gps="anexado"]')`), true)
   await choose('retirada')
   lines = await sendOrder()
   check(
@@ -349,7 +373,6 @@ try {
     ],
   )
   await choose('entrega')
-  check('de volta à entrega: o GPS anexado nesta tela continua', await run(`!!__q('[data-gps="anexado"]')`), true)
 
   // --- Página recarregada: os dados voltam, o GPS não ---
   await browser.goto(`${baseUrl}/carrinho`, desktop)

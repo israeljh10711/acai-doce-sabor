@@ -1,10 +1,11 @@
 /**
  * Entrada HTTP da função `pedido` (pedido de 2026-11-17): aceita só POST com JSON, responde à
  * pré-verificação do navegador (CORS) e devolve a resposta das regras (`orderServer.ts`).
- * Recusa pelas regras é 200 com o motivo; erro do banco ou da configuração é 500 (o site oferece
- * "Enviar mesmo assim pelo WhatsApp").
+ * Recusa pelas regras é 200 com o motivo; erro do banco ou da configuração é 500 (o site avisa e
+ * oferece "Tentar de novo"). Desde 2026-11-20, o `Authorization` traz a sessão do cliente.
  */
-import { type OrderDeps, handleOrder } from './orderServer.ts'
+import type { PedidoDeps } from './customerOrders.ts'
+import { handleRequest } from './orderRequest.ts'
 
 /** Tamanho máximo do corpo do pedido (o carrinho vem como texto). */
 export const MAX_BODY = 250_000
@@ -26,8 +27,8 @@ export async function sha256Hex(text: string): Promise<string> {
 }
 
 /** O banco montado só no primeiro uso: entrada recusada pelas regras nem chega a ele. */
-function lazyDeps(getDeps: () => OrderDeps): OrderDeps {
-  let deps: OrderDeps | null = null
+function lazyDeps(getDeps: () => PedidoDeps): PedidoDeps {
+  let deps: PedidoDeps | null = null
   const get = () => (deps ??= getDeps())
   return {
     readChanges: () => get().readChanges(),
@@ -36,14 +37,30 @@ function lazyDeps(getDeps: () => OrderDeps): OrderDeps {
     insertOrder: (row) => get().insertOrder(row),
     now: () => get().now(),
     sha256: (text) => get().sha256(text),
+    verifyCustomer: (token) => get().verifyCustomer(token),
+    findOrderById: (id) => get().findOrderById(id),
+    listCustomerOrders: (customerId, since) => get().listCustomerOrders(customerId, since),
+    readEvents: (orderId) => get().readEvents(orderId),
+    addItems: (args) => get().addItems(args),
   }
 }
 
 /**
- * `getDeps` monta o banco na hora do pedido (a falta de configuração vira 500 com o motivo no log,
- * e não uma função que nem sobe).
+ * A sessão do cliente no `Authorization: Bearer ...`. A chave pública antiga (um JWT) também vem
+ * assim quando não há sessão: ela não é sessão de ninguém e fica de fora.
  */
-export function createOrderHandler(getDeps: () => OrderDeps, log: (message: string) => void = () => {}) {
+export function customerToken(request: Request): string | null {
+  const header = request.headers.get('authorization') ?? ''
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
+  if (!token || token === request.headers.get('apikey')) return null
+  return token
+}
+
+/**
+ * `getDeps` monta o banco na hora do pedido (a falta de configuração vira 500 com o motivo no log,
+ * e não uma função que nem sobe). O log leva só a mensagem do erro: nunca o pedido nem o token.
+ */
+export function createOrderHandler(getDeps: () => PedidoDeps, log: (message: string) => void = () => {}) {
   return async (request: Request): Promise<Response> => {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })
     if (request.method !== 'POST') return json(405, { ok: false, reason: 'pedido-invalido' })
@@ -58,9 +75,9 @@ export function createOrderHandler(getDeps: () => OrderDeps, log: (message: stri
       return json(400, { ok: false, reason: 'pedido-invalido' })
     }
     try {
-      return json(200, await handleOrder(raw, lazyDeps(getDeps)))
+      return json(200, await handleRequest(raw, lazyDeps(getDeps), customerToken(request)))
     } catch (error) {
-      log(`Falha ao registrar o pedido: ${error instanceof Error ? error.message : String(error)}`)
+      log(`Falha na função pedido: ${error instanceof Error ? error.message : String(error)}`)
       return json(500, { ok: false, reason: 'erro-servidor' })
     }
   }

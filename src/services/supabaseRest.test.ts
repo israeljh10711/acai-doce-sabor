@@ -159,7 +159,7 @@ describe('pedidos no painel do vendedor (pedido de 2026-11-20, etapa 2)', () => 
     expect(url.searchParams.get('or')).toBe('(created_at.gte."2026-11-20T08:00:00.000Z",status.in.(novo,confirmado,preparando,pronto,pronto_retirada,pronto_consumo,saiu_para_entrega))')
     expect(url.searchParams.get('order')).toBe('created_at.desc')
     expect(url.searchParams.get('limit')).toBe('200')
-    expect(url.searchParams.get('select')?.split(',')).toEqual(expect.arrayContaining(['id', 'code', 'status', 'fulfillment', 'customer_lat', 'customer_lng', 'maps_url', 'message']))
+    expect(url.searchParams.get('select')?.split(',')).toEqual(expect.arrayContaining(['id', 'code', 'status', 'fulfillment', 'customer_lat', 'customer_lng', 'maps_url', 'message', 'additions', 'updated_at']))
     expect([calls[0].method, calls[0].headers.authorization, calls[0].headers.apikey]).toEqual(['GET', 'Bearer token-1', 'sb_publishable_123'])
   })
 

@@ -40,8 +40,10 @@ const helpers = `
     [...document.querySelectorAll('[aria-label$=": 1"], [aria-label$=": 2"]')].filter((el) => el.getAttribute('role') === 'status' || el.tagName === 'OUTPUT' || el.tagName === 'SPAN').length;
   window.__total = () => (__resumo().match(/TOTAL\\s*(R\\$\\s*[\\d.,]+)/i) ?? [])[1] ?? null;
   window.__confirm = () => __q('dialog[role="alertdialog"]');
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
-  window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
+  // Desde 2026-11-20 o pedido é finalizado no site (sem WhatsApp): sem o Supabase, a comanda fica
+  // guardada no modo de demonstração deste navegador. Nenhuma aba deve abrir.
+  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
+  window.__openedText = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders.at(-1).message } catch { return null } };
   true;
 `
 
@@ -116,7 +118,7 @@ try {
     await run(FILL_CUSTOMER)
     await sleep(300)
     await click(`__q('input[value="pix"]')`)
-    await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`, 700)
+    await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Finalizar pedido'))`, 700)
     const message = (await run(`__openedText()`)) ?? ''
     const lines = message.split('\n')
     const title = lines.findIndex((line) => line.includes('*1x Barca de Açaí*'))
@@ -162,7 +164,7 @@ try {
     await run(FILL_CUSTOMER)
     await sleep(300)
     await click(`__q('input[value="pix"]')`)
-    await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Confirmar e Enviar Pedido no WhatsApp'))`, 700)
+    await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Finalizar pedido'))`, 700)
     const extras = ((await run(`__openedText()`)) ?? '').split('\n')
     check(
       `${at} Tradicional: comanda com R$ 25,00, "COMPLETO (todos os acompanhamentos)" e os pagos com o valor`,

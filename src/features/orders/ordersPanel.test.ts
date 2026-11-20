@@ -83,7 +83,19 @@ describe('leitura dos pedidos no painel (pedido de 2026-11-20, etapa 2)', () => 
       antecipado: false,
       items: [{ name: 'Açaí Tradicional (Isopor M)', quantity: 1, totalCents: 2500, note: 'pouco gelo' }],
       message: ROW.message,
+      additions: [],
     })
+  })
+
+  it('itens acrescentados pelo cliente (2026-11-20): cada lote com a hora, os itens e o valor', () => {
+    const additions = [
+      { created_at: '2026-11-20T19:00:00.000Z', subtotal_cents: 700, itemsBlock: 'bloco', items: [{ name: 'Picolé', quantity: 2, total_cents: 700 }] },
+      'estragado',
+    ]
+    expect(order({ additions }).additions).toEqual([
+      { createdAt: Date.parse('2026-11-20T19:00:00.000Z'), subtotalCents: 700, itemsBlock: 'bloco', items: [{ name: 'Picolé', quantity: 2, totalCents: 700, note: null }] },
+    ])
+    expect(order({ additions: null }).additions).toEqual([])
   })
 
   it('link de mapa gravado diferente das coordenadas: vale o refeito das coordenadas', () => {

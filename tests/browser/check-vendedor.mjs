@@ -47,8 +47,10 @@ const helpers = `
   window.__item = (id) => __q('[data-item="' + id + '"]');
   window.__lastIn = (section) => [...document.querySelectorAll('[data-section="' + section + '"] [data-item]')].at(-1);
   window.__cartCount = () => Number((__q('header a[href="/carrinho"]')?.textContent.match(/[0-9]+/) ?? ['0'])[0]);
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return {}; }; return true };
-  window.__openedText = () => (window.__opened?.length ? new URL(window.__opened.at(-1)).searchParams.get('text') : null);
+  // Desde 2026-11-20 o pedido é finalizado no site: nenhuma aba deve abrir (o window.open só conta).
+  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
+  // Sem o Supabase, a comanda fica guardada no modo de demonstração deste navegador.
+  window.__openedText = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders.at(-1).message } catch { return null } };
   window.__type = (selector, text) => __set(__q(selector), text);
   true;
 `
@@ -147,7 +149,7 @@ try {
   await submitDialog()
   check('Jujuba esgotada: selo e botão desligado', await run(`[__item('jujuba').textContent.includes('Esgotado'), __item('jujuba').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])').disabled]`), [true, true])
 
-  // --- Carrinho e WhatsApp com o produto novo e o preço editado ---
+  // --- Carrinho e comanda com o produto novo e o preço editado (finalizado no site) ---
   await click(`__lastIn('picoles-e-sorvetes').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
   await click(`[...__dialog().querySelectorAll('button')].find((b) => b.textContent.includes('continuar comprando'))`, 900)
   await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
@@ -159,10 +161,11 @@ try {
   await run(FILL_CUSTOMER)
   await sleep(300)
   await click(`__q('input[value="pix"]')`)
-  await click(`__button('Confirmar e Enviar Pedido no WhatsApp')`, 700)
+  await click(`__q('[data-finalize]')`, 900)
+  check('finalizado no site, sem abrir o WhatsApp', await run(`[location.pathname.startsWith('/acompanhar/DEMO-'), window.__opened.length]`), [true, 0])
   const message = (await run(`__openedText()`)) ?? ''
   check(
-    'WhatsApp com o produto novo e o preço editado',
+    'comanda com o produto novo e o preço editado',
     [message.includes('*1x Picolé trufado* — *R$ 3,00*'), message.split('\n').some((line) => line.includes('*1x Sundae*') && line.endsWith('— *R$ 9,50*'))],
     [true, true],
   )

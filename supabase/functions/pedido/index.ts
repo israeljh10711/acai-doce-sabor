@@ -1985,7 +1985,7 @@ var DEFAULT_STORE_SETTINGS = {
 		uf: "PB"
 	}
 };
-var isRecord$2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord$5 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 /** Texto sem espaços sobrando, com até `max` caracteres; vazio ou longo demais não vale. */
 function cleanText(value, max) {
 	if (typeof value !== "string") return void 0;
@@ -1993,7 +1993,7 @@ function cleanText(value, max) {
 	return text && text.length <= max ? text : void 0;
 }
 function parseHours(raw) {
-	if (!isRecord$2(raw)) return void 0;
+	if (!isRecord$5(raw)) return void 0;
 	const { opensAt, closesAt } = raw;
 	if (!Number.isInteger(opensAt) || !Number.isInteger(closesAt)) return void 0;
 	const open = opensAt;
@@ -2005,7 +2005,7 @@ function parseHours(raw) {
 }
 function parseOverride(raw) {
 	if (raw === null) return null;
-	if (!isRecord$2(raw) || raw.state !== "open" && raw.state !== "closed") return void 0;
+	if (!isRecord$5(raw) || raw.state !== "open" && raw.state !== "closed") return void 0;
 	const until = raw.until;
 	return typeof until === "number" && Number.isFinite(until) && until > 0 ? {
 		state: raw.state,
@@ -2017,7 +2017,7 @@ function parseZones(raw) {
 	const seen = /* @__PURE__ */ new Set();
 	const zones = [];
 	for (const entry of raw) {
-		if (!isRecord$2(entry)) continue;
+		if (!isRecord$5(entry)) continue;
 		const id = cleanText(entry.id, 40);
 		const name = cleanText(entry.name, 40);
 		const fee = entry.feeCents;
@@ -2033,14 +2033,14 @@ function parseZones(raw) {
 	return zones;
 }
 function parseDelivery(raw) {
-	if (!isRecord$2(raw) || raw.mode !== "gratis" && raw.mode !== "taxas" && raw.mode !== "combinar") return void 0;
+	if (!isRecord$5(raw) || raw.mode !== "gratis" && raw.mode !== "taxas" && raw.mode !== "combinar") return void 0;
 	return {
 		mode: raw.mode,
 		zones: parseZones(raw.zones)
 	};
 }
 function parseContact(raw) {
-	if (!isRecord$2(raw)) return void 0;
+	if (!isRecord$5(raw)) return void 0;
 	const contact = {};
 	const whatsapp = typeof raw.whatsapp === "string" ? formatBrazilPhone(raw.whatsapp) : null;
 	if (whatsapp) contact.whatsapp = whatsapp;
@@ -2053,7 +2053,7 @@ function parseContact(raw) {
 }
 /** A mudança guardada (aparelho ou Supabase), só com os campos válidos. */
 function parseStoreSettingsChange(raw) {
-	if (!isRecord$2(raw)) return {};
+	if (!isRecord$5(raw)) return {};
 	const change = {};
 	const hours = parseHours(raw.hours);
 	if (hours) change.hours = hours;
@@ -2398,7 +2398,7 @@ var CATEGORY_SLUGS = /* @__PURE__ */ new Set([
 	"acai-batido",
 	"milk-shake"
 ]);
-var isRecord$1 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord$4 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var isCents = (value) => Number.isInteger(value) && value >= 0 && value <= 1e7;
 var text = (value, max) => typeof value === "string" ? value.trim().slice(0, max) : void 0;
 function parseItem(raw) {
@@ -2416,7 +2416,7 @@ function parseItem(raw) {
 		return value ? [value] : [];
 	});
 	if (Array.isArray(raw.sizes)) change.sizes = raw.sizes.flatMap((entry) => {
-		if (!isRecord$1(entry)) return [];
+		if (!isRecord$4(entry)) return [];
 		const sizeName = text(entry.name, 40);
 		return sizeName && isCents(entry.priceCents) ? [{
 			name: sizeName,
@@ -2438,13 +2438,13 @@ function parseProduct(raw) {
 	if (description !== void 0) change.description = description;
 	const image = text(raw.image, 2e3);
 	if (image) change.image = image;
-	if (isRecord$1(raw.sizePrices)) {
+	if (isRecord$4(raw.sizePrices)) {
 		const prices = Object.fromEntries(Object.entries(raw.sizePrices).filter(([, price]) => isCents(price)));
 		if (Object.keys(prices).length > 0) change.sizePrices = prices;
 	}
 	if (Array.isArray(raw.sizes)) {
 		const sizes = raw.sizes.flatMap((entry) => {
-			if (!isRecord$1(entry)) return [];
+			if (!isRecord$4(entry)) return [];
 			const sizeName = text(entry.name, 40);
 			if (!sizeName || !isCents(entry.priceCents)) return [];
 			const free = Number.isInteger(entry.freeToppings) ? Math.min(20, Math.max(0, entry.freeToppings)) : 0;
@@ -2473,7 +2473,7 @@ function parseOptions(raw, withId) {
 	const seen = /* @__PURE__ */ new Set();
 	const options = [];
 	for (const entry of raw) {
-		if (!isRecord$1(entry)) continue;
+		if (!isRecord$4(entry)) continue;
 		const name = text(entry.name, 60);
 		const key = name ? foldText(name).toLowerCase() : "";
 		if (!name || seen.has(key)) continue;
@@ -2492,7 +2492,7 @@ function parseOptions(raw, withId) {
 function parseGroups(raw) {
 	const groups = [];
 	for (const entry of raw) {
-		if (!isRecord$1(entry) || !Array.isArray(entry.options)) continue;
+		if (!isRecord$4(entry) || !Array.isArray(entry.options)) continue;
 		const label = text(entry.label, 40);
 		const options = parseOptions(entry.options, false);
 		if (!label || options.length === 0) continue;
@@ -2528,10 +2528,10 @@ function parseTopping(raw) {
 	return change;
 }
 function parseSection(raw, parse, accept = () => true) {
-	if (!isRecord$1(raw)) return {};
+	if (!isRecord$4(raw)) return {};
 	const result = {};
 	for (const [id, entry] of Object.entries(raw)) {
-		if (!id || id.length > 80 || !accept(id) || !isRecord$1(entry)) continue;
+		if (!id || id.length > 80 || !accept(id) || !isRecord$4(entry)) continue;
 		const change = parse(entry);
 		if (Object.keys(change).length > 0) result[id] = change;
 	}
@@ -2541,7 +2541,7 @@ function parseSection(raw, parse, accept = () => true) {
 var STORE_SETTINGS_ID = "loja";
 /** As mudanças guardadas no aparelho ou lidas do Supabase, só com campos válidos. */
 function parseChanges(raw) {
-	if (!isRecord$1(raw)) return NO_CHANGES;
+	if (!isRecord$4(raw)) return NO_CHANGES;
 	return {
 		items: parseSection(raw.items, parseItem),
 		products: parseSection(raw.products, parseProduct, (slug) => CATEGORY_SLUGS.has(slug)),
@@ -2638,6 +2638,95 @@ function getStoreSettings() {
 		value: resolveStoreSettings(source)
 	};
 	return settingsCache.value;
+}
+// src/features/checkout/payment.ts
+/**
+* Forma de pagamento e troco: regras puras, testadas sem tela.
+* Pedido de 2026-11-14: Pix, cartão de crédito, cartão de débito ou dinheiro (com troco).
+*/
+var PAYMENT_METHODS = [
+	{
+		id: "pix",
+		label: "Pix"
+	},
+	{
+		id: "credito",
+		label: "Cartão de crédito"
+	},
+	{
+		id: "debito",
+		label: "Cartão de débito"
+	},
+	{
+		id: "dinheiro",
+		label: "Dinheiro"
+	}
+];
+var EMPTY_PAYMENT = {
+	method: null,
+	changeFor: "",
+	exact: false
+};
+/**
+* Lê um valor em reais digitado pelo cliente e devolve centavos, ou `null` se não der para ler.
+* Aceita "50", "50,00", "50,5", "50.00", "1.000", "1.000,00" e "R$ 50,00".
+*/
+function parseReais(text) {
+	const clean = text.replace(/R\$/gi, "").replace(/\s/g, "");
+	let normalized;
+	if (/^\d{1,3}(\.\d{3})*,\d{0,2}$|^\d+,\d{0,2}$/.test(clean)) normalized = clean.replaceAll(".", "").replace(",", ".");
+	else if (/^\d+\.\d{1,2}$/.test(clean)) normalized = clean;
+	else if (/^\d{1,3}(\.\d{3})+$/.test(clean)) normalized = clean.replaceAll(".", "");
+	else if (/^\d+$/.test(clean)) normalized = clean;
+	else return null;
+	const cents = Math.round(Number(normalized) * 100);
+	return Number.isSafeInteger(cents) ? cents : null;
+}
+/** Confere o pagamento antes do envio: forma escolhida e, no dinheiro, o troco. */
+function checkPayment(draft, totalCents) {
+	if (!draft.method) return {
+		ok: false,
+		problem: "no-method"
+	};
+	if (draft.method !== "dinheiro") return {
+		ok: true,
+		payment: { method: draft.method }
+	};
+	if (draft.exact) return {
+		ok: true,
+		payment: {
+			method: "dinheiro",
+			changeForCents: null
+		}
+	};
+	if (!draft.changeFor.trim()) return {
+		ok: false,
+		problem: "change-missing"
+	};
+	const changeFor = parseReais(draft.changeFor);
+	if (changeFor === null) return {
+		ok: false,
+		problem: "change-invalid"
+	};
+	if (changeFor < totalCents) return {
+		ok: false,
+		problem: "change-too-low"
+	};
+	return {
+		ok: true,
+		payment: {
+			method: "dinheiro",
+			changeForCents: changeFor
+		}
+	};
+}
+function paymentProblemText(problem, totalCents) {
+	switch (problem) {
+		case "no-method": return "Selecione uma forma de pagamento para continuar";
+		case "change-missing": return "Informe para quanto precisa de troco ou marque \"Não preciso de troco\".";
+		case "change-invalid": return "Digite o valor em reais, por exemplo 50,00.";
+		case "change-too-low": return `O valor informado é menor que o total do pedido (${formatBRL(totalCents)})`;
+	}
 }
 // src/features/checkout/gps.ts
 var round6 = (value) => Math.round(value * 1e6) / 1e6;
@@ -2785,105 +2874,17 @@ function checkCustomer(draft, delivery) {
 		}
 	};
 }
-// src/features/checkout/payment.ts
-/**
-* Forma de pagamento e troco: regras puras, testadas sem tela.
-* Pedido de 2026-11-14: Pix, cartão de crédito, cartão de débito ou dinheiro (com troco).
-*/
-var PAYMENT_METHODS = [
-	{
-		id: "pix",
-		label: "Pix"
-	},
-	{
-		id: "credito",
-		label: "Cartão de crédito"
-	},
-	{
-		id: "debito",
-		label: "Cartão de débito"
-	},
-	{
-		id: "dinheiro",
-		label: "Dinheiro"
-	}
-];
-var EMPTY_PAYMENT = {
-	method: null,
-	changeFor: "",
-	exact: false
-};
-/**
-* Lê um valor em reais digitado pelo cliente e devolve centavos, ou `null` se não der para ler.
-* Aceita "50", "50,00", "50,5", "50.00", "1.000", "1.000,00" e "R$ 50,00".
-*/
-function parseReais(text) {
-	const clean = text.replace(/R\$/gi, "").replace(/\s/g, "");
-	let normalized;
-	if (/^\d{1,3}(\.\d{3})*,\d{0,2}$|^\d+,\d{0,2}$/.test(clean)) normalized = clean.replaceAll(".", "").replace(",", ".");
-	else if (/^\d+\.\d{1,2}$/.test(clean)) normalized = clean;
-	else if (/^\d{1,3}(\.\d{3})+$/.test(clean)) normalized = clean.replaceAll(".", "");
-	else if (/^\d+$/.test(clean)) normalized = clean;
-	else return null;
-	const cents = Math.round(Number(normalized) * 100);
-	return Number.isSafeInteger(cents) ? cents : null;
-}
-/** Confere o pagamento antes do envio: forma escolhida e, no dinheiro, o troco. */
-function checkPayment(draft, totalCents) {
-	if (!draft.method) return {
-		ok: false,
-		problem: "no-method"
-	};
-	if (draft.method !== "dinheiro") return {
-		ok: true,
-		payment: { method: draft.method }
-	};
-	if (draft.exact) return {
-		ok: true,
-		payment: {
-			method: "dinheiro",
-			changeForCents: null
-		}
-	};
-	if (!draft.changeFor.trim()) return {
-		ok: false,
-		problem: "change-missing"
-	};
-	const changeFor = parseReais(draft.changeFor);
-	if (changeFor === null) return {
-		ok: false,
-		problem: "change-invalid"
-	};
-	if (changeFor < totalCents) return {
-		ok: false,
-		problem: "change-too-low"
-	};
-	return {
-		ok: true,
-		payment: {
-			method: "dinheiro",
-			changeForCents: changeFor
-		}
-	};
-}
-function paymentProblemText(problem, totalCents) {
-	switch (problem) {
-		case "no-method": return "Selecione uma forma de pagamento para continuar";
-		case "change-missing": return "Informe para quanto precisa de troco ou marque \"Não preciso de troco\".";
-		case "change-invalid": return "Digite o valor em reais, por exemplo 50,00.";
-		case "change-too-low": return `O valor informado é menor que o total do pedido (${formatBRL(totalCents)})`;
-	}
-}
 // src/features/orders/orderMessage.ts
 /**
-* Comanda do pedido que vai para o WhatsApp da loja, no modelo aprovado em 2026-11-17: dividida em
+* Comanda do pedido (o modelo aprovado em 2026-11-17; desde 2026-11-20 gravada com o pedido e lida
+* no painel do vendedor, sem passar pelo WhatsApp): dividida em
 * blocos, com emojis para cada informação, fácil de ler na hora do pico.
 * - cliente: nome, telefone (se escrito), a modalidade (pedido de 2026-11-20: entrega, retirar ou
 *   comer no local), o endereço e o link do GPS (só na entrega) ou o local da loja;
 * - itens numerados (1️⃣, 2️⃣...), com a montagem do Completo, o que o cliente tirou, os pagos com
 *   o valor, os acompanhamentos por grupo e a observação do item;
 * - resumo com subtotal, frete e total; forma de pagamento com troco.
-* Usa o negrito (`*texto*`) e o itálico (`_texto_`) do WhatsApp.
+* Usa o negrito (`*texto*`) e o itálico (`_texto_`) no estilo do WhatsApp (o painel entende).
 */
 var LINE = "━".repeat(20);
 var ITEM_INDENT = "   ";
@@ -2979,7 +2980,7 @@ function feeLine(fee) {
 function paymentLines(payment, amount, totalCents, feeKnown, delivery) {
 	const chosen = "• *Método escolhido:*";
 	switch (payment.method) {
-		case "pix": return [`${chosen} 💠 *Pix* — ${amount}`, "  📎 _Envio o comprovante do Pix nesta conversa._"];
+		case "pix": return [`${chosen} 💠 *Pix* — ${amount}`, "  📎 _Conferir o comprovante do Pix._"];
 		case "credito":
 		case "debito": return [`${chosen} 💳 *${payment.method === "credito" ? "Cartão de crédito" : "Cartão de débito"}* — ${amount}${delivery ? " 📟 _(Levar maquininha)_" : ""}`];
 		case "dinheiro": {
@@ -2991,7 +2992,26 @@ function paymentLines(payment, amount, totalCents, feeKnown, delivery) {
 		}
 	}
 }
-function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code, naoRegistrado }) {
+/** O título dos itens na comanda (o painel e o acompanhamento procuram por ele). */
+var ITEMS_TITLE = "🍨 *ITENS DO PEDIDO*";
+/**
+* O bloco dos itens da comanda: o título e os itens numerados, cada um seguido de uma linha em
+* branco. O mesmo bloco vai na comanda inteira e em cada lote acrescentado pelo cliente (2026-11-20).
+*/
+function itemsBlockLines(cart) {
+	const lines = [ITEMS_TITLE, ""];
+	cart.items.forEach((item, index) => lines.push(...itemLines(item, index + 1), ""));
+	return lines;
+}
+/** O bloco dos itens de uma comanda gravada (sem nome, telefone, endereço ou pagamento). */
+function orderItemsBlock(message) {
+	const lines = message.split("\n");
+	const start = lines.findIndex((line) => line === ITEMS_TITLE);
+	if (start === -1) return "";
+	const end = lines.findIndex((line, index) => index > start && line.startsWith("━"));
+	return lines.slice(start, end === -1 ? void 0 : end).join("\n").trimEnd();
+}
+function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code }) {
 	const subtotalCents = cartTotalCents(cart);
 	const totalCents = subtotalCents + feeCents(customer.fee);
 	const feeKnown = customer.fee.kind !== "combinar";
@@ -3002,12 +3022,10 @@ function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code, 
 	if (code) lines.push(`🔖 *Pedido:* ${code}`);
 	lines.push(`📅 *Data/Hora:* ${dateTimeText(sentAt)}`);
 	if (antecipado) lines.push("⏰ *Pedido antecipado:* enviado com a loja fechada");
-	if (naoRegistrado) lines.push("⚠️ *Pedido não registrado no sistema*");
 	lines.push("", "👤 *DADOS DO CLIENTE*", `• *Nome:* ${customer.name}`);
 	if (customer.phone) lines.push(`• *Telefone:* ${customer.phone}`);
 	lines.push(...fulfillmentLines(fulfillment));
-	lines.push("", LINE, "🍨 *ITENS DO PEDIDO*", "");
-	cart.items.forEach((item, index) => lines.push(...itemLines(item, index + 1), ""));
+	lines.push("", LINE, ...itemsBlockLines(cart));
 	lines.push(LINE, "🧾 *RESUMO FINANCEIRO*", `🛍️ *Subtotal dos itens:* ${formatBRL(subtotalCents)}`, feeLine(customer.fee), `💰 *TOTAL A PAGAR:* ${amount}`, "", LINE, "💳 *FORMA DE PAGAMENTO*", ...paymentLines(payment, amount, totalCents, feeKnown, delivery), "", `💜 _Obrigado pela preferência! ${storeInfo.name}_`);
 	return lines.join("\n");
 }
@@ -3023,7 +3041,8 @@ function itemName(item) {
 	const summary = summarizeSelection(item.slug, item.selection);
 	return summary.sizeLabel ? `${summary.productName} (${summary.sizeLabel})` : summary.productName;
 }
-function snapshot(cart) {
+/** A cópia dos itens (nomes e preços do momento da compra). */
+function itemSnapshots(cart) {
 	return cart.items.map((item) => ({
 		name: itemName(item),
 		quantity: item.quantity,
@@ -3060,7 +3079,7 @@ function orderRowFields({ cart, customer, payment, antecipado, message, whatsapp
 		subtotal_cents: subtotalCents,
 		total_cents: subtotalCents + feeCents(fee),
 		antecipado,
-		items: snapshot(cart),
+		items: itemSnapshots(cart),
 		cart: JSON.parse(serializeCart(cart))
 	};
 }
@@ -3195,6 +3214,61 @@ function hoursText({ opensAt, closesAt }) {
 	return `Todos os dias, das ${hourLabel(opensAt)} ${end}`;
 }
 hoursText(STORE_HOURS);
+new RegExp(`^(?:[0-9]\\uFE0F\\u20E3|\\u{1F51F})+ \\*(\\d+)x (.+?)\\*(?: \\((.+)\\))? — \\*(.+)\\*$`, "u");
+// src/features/tracking/orderView.ts
+/** Só nestas situações o cliente ainda pode acrescentar itens (conferido também no banco). */
+var ADDABLE_STATUSES = ["novo", "preparando"];
+var RETENTION_MS = 2592e6;
+var isRecord$3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+function viewItems(raw) {
+	return Array.isArray(raw) ? raw.flatMap((entry) => isRecord$3(entry) && typeof entry.name === "string" ? [{
+		name: entry.name,
+		quantity: entry.quantity,
+		totalCents: entry.total_cents,
+		note: entry.note ?? null
+	}] : []) : [];
+}
+/** A visão reduzida do pedido para o próprio cliente. */
+function customerView(order, events) {
+	const address = isRecord$3(order.address) ? order.address : null;
+	return {
+		id: order.id,
+		code: order.code,
+		createdAt: order.created_at,
+		updatedAt: order.updated_at ?? order.created_at,
+		status: order.status,
+		fulfillment: order.fulfillment,
+		address: order.fulfillment === "entrega" && address ? {
+			street: String(address.street ?? ""),
+			number: String(address.number ?? ""),
+			district: String(address.district ?? ""),
+			reference: typeof address.reference === "string" ? address.reference : null
+		} : null,
+		itemsBlock: orderItemsBlock(order.message),
+		items: viewItems(order.items),
+		additions: (Array.isArray(order.additions) ? order.additions : []).flatMap((entry) => isRecord$3(entry) ? [{
+			createdAt: String(entry.created_at ?? ""),
+			subtotalCents: typeof entry.subtotal_cents === "number" ? entry.subtotal_cents : 0,
+			itemsBlock: typeof entry.itemsBlock === "string" ? entry.itemsBlock : "",
+			items: viewItems(entry.items)
+		}] : []),
+		subtotalCents: order.subtotal_cents,
+		fee: {
+			kind: order.delivery_fee,
+			cents: order.delivery_fee_cents,
+			zone: order.delivery_zone
+		},
+		totalCents: order.total_cents,
+		paymentMethod: order.payment_method,
+		changeForCents: order.change_for_cents,
+		antecipado: order.antecipado,
+		events: events.flatMap((event) => event.kind === "status" || event.kind === "itens" ? [{
+			kind: event.kind,
+			status: event.status,
+			at: event.created_at
+		}] : [])
+	};
+}
 // src/services/supabaseBackend.ts
 /**
 * Gravação do modo vendedor no Supabase (opção B, pedido de 2026-11-16): as mudanças valem para
@@ -3222,7 +3296,7 @@ function changesFromRows(rows) {
 }
 /** Marca do código na comanda, trocada pelo código de verdade depois de sair o número. */
 var CODE_MARK = "{{CODIGO_DO_PEDIDO}}";
-var reject = (reason, detail) => detail ? {
+var reject$1 = (reason, detail) => detail ? {
 	ok: false,
 	reason,
 	detail
@@ -3234,32 +3308,40 @@ var reject = (reason, detail) => detail ? {
 function orderCode(number) {
 	return `ADS-${String(number).padStart(4, "0")}`;
 }
-var isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord$2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function parsePayment(raw) {
-	if (!isRecord(raw)) return EMPTY_PAYMENT;
+	if (!isRecord$2(raw)) return EMPTY_PAYMENT;
 	return {
 		method: PAYMENT_METHODS.find((candidate) => candidate.id === raw.method)?.id ?? null,
 		changeFor: typeof raw.changeFor === "string" ? raw.changeFor.slice(0, 20) : "",
 		exact: raw.exact === true
 	};
 }
+/** O id de uma tentativa de finalização, sorteado no aparelho (2026-11-20). */
+var ATTEMPT_ID = /^[A-Za-z0-9-]{16,64}$/;
 function parseInput(raw) {
-	if (!isRecord(raw)) return null;
-	const { cart, expectedTotalCents } = raw;
+	if (!isRecord$2(raw)) return null;
+	const { cart, expectedTotalCents, attemptId } = raw;
 	if (typeof cart !== "string" || cart.length > 2e5) return null;
 	if (typeof expectedTotalCents !== "number" || !Number.isSafeInteger(expectedTotalCents) || expectedTotalCents < 0) return null;
+	if (attemptId !== void 0 && (typeof attemptId !== "string" || !ATTEMPT_ID.test(attemptId))) return null;
 	return {
 		cart,
 		customer: parseCustomerDraft(raw.customer),
 		payment: parsePayment(raw.payment),
-		expectedTotalCents
+		expectedTotalCents,
+		attemptId: typeof attemptId === "string" ? attemptId : null
 	};
+}
+/** Quantas linhas o carrinho recebido diz ter: usado também no acréscimo. */
+function cartLines(cart) {
+	return declaredLines(cart);
 }
 /** Quantas linhas o carrinho recebido diz ter (para saber se alguma ficou de fora na leitura). */
 function declaredLines(cart) {
 	try {
 		const data = JSON.parse(cart);
-		return isRecord(data) && Array.isArray(data.items) ? data.items.length : 0;
+		return isRecord$2(data) && Array.isArray(data.items) ? data.items.length : 0;
 	} catch {
 		return 0;
 	}
@@ -3270,25 +3352,25 @@ function declaredLines(cart) {
 */
 function prepare(input, now) {
 	const lines = declaredLines(input.cart);
-	if (lines > 60) return reject("pedido-invalido");
+	if (lines > 60) return reject$1("pedido-invalido");
 	const cart = parseCart(input.cart);
-	if (cart.items.length === 0) return reject(lines === 0 ? "carrinho-vazio" : "item-indisponivel");
-	if (cart.items.length !== lines) return reject("item-indisponivel");
+	if (cart.items.length === 0) return reject$1(lines === 0 ? "carrinho-vazio" : "item-indisponivel");
+	if (cart.items.length !== lines) return reject$1("item-indisponivel");
 	const soldOut = cart.items.flatMap((item) => {
 		const problem = cartItemProblem(item);
 		if (!problem) return [];
 		return problem.kind === "item" ? [itemName(item)] : problem.names;
 	});
-	if (soldOut.length > 0) return reject("esgotado", soldOut.join(", "));
+	if (soldOut.length > 0) return reject$1("esgotado", soldOut.join(", "));
 	const settings = getStoreSettings();
 	const status = effectiveStatus(now, settings);
-	if (!status.open && settings.closedOrders === "bloquear") return reject("loja-fechada", status.reopenText ?? void 0);
+	if (!status.open && settings.closedOrders === "bloquear") return reject$1("loja-fechada", status.reopenText ?? void 0);
 	const customerCheck = checkCustomer(input.customer, settings.delivery);
-	if (!customerCheck.ok) return reject("dados-invalidos", Object.values(customerCheck.problems)[0]);
+	if (!customerCheck.ok) return reject$1("dados-invalidos", Object.values(customerCheck.problems)[0]);
 	const { customer } = customerCheck;
 	const totalCents = cartTotalCents(cart) + feeCents(customer.fee);
 	const paymentCheck = checkPayment(input.payment, totalCents);
-	if (!paymentCheck.ok) return reject("pagamento-invalido", paymentProblemText(paymentCheck.problem, totalCents));
+	if (!paymentCheck.ok) return reject$1("pagamento-invalido", paymentProblemText(paymentCheck.problem, totalCents));
 	if (totalCents !== input.expectedTotalCents) return {
 		ok: false,
 		reason: "total-mudou",
@@ -3317,23 +3399,41 @@ function prepare(input, now) {
 }
 var accepted = (order, repeated) => ({
 	ok: true,
+	id: order.id,
 	code: order.code,
-	message: order.message,
+	createdAt: order.created_at,
+	tracked: order.customer_user_id !== null,
 	totalCents: order.total_cents,
-	whatsapp: order.whatsapp,
-	repeated
+	repeated,
+	message: order.message,
+	whatsapp: order.whatsapp
 });
-/** Confere e grava o pedido. Erro do banco (rede, chave) sobe: a função responde 500. */
-async function handleOrder(raw, deps) {
-	const input = parseInput(raw);
-	if (!input) return reject("pedido-invalido");
-	const attemptKey = await deps.sha256(JSON.stringify([
+/**
+* A chave de repetição: com o id da tentativa que o site sorteou (2026-11-20), o mesmo pedido
+* reenviado por toque duplo ou internet caída devolve o mesmo código, e um pedido igual feito
+* depois é outro pedido. Sem o id (site antigo), o resumo do conteúdo, como antes.
+*/
+async function attemptKeyOf(input, deps) {
+	return deps.sha256(input.attemptId ? `tentativa:${input.attemptId}` : JSON.stringify([
 		input.cart,
 		input.customer,
 		input.payment
 	]));
+}
+/**
+* Confere e grava o pedido. `customerId`: a sessão anônima do cliente, já conferida (o pedido fica
+* ligado a ela para o acompanhamento); sem sessão, o pedido é gravado do mesmo jeito, sem
+* acompanhamento. Erro do banco (rede, chave) sobe: a função responde 500.
+*/
+async function handleOrder(raw, deps, customerId = null) {
+	const input = parseInput(raw);
+	if (!input) return reject$1("pedido-invalido");
+	const attemptKey = await attemptKeyOf(input, deps);
 	const existing = await deps.findOrder(attemptKey);
-	if (existing) return accepted(existing, true);
+	if (existing) {
+		if (existing.customer_user_id && customerId && existing.customer_user_id !== customerId) return reject$1("pedido-invalido");
+		return accepted(existing, true);
+	}
 	setCatalogChanges(changesFromRows(await deps.readChanges()));
 	const prepared = prepare(input, deps.now());
 	if (!prepared.ok) return prepared;
@@ -3344,11 +3444,177 @@ async function handleOrder(raw, deps) {
 		attempt_key: attemptKey,
 		number,
 		code,
-		message: prepared.row.message.replace(CODE_MARK, code)
+		message: prepared.row.message.replace(CODE_MARK, code),
+		customer_user_id: customerId
 	};
 	const stored = await deps.insertOrder(row) ?? await deps.findOrder(attemptKey);
 	if (!stored) throw new Error("O pedido não foi gravado.");
 	return accepted(stored, stored.code !== code);
+}
+// src/server/customerOrders.ts
+/**
+* As operações do cliente na função `pedido` (pedido 100% no site, 2026-11-20): consultar o
+* próprio pedido, listar os próprios pedidos e acrescentar itens a um pedido ainda em `novo` ou
+* `preparando`.
+*
+* Quem é o cliente vem da sessão anônima dele (Supabase Auth), já conferida pelo servidor de login
+* (`verifyCustomer`). O código ADS-0001 nunca autoriza nada: pedido de outra sessão responde
+* "nao-encontrado", sem dizer que existe. Os preços do acréscimo vêm do cardápio no servidor; o
+* site só manda os itens e o valor que viu. A gravação é a função SQL `adicionar_itens_pedido`
+* (transação com o pedido travado: dono, situação, repetição e troco conferidos lá também).
+*/
+var reject = (reason, detail) => detail ? {
+	ok: false,
+	reason,
+	detail
+} : {
+	ok: false,
+	reason
+};
+var isRecord$1 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+/** Ids de pedido (uuid no Supabase): só letras, números e hífen, para ir seguro no endereço. */
+var ORDER_ID = /^[A-Za-z0-9-]{1,64}$/;
+function orderIdOf(raw) {
+	return isRecord$1(raw) && typeof raw.orderId === "string" && ORDER_ID.test(raw.orderId) ? raw.orderId : null;
+}
+/** O pedido existe, é desta sessão e ainda está no prazo de consulta? */
+async function ownOrder(raw, deps, customerId) {
+	if (!customerId) return reject("sem-sessao");
+	const id = orderIdOf(raw);
+	if (!id) return reject("pedido-invalido");
+	const order = await deps.findOrderById(id);
+	if (!order || !order.customer_user_id || order.customer_user_id !== customerId) return reject("nao-encontrado");
+	if (deps.now() - Date.parse(order.created_at) > 2592e6) return reject("expirado");
+	return order;
+}
+async function lookupOrder(raw, deps, customerId) {
+	const order = await ownOrder(raw, deps, customerId);
+	if ("ok" in order) return order;
+	return {
+		ok: true,
+		order: customerView(order, await deps.readEvents(order.id))
+	};
+}
+async function listOrders(deps, customerId) {
+	if (!customerId) return reject("sem-sessao");
+	return {
+		ok: true,
+		orders: (await deps.listCustomerOrders(customerId, new Date(deps.now() - RETENTION_MS).toISOString())).map((row) => ({
+			id: row.id,
+			code: row.code,
+			createdAt: row.created_at,
+			status: row.status,
+			fulfillment: row.fulfillment,
+			totalCents: row.total_cents
+		}))
+	};
+}
+/** Acrescenta itens ao pedido do próprio cliente. Erro do banco sobe (a função responde 500). */
+async function addItems(raw, deps, customerId) {
+	if (!isRecord$1(raw)) return reject("pedido-invalido");
+	const { attemptId, cart, expectedSubtotalCents } = raw;
+	if (typeof attemptId !== "string" || !ATTEMPT_ID.test(attemptId)) return reject("pedido-invalido");
+	if (typeof cart !== "string" || cart.length > 2e5) return reject("pedido-invalido");
+	if (typeof expectedSubtotalCents !== "number" || !Number.isSafeInteger(expectedSubtotalCents) || expectedSubtotalCents < 0) return reject("pedido-invalido");
+	const order = await ownOrder(raw, deps, customerId);
+	if ("ok" in order) return order;
+	const attemptKey = await deps.sha256(`acrescimo:${order.id}:${attemptId}`);
+	if (Array.isArray(order.additions) && order.additions.some((entry) => isRecord$1(entry) && entry.attempt_key === attemptKey)) return {
+		ok: true,
+		totalCents: order.total_cents,
+		subtotalCents: order.subtotal_cents,
+		changeForCents: order.change_for_cents,
+		repeated: true
+	};
+	if (!ADDABLE_STATUSES.includes(order.status)) return reject("situacao", order.status);
+	setCatalogChanges(changesFromRows(await deps.readChanges()));
+	const lines = cartLines(cart);
+	if (lines > 60) return reject("pedido-invalido");
+	const parsed = parseCart(cart);
+	if (parsed.items.length === 0) return reject(lines === 0 ? "carrinho-vazio" : "item-indisponivel");
+	if (parsed.items.length !== lines) return reject("item-indisponivel");
+	const soldOut = parsed.items.flatMap((item) => {
+		const problem = cartItemProblem(item);
+		if (!problem) return [];
+		return problem.kind === "item" ? [itemName(item)] : problem.names;
+	});
+	if (soldOut.length > 0) return reject("esgotado", soldOut.join(", "));
+	const settings = getStoreSettings();
+	const status = effectiveStatus(deps.now(), settings);
+	if (!status.open && settings.closedOrders === "bloquear") return reject("loja-fechada", status.reopenText ?? void 0);
+	const subtotalCents = cartTotalCents(parsed);
+	if (subtotalCents !== expectedSubtotalCents) return {
+		ok: false,
+		reason: "total-mudou",
+		totalCents: subtotalCents
+	};
+	let changeForCents = null;
+	let changeSet = false;
+	const payment = isRecord$1(raw.payment) ? parsePayment(raw.payment) : null;
+	if (order.payment_method === "dinheiro" && payment && (payment.exact || payment.changeFor.trim())) {
+		changeSet = true;
+		if (!payment.exact) {
+			changeForCents = parseReais(payment.changeFor);
+			if (changeForCents === null) return reject("pagamento-invalido", "Digite o valor em reais, por exemplo 50,00.");
+		}
+	}
+	const result = await deps.addItems({
+		orderId: order.id,
+		customerId,
+		attemptKey,
+		batch: {
+			items: itemSnapshots(parsed),
+			cart: JSON.parse(serializeCart(parsed)),
+			itemsBlock: itemsBlockLines(parsed).join("\n").trimEnd()
+		},
+		subtotalCents,
+		changeForCents,
+		changeSet
+	});
+	if (!isRecord$1(result)) throw new Error("Resposta inesperada do banco ao acrescentar itens.");
+	if (result.ok === true) return {
+		ok: true,
+		totalCents: Number(result.total_cents),
+		subtotalCents: Number(result.subtotal_cents),
+		changeForCents: typeof result.change_for_cents === "number" ? result.change_for_cents : null,
+		repeated: result.repeated === true
+	};
+	switch (result.reason) {
+		case "situacao": return reject("situacao", typeof result.status === "string" ? result.status : void 0);
+		case "troco": return {
+			ok: false,
+			reason: "troco",
+			totalCents: Number(result.total_cents)
+		};
+		case "nao-encontrado": return reject("nao-encontrado");
+		default: return reject("pedido-invalido");
+	}
+}
+// src/server/orderRequest.ts
+/**
+* As operações da função `pedido` (pedido 100% no site, 2026-11-20). `op` escolhe:
+* - `criar` (ou nada: o site antigo): confere e grava o pedido, ligado à sessão do cliente;
+* - `consultar`: o próprio pedido, na visão reduzida, com o histórico;
+* - `meus`: os próprios pedidos dos últimos 30 dias;
+* - `adicionar`: itens a mais num pedido em `novo` ou `preparando`.
+*
+* A sessão do cliente chega no `Authorization` e é conferida pelo servidor de login; o token nunca
+* vai para log nem para a resposta.
+*/
+var isRecord = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+async function handleRequest(raw, deps, token) {
+	const op = isRecord(raw) && typeof raw.op === "string" ? raw.op : "criar";
+	const customerId = token ? await deps.verifyCustomer(token) : null;
+	switch (op) {
+		case "criar": return handleOrder(raw, deps, customerId);
+		case "consultar": return lookupOrder(raw, deps, customerId);
+		case "meus": return listOrders(deps, customerId);
+		case "adicionar": return addItems(raw, deps, customerId);
+		default: return {
+			ok: false,
+			reason: "pedido-invalido"
+		};
+	}
 }
 var CORS_HEADERS = {
 	"Access-Control-Allow-Origin": "*",
@@ -3378,12 +3644,27 @@ function lazyDeps(getDeps) {
 		nextNumber: () => get().nextNumber(),
 		insertOrder: (row) => get().insertOrder(row),
 		now: () => get().now(),
-		sha256: (text) => get().sha256(text)
+		sha256: (text) => get().sha256(text),
+		verifyCustomer: (token) => get().verifyCustomer(token),
+		findOrderById: (id) => get().findOrderById(id),
+		listCustomerOrders: (customerId, since) => get().listCustomerOrders(customerId, since),
+		readEvents: (orderId) => get().readEvents(orderId),
+		addItems: (args) => get().addItems(args)
 	};
 }
 /**
+* A sessão do cliente no `Authorization: Bearer ...`. A chave pública antiga (um JWT) também vem
+* assim quando não há sessão: ela não é sessão de ninguém e fica de fora.
+*/
+function customerToken(request) {
+	const header = request.headers.get("authorization") ?? "";
+	const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+	if (!token || token === request.headers.get("apikey")) return null;
+	return token;
+}
+/**
 * `getDeps` monta o banco na hora do pedido (a falta de configuração vira 500 com o motivo no log,
-* e não uma função que nem sobe).
+* e não uma função que nem sobe). O log leva só a mensagem do erro: nunca o pedido nem o token.
 */
 function createOrderHandler(getDeps, log = () => {}) {
 	return async (request) => {
@@ -3414,9 +3695,9 @@ function createOrderHandler(getDeps, log = () => {}) {
 			});
 		}
 		try {
-			return json(200, await handleOrder(raw, lazyDeps(getDeps)));
+			return json(200, await handleRequest(raw, lazyDeps(getDeps), customerToken(request)));
 		} catch (error) {
-			log(`Falha ao registrar o pedido: ${error instanceof Error ? error.message : String(error)}`);
+			log(`Falha na função pedido: ${error instanceof Error ? error.message : String(error)}`);
 			return json(500, {
 				ok: false,
 				reason: "erro-servidor"
@@ -3425,7 +3706,9 @@ function createOrderHandler(getDeps, log = () => {}) {
 	};
 }
 // src/server/orderStore.ts
-var STORED_COLUMNS = "code,message,total_cents,whatsapp";
+var STORED_COLUMNS = "id,code,message,total_cents,whatsapp,created_at,customer_user_id";
+/** O que a função lê do pedido para o cliente (acompanhamento e acréscimo, 2026-11-20). */
+var ORDER_COLUMNS = "id,code,created_at,updated_at,status,customer_user_id,fulfillment,address,delivery_fee,delivery_fee_cents,delivery_zone,payment_method,change_for_cents,subtotal_cents,total_cents,antecipado,items,message,additions";
 function createOrderStore({ url, key }, fetchImpl) {
 	const base = url.replace(/\/+$/, "");
 	const headers = (extra = {}) => ({
@@ -3468,6 +3751,58 @@ function createOrderStore({ url, key }, fetchImpl) {
 				body: JSON.stringify(row)
 			});
 			return firstStored(rows);
+		},
+		/**
+		* Confere a sessão do cliente no servidor de login (Supabase Auth). Token inválido, vencido
+		* ou de outro projeto: `null` (nunca lança, nunca registra o token).
+		*/
+		async verifyCustomer(token) {
+			try {
+				const response = await fetchImpl(`${base}/auth/v1/user`, { headers: {
+					apikey: key,
+					Authorization: `Bearer ${token}`,
+					Accept: "application/json"
+				} });
+				if (!response.ok) return null;
+				const user = await response.json();
+				return typeof user.id === "string" && user.id ? user.id : null;
+			} catch {
+				return null;
+			}
+		},
+		async findOrderById(id) {
+			const rows = await request(`/rest/v1/orders?select=${ORDER_COLUMNS}&id=eq.${encodeURIComponent(id)}&limit=1`, { headers: headers() });
+			return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+		},
+		async listCustomerOrders(customerId, since) {
+			const params = new URLSearchParams({
+				select: ORDER_COLUMNS,
+				customer_user_id: `eq.${customerId}`,
+				created_at: `gte.${since}`,
+				order: "created_at.desc",
+				limit: "50"
+			});
+			const rows = await request(`/rest/v1/orders?${params.toString()}`, { headers: headers() });
+			return Array.isArray(rows) ? rows : [];
+		},
+		async readEvents(orderId) {
+			const rows = await request(`/rest/v1/order_events?select=kind,status,created_at&order_id=eq.${encodeURIComponent(orderId)}&order=id.asc`, { headers: headers() });
+			return Array.isArray(rows) ? rows : [];
+		},
+		async addItems(args) {
+			return request("/rest/v1/rpc/adicionar_itens_pedido", {
+				method: "POST",
+				headers: headers(),
+				body: JSON.stringify({
+					p_order_id: args.orderId,
+					p_customer_user_id: args.customerId,
+					p_attempt_key: args.attemptKey,
+					p_batch: args.batch,
+					p_subtotal_cents: args.subtotalCents,
+					p_change_for_cents: args.changeForCents,
+					p_change_set: args.changeSet
+				})
+			});
 		}
 	};
 }

@@ -29,6 +29,17 @@ export const router = createBrowserRouter([
         lazy: async () => ({ Component: (await import('./pages/OrdersPage.tsx')).OrdersPage }),
       },
       {
+        // Acompanhamento do pedido pelo cliente (pedido 100% no site, 2026-11-20), carregado sob demanda.
+        path: routePatterns.track,
+        HydrateFallback: PageLoading,
+        lazy: async () => ({ Component: (await import('./pages/TrackOrderPage.tsx')).TrackOrderPage }),
+      },
+      {
+        path: routePatterns.trackOrder,
+        HydrateFallback: PageLoading,
+        lazy: async () => ({ Component: (await import('./pages/TrackOrderPage.tsx')).TrackOrderPage }),
+      },
+      {
         // O personalizador é carregado só quando aberto, para a página inicial abrir mais rápido.
         path: routePatterns.configurator,
         HydrateFallback: PageLoading,

@@ -61,18 +61,37 @@ const routes = [
   },
   {
     path: '/carrinho',
-    label: 'carrinho: troco calculado e WhatsApp aberto',
-    setup: `(async () => { window.open = () => ({}); __type('input[autocomplete="name"]', 'Cliente Teste'); document.querySelector('input[value="retirada"]').click(); await __wait(300); await __pay('dinheiro'); __type('#troco-para', '100'); await __wait(300); __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
+    label: 'carrinho: troco calculado',
+    setup: `(async () => { __type('input[autocomplete="name"]', 'Cliente Teste'); document.querySelector('input[value="retirada"]').click(); await __wait(300); await __pay('dinheiro'); __type('#troco-para', '100'); await __wait(400) })()`,
   },
   {
     path: '/carrinho',
     label: 'carrinho: Pix e aviso de forma de pagamento',
-    setup: `(async () => { __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(300); await __pay('pix') })()`,
+    setup: `(async () => { __clickText('button', 'Finalizar pedido'); await __wait(300); await __pay('pix') })()`,
   },
   {
     path: '/carrinho',
     label: 'carrinho: sem forma de pagamento escolhida',
-    setup: `(async () => { __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400) })()`,
+    setup: `(async () => { __clickText('button', 'Finalizar pedido'); await __wait(400) })()`,
+  },
+  // Pedido 100% no site (2026-11-20): o acompanhamento, a faixa do pedido e o modo de adição.
+  {
+    path: '/carrinho',
+    label: 'pedido recebido: acompanhamento (demonstração)',
+    setup: `(async () => { __type('input[autocomplete="name"]', 'Cliente Teste'); document.querySelector('input[value="retirada"]').click(); await __wait(300); await __pay('pix'); document.querySelector('[data-finalize]').click(); await __wait(1500) })()`,
+  },
+  { path: '/acompanhar', label: 'meus pedidos' },
+  { path: '/', label: 'faixa do pedido em andamento' },
+  {
+    path: '/carrinho',
+    label: 'modo de adição: faixa e confirmação',
+    before: `(() => { const order = JSON.parse(localStorage.getItem('acai_doce_sabor_meus_pedidos_v1'))[0]; localStorage.setItem('acai_doce_sabor_adicionar_v1', JSON.stringify({ orderId: order.id, code: order.code, startedAt: Date.now() })); localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'z1', itemId: 'jujuba', choices: [], quantity: 2 }] })); return true })()`,
+    setup: `(async () => { await __wait(800); document.querySelector('[data-add-panel] details')?.setAttribute('open', ''); await __wait(300) })()`,
+  },
+  {
+    path: '/',
+    label: 'modo de adição: fim (cancelar)',
+    setup: `(async () => { document.querySelector('[data-add-mode-cancel]')?.click(); await __wait(1200) })()`,
   },
   // Cardápio completo: seções, navegação, busca, escolha de sabor, aviso e os produtos do catálogo.
   { path: '/monte-seu-pedido', label: 'as 5 seções abertas', setup: `__openDrawers()` },
@@ -137,7 +156,7 @@ const routes = [
     path: '/carrinho',
     label: 'carrinho: entrega por bairro, loja fechada e item esgotado',
     before: `localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'c1', itemId: 'jujuba', choices: [], quantity: 1 }, { kind: 'extra', id: 'c2', itemId: 'agua-mineral-500-ml', choices: [], quantity: 1 }] })); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ items: { jujuba: { available: false } }, settings: { loja: { override: { state: 'closed', until: Date.now() + 36e5 }, delivery: { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] } } } })); true`,
-    setup: `(async () => { document.querySelector('input[value="entrega"]').click(); await __wait(400); __clickText('button', 'Confirmar e Enviar Pedido'); await __wait(400); document.querySelector('[data-note-add]').click(); await __wait(300) })()`,
+    setup: `(async () => { document.querySelector('input[value="entrega"]').click(); await __wait(400); __clickText('button', 'Finalizar pedido'); await __wait(400); document.querySelector('[data-note-add]').click(); await __wait(300) })()`,
   },
   {
     path: '/monte-seu-pedido',

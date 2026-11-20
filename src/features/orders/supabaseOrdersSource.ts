@@ -17,6 +17,11 @@ export type RealtimeConnect = (args: {
   /** O token do vendedor, renovado quando precisa. */
   accessToken: () => Promise<string | null>
   onChange: (eventType: string, record: unknown) => void
+  /** A tabela escutada (padrão: orders) e o filtro do Realtime (ex.: "customer_user_id=eq.<id>"). */
+  table?: string
+  filter?: string
+  /** O nome do canal (cada tela o seu). */
+  channel?: string
   /** "SUBSCRIBED", "CHANNEL_ERROR", "TIMED_OUT" ou "CLOSED" (os estados da biblioteca). */
   onStatus: (status: string) => void
 }) => { stop(): void }

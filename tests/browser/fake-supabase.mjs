@@ -6,7 +6,10 @@
 // - o login do vendedor e o painel de pedidos (2026-11-20): o vendedor lê os pedidos e muda só a
 //   situação, como no SQL; e o Realtime (fake-realtime.mjs) avisa as mudanças em orders na hora;
 // - a função "pedido" de verdade: o arquivo gerado supabase/functions/pedido/index.ts (o mesmo que
-//   se cola no painel), carregado com um "Deno" de mentira.
+//   se cola no painel), carregado com um "Deno" de mentira;
+// - o acompanhamento do cliente (2026-11-20): a sessão anônima (signup, renovação e /auth/v1/user),
+//   o histórico order_events com o gatilho, a função adicionar_itens_pedido e o Realtime de
+//   order_events só para o dono (como o RLS).
 //
 // Uso: const fake = await startFakeSupabase({ port }); ... fake.db.changes.push(...); fake.close()
 import { randomUUID } from 'node:crypto'
@@ -32,10 +35,66 @@ const CORS = {
 }
 
 export function createFakeDatabase() {
-  return { changes: [], orders: [], sequence: 0, calls: [] }
+  return { changes: [], orders: [], events: [], sequence: 0, eventSequence: 0, calls: [], customers: new Map(), refreshTokens: new Map() }
 }
 
-const pick = (row, columns) => (columns.length === 0 || columns[0] === '' ? row : Object.fromEntries(columns.map((column) => [column, row[column]])))
+const pick = (row, columns) => (columns.length === 0 || columns[0] === '' || columns[0] === '*' ? row : Object.fromEntries(columns.map((column) => [column, row[column]])))
+
+/** Filtros simples do PostgREST que a função usa: `coluna=eq.valor` e `coluna=gte.valor`. */
+function matchesFilters(row, params) {
+  for (const [name, raw] of params) {
+    if (['select', 'order', 'limit', 'or', 'on_conflict'].includes(name)) continue
+    const dot = raw.indexOf('.')
+    const op = raw.slice(0, dot)
+    const value = raw.slice(dot + 1)
+    const actual = row[name] === null || row[name] === undefined ? null : String(row[name])
+    if (op === 'eq' && actual !== value) return false
+    if (op === 'gte' && (actual === null || actual < value)) return false
+  }
+  return true
+}
+
+/** O id do usuário dono do token (a sessão anônima do cliente ou o vendedor); token inválido: null. */
+export function tokenUser(db, token) {
+  if (!token) return null
+  if (token === SELLER_TOKEN) return 'vendedor-teste'
+  return db.customers.get(token) ?? null
+}
+
+/** O gatilho registrar_evento_pedido (e o lote de itens da função SQL): um evento no histórico. */
+function addEvent(db, order, kind, source) {
+  db.eventSequence += 1
+  const event = { id: db.eventSequence, order_id: order.id, customer_user_id: order.customer_user_id ?? null, kind, status: order.status, source, created_at: new Date().toISOString() }
+  db.events.push(event)
+  db.onEvent?.(event)
+  return event
+}
+
+/** A função SQL adicionar_itens_pedido (20261120200000_acompanhamento_cliente.sql), na memória. */
+function addItemsRpc(db, args) {
+  const { p_order_id, p_customer_user_id, p_attempt_key, p_batch, p_subtotal_cents, p_change_for_cents, p_change_set } = args
+  if (!(p_subtotal_cents > 0) || String(p_attempt_key ?? '').length !== 64 || typeof p_batch !== 'object' || p_batch === null || Array.isArray(p_batch)) {
+    return { ok: false, reason: 'pedido-invalido' }
+  }
+  const order = db.orders.find((candidate) => candidate.id === p_order_id)
+  if (!order || !order.customer_user_id || order.customer_user_id !== p_customer_user_id) return { ok: false, reason: 'nao-encontrado' }
+  if ((order.additions ?? []).some((batch) => batch.attempt_key === p_attempt_key)) {
+    return { ok: true, repeated: true, subtotal_cents: order.subtotal_cents, total_cents: order.total_cents, change_for_cents: order.change_for_cents }
+  }
+  if (!['novo', 'preparando'].includes(order.status)) return { ok: false, reason: 'situacao', status: order.status }
+  const total = order.total_cents + p_subtotal_cents
+  const change = order.payment_method === 'dinheiro' && p_change_set ? p_change_for_cents : order.change_for_cents
+  if (order.payment_method === 'dinheiro' && change !== null && change !== undefined && change < total) return { ok: false, reason: 'troco', total_cents: total }
+  const at = new Date().toISOString()
+  order.additions = [...(order.additions ?? []), { ...p_batch, attempt_key: p_attempt_key, created_at: at, subtotal_cents: p_subtotal_cents }]
+  order.subtotal_cents += p_subtotal_cents
+  order.total_cents = total
+  if (order.payment_method === 'dinheiro') order.change_for_cents = change
+  order.updated_at = at
+  db.onChange?.('UPDATE', order)
+  addEvent(db, order, 'itens', 'cliente')
+  return { ok: true, repeated: false, subtotal_cents: order.subtotal_cents, total_cents: total, change_for_cents: change ?? null }
+}
 
 /** As rotas REST que o site e a função usam, com as regras de acesso do SQL. */
 function rest(db, method, url, headers, body, state = {}) {
@@ -43,16 +102,37 @@ function rest(db, method, url, headers, body, state = {}) {
   if (!key) return { status: 401, body: { message: 'No API key found in request' } }
   if (key !== PUBLIC_KEY && key !== SERVER_KEY) return { status: 401, body: { message: 'Invalid API key' } }
   const server = key === SERVER_KEY
+  const bearer = (headers.authorization ?? '').replace(/^Bearer /, '')
   // O vendedor logado: chave pública no apikey e o token dele no Authorization.
-  const seller = headers.authorization === `Bearer ${SELLER_TOKEN}`
+  const seller = bearer === SELLER_TOKEN
   const select = (url.searchParams.get('select') ?? '').split(',')
 
+  // Sessão anônima do cliente (2026-11-20): só com "Allow anonymous sign-ins" ligado.
+  if (url.pathname === '/auth/v1/signup' && method === 'POST') {
+    if (!state.anonymousSignIn) return { status: 422, body: { code: 'anonymous_provider_disabled', msg: 'Anonymous sign-ins are disabled' } }
+    const id = randomUUID()
+    const access = `cliente-${randomUUID()}`
+    const refresh = `renovar-${randomUUID()}`
+    db.customers.set(access, id)
+    db.refreshTokens.set(refresh, id)
+    return { status: 200, body: { access_token: access, refresh_token: refresh, expires_in: 3600, token_type: 'bearer', user: { id, is_anonymous: true } } }
+  }
   if (url.pathname === '/auth/v1/token' && method === 'POST') {
     const data = JSON.parse(body || '{}')
     const grant = url.searchParams.get('grant_type')
+    if (grant === 'refresh_token' && db.refreshTokens.has(data.refresh_token)) {
+      const id = db.refreshTokens.get(data.refresh_token)
+      const access = `cliente-${randomUUID()}`
+      db.customers.set(access, id)
+      return { status: 200, body: { access_token: access, refresh_token: data.refresh_token, expires_in: 3600, token_type: 'bearer', user: { id, is_anonymous: true } } }
+    }
     const valid = grant === 'refresh_token' ? data.refresh_token === 'refresh-teste' : data.password === SELLER_PASSWORD
     if (!valid) return { status: 400, body: { error: 'invalid_grant', error_description: 'Invalid login credentials' } }
     return { status: 200, body: { access_token: SELLER_TOKEN, refresh_token: 'refresh-teste', expires_in: 3600, token_type: 'bearer' } }
+  }
+  if (url.pathname === '/auth/v1/user' && method === 'GET') {
+    const id = tokenUser(db, bearer)
+    return id ? { status: 200, body: { id, is_anonymous: id !== 'vendedor-teste' } } : { status: 401, body: { message: 'invalid JWT' } }
   }
   if (url.pathname === '/auth/v1/logout' && method === 'POST') return { status: 204, body: null }
   if (url.pathname === '/rest/v1/sellers' && method === 'GET') {
@@ -76,8 +156,12 @@ function rest(db, method, url, headers, body, state = {}) {
     if (!order) return { status: 200, body: [] }
     const only = STATUS_ONLY_FOR[change.status]
     if (only && order.fulfillment !== only) return { status: 400, body: { message: 'new row for relation "orders" violates check constraint "orders_status_modalidade_check"' } }
+    const changed = order.status !== change.status
     order.status = change.status
+    order.updated_at = new Date().toISOString()
     db.onChange?.('UPDATE', order)
+    // O gatilho registrar_evento_pedido: a situação nova vai para o histórico do cliente.
+    if (changed) addEvent(db, order, 'status', 'vendedor')
     return { status: 200, body: [pick(order, select[0] === '*' ? [] : select)] }
   }
 
@@ -85,21 +169,35 @@ function rest(db, method, url, headers, body, state = {}) {
     return { status: 200, body: db.changes.map(({ kind, id, data }) => pick({ kind, id, data }, select)) }
   }
   if (url.pathname === '/rest/v1/orders' && method === 'GET') {
-    // Sem política para visitantes: a leitura vem vazia, como no Supabase.
+    // Sem política para visitantes (nem para o cliente: ele consulta pela função): vazio.
     if (!server) return { status: 200, body: [] }
-    const attempt = (url.searchParams.get('attempt_key') ?? '').replace(/^eq\./, '')
     const limit = Number(url.searchParams.get('limit') ?? 1000)
-    return { status: 200, body: db.orders.filter((order) => order.attempt_key === attempt).slice(0, limit).map((order) => pick(order, select)) }
+    let rows = db.orders.filter((order) => matchesFilters(order, url.searchParams))
+    if ((url.searchParams.get('order') ?? '').startsWith('created_at.desc')) rows = [...rows].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
+    return { status: 200, body: rows.slice(0, limit).map((order) => pick(order, select)) }
   }
   if (url.pathname === '/rest/v1/orders' && method === 'POST') {
     if (!server) return { status: 401, body: { message: 'new row violates row-level security policy for table "orders"' } }
     const row = JSON.parse(body)
     // on_conflict=attempt_key com ignore-duplicates: a mesma chave não grava de novo.
     if (db.orders.some((order) => order.attempt_key === row.attempt_key)) return { status: 201, body: [] }
-    const stored = { id: randomUUID(), created_at: new Date().toISOString(), status: 'novo', ...row }
+    const now = new Date().toISOString()
+    const stored = { id: randomUUID(), created_at: now, updated_at: now, status: 'novo', additions: [], customer_user_id: null, ...row }
     db.orders.push(stored)
     db.onChange?.('INSERT', stored)
+    addEvent(db, stored, 'status', 'cliente')
     return { status: 201, body: [pick(stored, select)] }
+  }
+  // O histórico (2026-11-20): só a função (chave de servidor) lê por aqui.
+  if (url.pathname === '/rest/v1/order_events' && method === 'GET') {
+    if (!server) return { status: 200, body: [] }
+    const rows = db.events.filter((event) => matchesFilters(event, url.searchParams)).sort((a, b) => a.id - b.id)
+    return { status: 200, body: rows.map((event) => pick(event, select)) }
+  }
+  if (url.pathname === '/rest/v1/rpc/adicionar_itens_pedido' && method === 'POST') {
+    if (!server) return { status: 401, body: { message: 'permission denied for function adicionar_itens_pedido' } }
+    if (state.failRpc) return { status: 500, body: { message: 'erro de teste' } }
+    return { status: 200, body: addItemsRpc(db, JSON.parse(body || '{}')) }
   }
   if (url.pathname === '/rest/v1/rpc/proximo_numero_pedido' && method === 'POST') {
     if (!server) return { status: 401, body: { message: 'permission denied for function proximo_numero_pedido' } }
@@ -140,7 +238,7 @@ const readBody = (request) =>
  */
 export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), env = {} } = {}) {
   const handler = await loadFunction()
-  const state = { failFunction: false, failOrdersPatch: false }
+  const state = { failFunction: false, failOrdersPatch: false, failRpc: false, anonymousSignIn: true, loseReply: false }
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1')
     const headers = Object.fromEntries(Object.entries(request.headers).map(([name, value]) => [name.toLowerCase(), String(value)]))
@@ -156,6 +254,11 @@ export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), e
         return
       }
       const reply = await handler(new Request(`http://127.0.0.1${url.pathname}`, { method: request.method, headers, body: request.method === 'GET' ? undefined : body }))
+      // A resposta perdida no caminho (2026-11-20): a função gravou, mas o site não recebe a resposta.
+      if (state.loseReply) {
+        response.writeHead(503, { ...CORS, 'Content-Type': 'text/plain' }).end('Resposta perdida (Supabase de mentira)')
+        return
+      }
       const replyHeaders = Object.fromEntries(reply.headers.entries())
       response.writeHead(reply.status, replyHeaders).end(Buffer.from(await reply.arrayBuffer()))
       return
@@ -168,8 +271,10 @@ export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), e
     response.writeHead(result.status, { ...CORS, 'Content-Type': 'application/json' }).end(JSON.stringify(result.body))
   })
   // Realtime (painel ao vivo, 2026-11-20): as mudanças em orders vão para quem se inscreveu.
-  const realtime = attachFakeRealtime(server, { isPublicKey: (key) => key === PUBLIC_KEY, sellerToken: SELLER_TOKEN })
+  const realtime = attachFakeRealtime(server, { isPublicKey: (key) => key === PUBLIC_KEY, sellerToken: SELLER_TOKEN, userOf: (token) => tokenUser(db, token) })
   db.onChange = (type, row) => realtime.publish(type, row)
+  // Acompanhamento do cliente (2026-11-20): cada evento novo vai só para o dono (e o vendedor).
+  db.onEvent = (event) => realtime.publish('INSERT', event, 'order_events')
   await new Promise((resolve) => server.listen(port, '127.0.0.1', resolve))
   const address = server.address()
   const url = `http://127.0.0.1:${address.port}`
