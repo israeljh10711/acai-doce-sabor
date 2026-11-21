@@ -1,9 +1,8 @@
 import { AnimatePresence, m } from 'motion/react'
 import { type ComponentType, type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Bag, Banknote, Check, Copy, CreditCard, IceCreamBowl, QrCode, Scooter } from '../../components/ui/icons.tsx'
+import { Bag, Banknote, Check, CreditCard, IceCreamBowl, QrCode, Scooter } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
-import { storeInfo } from '../../services/storeInfo.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { type Cart, cartItemProblem, cartTotalCents, serializeCart } from '../cart/cart.ts'
 import { cartActions } from '../cart/cartStore.ts'
@@ -19,8 +18,9 @@ import { serverNow } from '../store-hours/serverClock.ts'
 import { useStoreStatus } from '../store-hours/useStoreStatus.ts'
 import { type StoreContact, mapsUrl, storeAddressText, storePlaceText } from '../store/storeSettings.ts'
 import { GpsLocation } from './GpsLocation.tsx'
-import { copyText } from './copyText.ts'
+import { PixCard } from './PixCard.tsx'
 import {
+  COMBINAR_PHONE_TEXT,
   type CustomerDraft,
   type CustomerField,
   EMPTY_CUSTOMER,
@@ -34,6 +34,7 @@ import {
   zoneList,
 } from './delivery.ts'
 import type { AddressGuess } from './gps.ts'
+import { forgetRemembered, initialCustomer, loadRemembered, saveRemembered } from './rememberedCustomer.ts'
 import {
   EMPTY_PAYMENT,
   PAYMENT_METHODS,
@@ -63,6 +64,15 @@ const reveal = {
 
 /** Dados do cliente guardados na aba (some ao fechar a aba). O GPS nunca fica guardado. */
 const CUSTOMER_KEY = 'acai_doce_sabor_checkout_v1'
+
+/** O `localStorage` do aparelho, ou `null` quando o navegador não deixa usar. */
+function deviceStorage(): Storage | null {
+  try {
+    return globalThis.localStorage ?? null
+  } catch {
+    return null
+  }
+}
 
 function loadCustomer(): CustomerDraft {
   try {
@@ -122,7 +132,9 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
   const status = useStoreStatus()
   const uid = useId()
   const navigate = useNavigate()
-  const [customer, setCustomer] = useState<CustomerDraft>(loadCustomer)
+  // "Lembrar meus dados" (2026-11-21): marcada quando já há dados lembrados neste aparelho.
+  const [remember, setRemember] = useState(() => loadRemembered(deviceStorage()) !== null)
+  const [customer, setCustomer] = useState<CustomerDraft>(() => initialCustomer(loadCustomer(), loadRemembered(deviceStorage())))
   const [draft, setDraft] = useState<PaymentDraft>(EMPTY_PAYMENT)
   // Os avisos de "falta escolher" só aparecem depois da primeira tentativa de envio.
   const [attempted, setAttempted] = useState(false)
@@ -144,6 +156,12 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
       // Sem armazenamento: os dados ficam só nesta tela.
     }
   }, [customer])
+
+  // Marcada: guarda e atualiza a cada mudança. Desmarcada: apaga o que estava lembrado.
+  useEffect(() => {
+    if (remember) saveRemembered(deviceStorage(), customer)
+    else forgetRemembered(deviceStorage())
+  }, [remember, customer])
 
   const subtotalCents = cartTotalCents(cart)
   const fee = feeFor(customer, settings.delivery)
@@ -318,7 +336,13 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
             {...problemProps('name')}
           />
         </Field>
-        <Field id={field('phone')} label="Telefone (opcional)" problem={customerProblems.phone}>
+        <Field
+          id={field('phone')}
+          label={feePending ? 'Telefone' : 'Telefone (opcional)'}
+          problem={customerProblems.phone}
+          // Frete a combinar (2026-11-21): o telefone passa a ser obrigatório, e o aviso diz por quê.
+          hint={feePending && !customerProblems.phone ? COMBINAR_PHONE_TEXT : undefined}
+        >
           <input
             id={field('phone')}
             data-field="phone"
@@ -328,11 +352,28 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
             maxLength={20}
             placeholder="(83) 99999-0000"
             value={customer.phone}
+            required={feePending}
+            aria-describedby={customerProblems.phone ? `${field('phone')}-erro` : feePending ? `${field('phone')}-dica` : undefined}
             onChange={(event) => updateCustomer({ phone: event.target.value })}
             className={`${inputClass} ring-line focus:ring-acai-700`}
             {...problemProps('phone')}
           />
         </Field>
+        <div className="flex flex-col gap-0.5">
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-acai-950">
+            <input
+              type="checkbox"
+              data-remember-me=""
+              checked={remember}
+              onChange={(event) => setRemember(event.target.checked)}
+              className="size-5 shrink-0 cursor-pointer accent-acai-800"
+            />
+            Lembrar meus dados neste dispositivo
+          </label>
+          <p className="pl-8 text-xs leading-relaxed text-ink-soft">
+            Nome, telefone e endereço ficam salvos só neste aparelho para a próxima compra. Desmarque para apagar.
+          </p>
+        </div>
       </fieldset>
 
       <fieldset
@@ -461,6 +502,11 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
                 className={`${inputClass} ring-line focus:ring-acai-700`}
               />
             </Field>
+            {feePending && (
+              <p data-combinar-note="" className="rounded-xl bg-gold-100 px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-gold-400">
+                📞 Frete a combinar: a loja vai entrar em contato pelo telefone informado em “Seus dados” para confirmar o valor da entrega.
+              </p>
+            )}
           </m.div>
         )}
         {(customer.kind === 'retirada' || customer.kind === 'local') && (
@@ -552,7 +598,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
               )}
             </p>
             {feePending && !draft.exact && (
-              <p className="mt-2 text-xs leading-relaxed text-ink-soft">O troco é conferido na conversa, junto com a taxa de entrega.</p>
+              <p className="mt-2 text-xs leading-relaxed text-ink-soft">O valor da entrega ainda vai ser combinado: a loja confere o troco quando ligar para confirmar o frete.</p>
             )}
             {changeProblem && (
               <p id="troco-erro" role="alert" className="mt-3 text-sm font-bold text-red-800">
@@ -645,13 +691,18 @@ function ValueRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Field({ id, label, problem, children }: { id: string; label: string; problem?: string; children: ReactNode }) {
+function Field({ id, label, problem, hint, children }: { id: string; label: string; problem?: string; hint?: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-bold text-acai-950">
         {label}
       </label>
       {children}
+      {hint && (
+        <p id={`${id}-dica`} data-field-hint="" className="text-sm leading-relaxed font-semibold text-acai-800">
+          {hint}
+        </p>
+      )}
       {problem && (
         <p id={`${id}-erro`} role="alert" className="text-sm font-bold text-red-800">
           {problem}
@@ -731,45 +782,5 @@ function ChoiceCard({
         <Check className="size-4" />
       </m.span>
     </label>
-  )
-}
-
-/** Chave Pix da loja, com o botão de copiar. */
-function PixCard() {
-  const { key, type, holder } = storeInfo.pix
-  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
-  const timer = useRef<number | undefined>(undefined)
-  useEffect(() => () => window.clearTimeout(timer.current), [])
-
-  const copy = async () => {
-    const copied = await copyText(key)
-    setState(copied ? 'copied' : 'failed')
-    window.clearTimeout(timer.current)
-    if (copied) timer.current = window.setTimeout(() => setState('idle'), 2500)
-  }
-
-  return (
-    <div className="rounded-2xl bg-acai-50 p-4 ring-1 ring-line">
-      <p className="text-xs font-bold tracking-wide text-ink-soft uppercase">Chave Pix ({type})</p>
-      <p className="nums mt-1 text-2xl font-extrabold tracking-tight break-all text-acai-800 select-all">{key}</p>
-      <p className="mt-0.5 text-sm text-ink-soft">Titular: {holder}</p>
-      <button
-        type="button"
-        onClick={copy}
-        className="mt-3 inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-acai-800 px-4 text-sm font-bold text-white transition hover:bg-acai-700 active:scale-[0.98] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
-      >
-        {state === 'copied' ? <Check className="size-5 text-gold-400" /> : <Copy className="size-5" />}
-        {state === 'copied' ? 'Chave Pix copiada!' : 'Copiar chave Pix'}
-      </button>
-      <p role="status" className="text-sm font-semibold text-acai-950">
-        {state === 'copied' && <span className="sr-only">Chave Pix copiada.</span>}
-        {state === 'failed' && (
-          <span className="mt-2 block">Não deu para copiar aqui. Toque e segure a chave acima para copiar.</span>
-        )}
-      </p>
-      <p className="mt-2 text-sm leading-relaxed text-acai-950">
-        Faça o Pix e guarde o comprovante. Se a loja pedir, envie pelo botão de dúvidas no WhatsApp, na tela do pedido.
-      </p>
-    </div>
   )
 }

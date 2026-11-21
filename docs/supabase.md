@@ -45,6 +45,8 @@ Para o **pedido 100% no site** (acompanhamento e adição de itens, também de 2
 3. rode `npm run build:pedido` e cole de novo o arquivo `supabase/functions/pedido/index.ts` na função `pedido`;
 4. publique o site novo.
 
+Para o **Pacote 1** (2026-11-21): nenhum SQL. Para o telefone obrigatório no frete a combinar valer também no servidor, rode `npm run build:pedido` e cole de novo a função `pedido` (veja "Pacote 1", abaixo).
+
 Fora dessa ordem:
 - **Site novo com a função antiga:** os pedidos "Comer no Local" são recusados ("Confira seus dados"). Os outros são gravados, mas sem acompanhamento ao vivo.
 - **Função nova sem o SQL:** a gravação falha. O cliente vê "Não foi possível confirmar o pedido agora" e "Tentar de novo", e nada é gravado pela metade.
@@ -202,7 +204,7 @@ Há dois sons, os dois feitos pela Web Audio do navegador, sem arquivo de som:
 | **Itens acrescentados** (2026-11-20) | uma vez para cada lote de itens que o cliente acrescenta a um pedido já no painel | "ding-dong" ascendente, mais grave e mais longo, com timbre de sino (dó e sol, 0,5 s cada) |
 
 - **Quando não toca:** os pedidos e lotes que já estavam lá ao abrir, as mudanças de situação (inclusive cancelar e concluir), os eventos repetidos e os acréscimos recusados (troco, preço, situação).
-- **Liberação pelo navegador:** o navegador só libera o som depois de um toque na página. Até lá, o painel mostra **🔔 Ativar som** em vez de **🔔 Som Ativo**.
+- **Liberação pelo navegador:** o navegador só libera o som depois de um toque na página. Até lá, o painel mostra **🔔 Ativar som** em vez de **🔔 Som Ativo**, e a faixa do vendedor mostra o aviso de som bloqueado em qualquer página (2026-11-21).
 - **Silenciar:** **🔕 Silenciar** desliga os dois sons. A escolha fica guardada no aparelho.
 
 ### Aviso de itens acrescentados pelo cliente (2026-11-20)
@@ -332,6 +334,51 @@ O mesmo caminho, no `localStorage` do navegador:
 - dá para acrescentar itens com as mesmas regras.
 
 A loja não recebe nada desse modo.
+
+## Pacote 1: compra rápida e fila de produção (2026-11-21)
+
+Nenhuma mudança no banco: sem SQL, sem coluna nova e sem mudança de RLS.
+
+### Para o cliente
+
+- **Frete a combinar pede telefone.** Quando a entrega fica "a combinar", o telefone passa a ser obrigatório. Isso acontece no modo "A combinar com o cliente", com a lista de bairros vazia e em "Outro bairro". O campo mostra: "Para entregas com frete a combinar, informe seu telefone. A loja entrará em contato para confirmar o valor da entrega."
+  - O site confere antes de finalizar.
+  - A função `pedido` também confere, desde que a versão nova seja colada (veja abaixo).
+  - Em Retirar, Comer no Local e entrega com taxa conhecida, o telefone continua opcional.
+- **Lembrar meus dados neste dispositivo.** É uma opção no carrinho, desmarcada até o cliente marcar.
+  - **O que guarda:** nome, telefone e endereço (rua, número, bairro e referência), no `localStorage` (`acai_doce_sabor_meus_dados_v1`). Nunca guarda a modalidade, o GPS, o pagamento ou a sessão de acompanhamento.
+  - **Na visita seguinte:** os campos já vêm preenchidos e podem ser mudados. O que foi digitado na aba vale mais que os dados guardados.
+  - **Desmarcar:** apaga os dados.
+- **Pix no acompanhamento.** O mesmo cartão do carrinho (mesma chave, botão de copiar) aparece em `/acompanhar/ADS-…` quando o pagamento é Pix e o pedido não foi cancelado.
+  - Mostra o total do pedido gravado.
+  - Com itens acrescentados, mostra o valor de antes, o valor dos acréscimos e a diferença: "Já fez o Pix de R$ 3,00? Faça outro Pix só dos itens acrescentados: R$ 2,00".
+  - **Limite:** o sistema não registra pagamento recebido. Por isso o cartão nunca diz que algo já foi pago.
+- **Previsão de entrega.** A linha do tempo mostra o "Tempo" de entrega da loja (o mesmo do topo do site), contado a partir do pedido, por exemplo "até por volta das 16:19".
+  - Só aparece em entregas: a loja não configura tempo de retirada nem de consumo no local.
+  - Some quando o pedido termina.
+- **"Meus pedidos" no rodapé**, em todas as páginas. Ele abre `/acompanhar`, que lista só os pedidos da sessão deste aparelho.
+- **Textos:** os que ainda falavam do pedido pelo WhatsApp foram atualizados (troco, "Entrega / Frete", "Horários e Contato"). O WhatsApp continua como atendimento.
+
+### Para o vendedor (painel `/pedidos`)
+
+- **Fila de produção:** o painel abre em "⏳ Em andamento" (tudo menos concluído e cancelado). Os pedidos aparecem do mais antigo para o mais novo, pela hora do pedido. Os outros filtros continuam iguais.
+- **Há quanto tempo:** cada pedido em andamento mostra "Há 12 min". O tempo atualiza sozinho a cada 30 s, sem consultar o banco.
+- **Atraso:** uma entrega que passa do maior valor do "Tempo" de entrega da loja (45 min em "30–45 min") fica em vermelho, com "⚠️ … · atrasado". Retirar e Comer no Local mostram o tempo, mas não ficam atrasados, porque a loja não configura um tempo para eles. Se o "Tempo" não puder ser lido em minutos, nenhum alerta aparece.
+- **"✅ Concluir" com confirmação:** o cartão pergunta "Deseja realmente concluir este pedido?", com "Cancelar" e "Confirmar".
+- **"↩ Voltar etapa":** volta para a etapa imediatamente anterior do fluxo da modalidade:
+  - Preparando → Novo;
+  - o "pronto" da modalidade → Preparando;
+  - Concluído → o "pronto" da modalidade.
+
+  Cancelado nunca volta. Depois de concluir ou cancelar, o cartão fica 8 s na lista com o aviso e o "↩ Voltar etapa", até o vendedor trocar de filtro.
+- **Busca:** "Buscar pedido por código ou nome do cliente...", na lista que já está na tela (sem consultar o banco). Aceita código inteiro ou parte dele, e nome inteiro ou parte dele, sem diferenciar acento nem maiúsculas. Funciona junto com o filtro.
+- **Tela acesa:** enquanto o painel está aberto e visível, a tela do aparelho não apaga (Screen Wake Lock). Ao sair do painel, ela volta ao normal. Sem suporte no navegador, nada acontece.
+- **Som bloqueado:** se o navegador ainda não liberou o som, a faixa do vendedor mostra um aviso com "🔔 Ativar som", em qualquer página. Se o vendedor silenciou de propósito, o aviso não aparece.
+- **Ofertas:** as ofertas flutuantes não aparecem com o Modo Vendedor ligado e voltam ao sair.
+
+### Função `pedido`
+
+A única mudança na função é o telefone obrigatório no frete a combinar. Para essa regra valer também no servidor, rode `npm run build:pedido` e cole de novo `supabase/functions/pedido/index.ts`. Sem colar, o site já exige o telefone, mas um aparelho com o site antigo ainda passaria sem ele.
 
 ## 7. Conferir
 

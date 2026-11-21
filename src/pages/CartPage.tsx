@@ -293,7 +293,7 @@ function ProblemNotice({ problem, editTo, onRemove, title }: { problem: CartItem
 
 /**
  * "+ Observação" (pedido de 2026-11-17, opção 2A): o cliente escreve um recado para o item
- * ("pouco gelo") e ele vai para a comanda do WhatsApp. Vazia, a linha não aparece na comanda.
+ * ("pouco gelo") e ele vai para a comanda do pedido. Vazia, a linha não aparece na comanda.
  */
 function NoteField({ item, title }: { item: CartItem; title: string }) {
   const [open, setOpen] = useState(Boolean(item.note))

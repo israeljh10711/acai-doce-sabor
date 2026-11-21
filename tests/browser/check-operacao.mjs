@@ -342,6 +342,21 @@ try {
   await set(`__q('input[data-field="district"]')`, 'Sítio Novo')
   check('outro bairro: entrega a combinar', await run(`__values()`), 'Subtotal R$ 3,00 Entrega A combinar TOTAL R$ 3,00 + entrega a combinar')
   await click(`__q('input[name="forma-de-pagamento"][value="credito"]')`, 300)
+  // Frete a combinar (2026-11-21): telefone obrigatório, com o aviso de que a loja vai ligar.
+  check(
+    'frete a combinar: o telefone deixa de ser opcional e o aviso aparece junto do campo',
+    await run(`[__q('label[for="' + __q('[data-field="phone"]').id + '"]').textContent, __q('[data-field-hint]')?.textContent, !!__q('[data-combinar-note]')]`),
+    ['Telefone', 'Para entregas com frete a combinar, informe seu telefone. A loja entrará em contato para confirmar o valor da entrega.', true],
+  )
+  await set(`__q('[data-field="phone"]')`, '')
+  await run(`__stubOpen()`)
+  await click(`__send()`, 700)
+  check(
+    'sem telefone: não finaliza, o aviso fica no campo e o foco vai para ele',
+    await run(`[location.pathname, __q('[data-field="phone"]').getAttribute('aria-invalid'), document.activeElement === __q('[data-field="phone"]'), document.body.textContent.includes('A loja entrará em contato para confirmar o valor da entrega.')]`),
+    ['/carrinho', 'true', true, true],
+  )
+  await set(`__q('[data-field="phone"]')`, '(83) 98888-0000')
   lines = await sendOrder()
   check(
     'comanda: outro bairro a combinar, cartão com maquininha',

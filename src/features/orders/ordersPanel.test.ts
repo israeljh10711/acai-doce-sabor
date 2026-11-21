@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_FILTER,
   ORDER_FILTERS,
+  elapsedText,
+  isLate,
+  previousStep,
+  queueOrder,
+  searchOrders,
   type PanelOrder,
   STATUS_LABEL,
   canCancel,
@@ -198,8 +204,9 @@ describe('filtros rápidos (painel ao vivo, 2026-11-20)', () => {
     (status, index) => order({ status, id: `id-${index}`, code: `ADS-000${index}` }),
   )
 
-  it('os 5 filtros, na ordem pedida', () => {
-    expect(ORDER_FILTERS.map((filter) => filter.label)).toEqual(['Todos', '🆕 Novos', '🍨 Preparando', '🛵 Saiu / Pronto', '✅ Concluídos'])
+  it('os filtros, na ordem pedida (2026-11-21: "Em andamento" na frente, o filtro com que o painel abre)', () => {
+    expect(ORDER_FILTERS.map((filter) => filter.label)).toEqual(['⏳ Em andamento', 'Todos', '🆕 Novos', '🍨 Preparando', '🛵 Saiu / Pronto', '✅ Concluídos'])
+    expect(DEFAULT_FILTER).toBe('andamento')
   })
 
   it('cada filtro mostra só os seus; cancelado aparece em Todos e não conta como concluído', () => {
@@ -208,10 +215,12 @@ describe('filtros rápidos (painel ao vivo, 2026-11-20)', () => {
     expect(filterOrders(list, 'preparando').map((item) => item.status)).toEqual(['confirmado', 'preparando'])
     expect(filterOrders(list, 'saiu_pronto').map((item) => item.status)).toEqual(['saiu_para_entrega', 'pronto_retirada', 'pronto_consumo', 'pronto'])
     expect(filterOrders(list, 'concluidos').map((item) => item.status)).toEqual(['concluido'])
+    // Em andamento: tudo menos concluído e cancelado.
+    expect(filterOrders(list, 'andamento').map((item) => item.status)).toEqual(list.map((item) => item.status).filter((status) => status !== 'concluido' && status !== 'cancelado'))
   })
 
   it('contagens de cada filtro', () => {
-    expect(filterCounts(list)).toEqual({ todos: 10, novos: 2, preparando: 2, saiu_pronto: 4, concluidos: 1 })
+    expect(filterCounts(list)).toEqual({ andamento: 8, todos: 10, novos: 2, preparando: 2, saiu_pronto: 4, concluidos: 1 })
   })
 })
 
@@ -304,5 +313,101 @@ describe('pedidos novos e o dia da loja (pedido de 2026-11-20, etapa 2)', () => 
     // 21/11 às 2h (madrugada, pedido antecipado): ainda é o dia 20.
     expect(storeDayStart(Date.parse('2026-11-21T02:10:00-03:00'))).toBe(Date.parse('2026-11-20T05:00:00-03:00'))
     expect(ordersSince(Date.parse('2026-11-20T15:42:00-03:00'))).toBe('2026-11-20T08:00:00.000Z')
+  })
+})
+
+describe('fila de produção do painel (2026-11-21)', () => {
+  const at = (iso: string) => Date.parse(iso)
+  const queue = [
+    order({ id: 'b', number: 2, code: 'ADS-0002', created_at: '2026-11-21T18:10:00.000Z', customer_name: 'Bruno Lima' }),
+    order({ id: 'a', number: 1, code: 'ADS-0001', created_at: '2026-11-21T18:00:00.000Z', customer_name: 'Ana Souza', status: 'preparando' }),
+    order({ id: 'c', number: 3, code: 'ADS-0013', created_at: '2026-11-21T18:20:00.000Z', customer_name: 'João Ávila', status: 'concluido' }),
+  ]
+
+  it('do pedido que entrou primeiro para o mais novo, pela hora do pedido (não pela última mudança)', () => {
+    expect(queueOrder(queue).map((item) => item.code)).toEqual(['ADS-0001', 'ADS-0002', 'ADS-0013'])
+    // Sem hora válida: no fim. Mesma hora: pelo número.
+    const noTime = order({ id: 'x', number: 9, code: 'ADS-0009', created_at: 'estragado' })
+    const sameTime = order({ id: 'y', number: 0, code: 'ADS-0000', created_at: '2026-11-21T18:00:00.000Z' })
+    expect(queueOrder([noTime, ...queue, sameTime]).map((item) => item.code)).toEqual(['ADS-0000', 'ADS-0001', 'ADS-0002', 'ADS-0013', 'ADS-0009'])
+    // A lista recebida não muda.
+    expect(queue.map((item) => item.code)).toEqual(['ADS-0002', 'ADS-0001', 'ADS-0013'])
+  })
+
+  it('busca por código inteiro, parte do código ou sem o hífen; e por nome inteiro ou parte, sem acento nem maiúsculas', () => {
+    const codes = (query: string) => searchOrders(queue, query).map((item) => item.code)
+    expect(codes('ADS-0002')).toEqual(['ADS-0002'])
+    expect(codes('  0013 ')).toEqual(['ADS-0013'])
+    expect(codes('ads0001')).toEqual(['ADS-0001'])
+    expect(codes('ana souza')).toEqual(['ADS-0001'])
+    expect(codes('JOAO')).toEqual(['ADS-0013'])
+    expect(codes('lim')).toEqual(['ADS-0002'])
+    expect(codes('00')).toEqual(['ADS-0002', 'ADS-0001', 'ADS-0013'])
+    expect(codes('')).toEqual(['ADS-0002', 'ADS-0001', 'ADS-0013'])
+    expect(codes('zzz')).toEqual([])
+  })
+
+  it('busca junto com o filtro: só o que passa nos dois, na ordem da fila', () => {
+    const inProgress = queueOrder(filterOrders(queue, 'andamento'))
+    expect(searchOrders(inProgress, '00').map((item) => item.code)).toEqual(['ADS-0001', 'ADS-0002'])
+    expect(searchOrders(inProgress, 'joão')).toEqual([])
+  })
+
+  it('"Há N min" desde a hora do pedido; hora inválida: nada', () => {
+    const created = at('2026-11-21T18:00:00.000Z')
+    expect(elapsedText(created, created + 20_000)).toBe('Há menos de 1 min')
+    expect(elapsedText(created, created + 3 * 60_000)).toBe('Há 3 min')
+    expect(elapsedText(created, created + 59 * 60_000 + 59_000)).toBe('Há 59 min')
+    expect(elapsedText(created, created + 60 * 60_000)).toBe('Há 1 h')
+    expect(elapsedText(created, created + 65 * 60_000)).toBe('Há 1 h 05 min')
+    expect(elapsedText(created, created - 60_000)).toBe('Há menos de 1 min')
+    expect(elapsedText(0, created)).toBeNull()
+  })
+
+  it('atraso: só entrega em andamento, depois do tempo de entrega da loja; sem tempo configurado, nunca', () => {
+    const created = at('2026-11-21T18:00:00.000Z')
+    const delivery = order({ created_at: '2026-11-21T18:00:00.000Z', fulfillment: 'entrega' })
+    expect(isLate(delivery, created + 45 * 60_000, 45)).toBe(false)
+    expect(isLate(delivery, created + 46 * 60_000, 45)).toBe(true)
+    expect(isLate(delivery, created + 600 * 60_000, null)).toBe(false)
+    expect(isLate({ ...delivery, status: 'concluido' }, created + 600 * 60_000, 45)).toBe(false)
+    expect(isLate({ ...delivery, deliveryType: 'retirada' }, created + 600 * 60_000, 45)).toBe(false)
+    expect(isLate({ ...delivery, deliveryType: 'local' }, created + 600 * 60_000, 45)).toBe(false)
+  })
+})
+
+describe('"↩ Voltar etapa" (2026-11-21)', () => {
+  const back = (status: string, fulfillment: string) => previousStep(order({ status, fulfillment }))?.status ?? null
+
+  it('volta para a etapa imediatamente anterior do mesmo fluxo de cada modalidade', () => {
+    expect(back('preparando', 'entrega')).toBe('novo')
+    expect(back('saiu_para_entrega', 'entrega')).toBe('preparando')
+    expect(back('pronto_retirada', 'retirada')).toBe('preparando')
+    expect(back('pronto_consumo', 'local')).toBe('preparando')
+    expect(back('concluido', 'entrega')).toBe('saiu_para_entrega')
+    expect(back('concluido', 'retirada')).toBe('pronto_retirada')
+    expect(back('concluido', 'local')).toBe('pronto_consumo')
+  })
+
+  it('volta exatamente para onde "Avançar" leva de lá (ida e volta fecham)', () => {
+    // Só as situações que existem em cada modalidade (o banco recusa as outras).
+    const flows = {
+      entrega: ['preparando', 'saiu_para_entrega', 'concluido'],
+      retirada: ['preparando', 'pronto_retirada', 'concluido'],
+      local: ['preparando', 'pronto_consumo', 'concluido'],
+    }
+    for (const [fulfillment, statuses] of Object.entries(flows)) {
+      for (const status of statuses) {
+        const current = order({ status, fulfillment })
+        const previous = previousStep(current)
+        expect([fulfillment, status, previous && nextStep({ ...current, status: previous.status })?.status]).toEqual([fulfillment, status, status])
+      }
+    }
+  })
+
+  it('sem etapa anterior: Novo, e nunca desfaz um cancelamento', () => {
+    expect(back('novo', 'entrega')).toBeNull()
+    expect(back('cancelado', 'entrega')).toBeNull()
+    expect(previousStep(order({ status: 'preparando' }))?.label).toBe('Novo')
   })
 })

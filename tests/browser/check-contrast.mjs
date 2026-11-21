@@ -81,6 +81,12 @@ const routes = [
     setup: `(async () => { __type('input[autocomplete="name"]', 'Cliente Teste'); document.querySelector('input[value="retirada"]').click(); await __wait(300); await __pay('pix'); document.querySelector('[data-finalize]').click(); await __wait(1500) })()`,
   },
   { path: '/acompanhar', label: 'meus pedidos' },
+  {
+    path: '/carrinho',
+    label: 'carrinho: frete a combinar (telefone obrigatório) e lembrar meus dados',
+    before: `localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'c1', itemId: 'jujuba', choices: [], quantity: 1 }] })); true`,
+    setup: `(async () => { document.querySelector('input[value="entrega"]').click(); await __wait(400); document.querySelector('[data-remember-me]').click(); await __wait(200); document.querySelector('[data-finalize]').click(); await __wait(400) })()`,
+  },
   { path: '/', label: 'faixa do pedido em andamento' },
   {
     path: '/carrinho',

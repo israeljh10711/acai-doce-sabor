@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { Clock, Download, LockOpen, Scooter, Upload } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { AddedItemsNotices } from '../orders/AddedItemsNotices.tsx'
-import { useOrders, useOrdersConnection } from '../orders/ordersRuntime.ts'
+import { soundAlert } from '../orders/orderAlert.ts'
+import { useOrders, useOrdersConnection, useSoundState } from '../orders/ordersRuntime.ts'
 import { MIN_PASSWORD_LENGTH } from '../../services/sellerCatalogStore.ts'
 import { DeliverySettingsModal } from './DeliverySettingsModal.tsx'
 import { SellerDialog } from './SellerDialog.tsx'
@@ -27,6 +28,7 @@ export function SellerBar() {
   const [open, setOpen] = useState<'password' | 'backup' | 'delivery' | 'hours' | null>(null)
   useOrdersConnection()
   const { newCount } = useOrders()
+  const sound = useSoundState()
 
   return (
     <div data-seller-bar="" className="border-b-2 border-gold-400 bg-acai-800 text-white">
@@ -87,6 +89,31 @@ export function SellerBar() {
           </button>
         </div>
       </div>
+      {/*
+        Som bloqueado (2026-11-21): o navegador só toca depois de um toque na página. Em qualquer
+        página do Modo Vendedor, o aviso diz isso e oferece o toque. Silenciado de propósito: nada.
+      */}
+      {(sound === 'blocked' || sound === 'unsupported') && (
+        <div data-orders-sound-hint={sound} role="status" className="border-t border-gold-400 bg-gold-100 text-acai-950">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-1.5 text-xs sm:px-6 sm:text-sm">
+            <p className="min-w-0 font-semibold">
+              {sound === 'blocked'
+                ? '🔇 Som dos avisos bloqueado pelo navegador. Toque em “Ativar som” (ou em qualquer lugar da página) para ouvir os pedidos novos e os itens acrescentados.'
+                : '🔇 Este navegador não toca os avisos sonoros. Fique de olho no selo de “📋 Pedidos”.'}
+            </p>
+            {sound === 'blocked' && (
+              <button
+                type="button"
+                data-sound-unlock=""
+                onClick={() => soundAlert.unlock()}
+                className="inline-flex min-h-10 shrink-0 cursor-pointer items-center rounded-lg bg-acai-800 px-3 text-xs font-extrabold text-white transition hover:bg-acai-700 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 sm:text-sm"
+              >
+                🔔 Ativar som
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {open === 'password' && <ChangePassword onClose={() => setOpen(null)} />}
       {open === 'backup' && <BackupRestore onClose={() => setOpen(null)} />}
       {open === 'delivery' && <DeliverySettingsModal onClose={() => setOpen(null)} />}

@@ -41,6 +41,12 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
+              {/* Meus pedidos (2026-11-21): os pedidos feitos neste aparelho, pela sessão dele (o código sozinho não abre nada). */}
+              <Link to={paths.track()} data-footer-orders="" className={linkClass}>
+                <span className="link-draw">Meus pedidos</span>
+              </Link>
+            </li>
+            <li>
               <a href={buildWhatsAppUrl(contact.whatsapp)} target="_blank" rel="noreferrer" className={linkClass}>
                 <span className="link-draw">WhatsApp</span>
                 <span className="sr-only"> (abre em nova aba)</span>

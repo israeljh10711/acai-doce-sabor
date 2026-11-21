@@ -8,7 +8,10 @@
 // - filtros rápidos; fluxo de cada modalidade gravado no banco; cancelar com confirmação; erro;
 // - Realtime: INSERT aparece na hora com o bipe (sem recarregar); UPDATE de outro aparelho sem
 //   bipe; evento repetido sem duplicar; silenciado sem bipe; contador em outra página;
-// - sair do Modo Vendedor remove a inscrição; 1280, 390 e 320 px sem rolagem lateral.
+// - sair do Modo Vendedor remove a inscrição; 1280, 390 e 320 px sem rolagem lateral;
+// - fila de produção (2026-11-21): abre em "Em andamento", do mais antigo para o mais novo; "Há N min"
+//   e atraso (só entrega, pelo tempo da loja); "✅ Concluir" com confirmação; "↩ Voltar etapa"; busca
+//   por código ou nome; tela acesa (Wake Lock) só no painel; aviso de som bloqueado na faixa.
 //
 // Uso: node tests/browser/check-pedidos-painel.mjs
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -142,7 +145,32 @@ const helpers = `
   true;
 `
 
+const WAKE_LOCK_FAKE = `(() => {
+  window.__wake = { requests: 0, releases: 0, held: 0 };
+  const api = {
+    request: async () => {
+      window.__wake.requests++;
+      window.__wake.held++;
+      const listeners = [];
+      const sentinel = {
+        released: false,
+        release: async () => {
+          if (sentinel.released) return;
+          sentinel.released = true;
+          window.__wake.releases++;
+          window.__wake.held--;
+          listeners.forEach((listener) => listener());
+        },
+        addEventListener: (_type, listener) => listeners.push(listener),
+      };
+      return sentinel;
+    },
+  };
+  Object.defineProperty(navigator, 'wakeLock', { value: api, configurable: true });
+})()`
 const browser = await openBrowser(join(outDir, 'edge-profile'), 9379)
+// Tela acesa (2026-11-21): o Wake Lock de mentira vale em todas as páginas abertas daqui em diante.
+await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: WAKE_LOCK_FAKE })
 const run = async (expression) => {
   await browser.evaluate(helpers)
   return browser.evaluate(expression)
@@ -192,7 +220,17 @@ try {
   )
 
   // --- Lista e cartões ---
-  check('todos os do dia, os mais novos primeiro', await run(`__codes()`), [codes.completo, codes.semGps, codes.local, codes.retirada, codes.gps, 'ADS-0099'])
+  check(
+    'abre em "⏳ Em andamento": a fila do pedido mais antigo para o mais novo (pela hora do pedido)',
+    [await run(`__q('[data-orders-filter="andamento"]').getAttribute('aria-pressed')`), await run(`__codes()`)],
+    ['true', ['ADS-0099', codes.gps, codes.retirada, codes.local, codes.semGps, codes.completo]],
+  )
+  check('tela acesa: o painel pediu o Wake Lock uma vez e está segurando', await run(`[window.__wake.requests >= 1, window.__wake.held]`), [true, 1])
+  check(
+    'cada pedido em andamento mostra há quanto tempo entrou',
+    await run(`__codes().map((code) => /^Há (menos de 1|\\d+) min$/.test(__text(__card(code).querySelector('[data-order-elapsed]')) ?? ''))`),
+    [true, true, true, true, true, true],
+  )
   check(
     'cabeçalho: #código, hora HH:MM, cliente e selo da modalidade',
     await run(`${q(Object.values(codes))}.map((code) => { const card = __card(code); return [__text(card.querySelector('h2')), /^\\d{2}:\\d{2}$/.test(__text(card.querySelector('[data-order-time]'))), card.querySelector('[data-order-customer]').firstChild.textContent, __text(card.querySelector('[data-modality]'))] })`),
@@ -245,7 +283,7 @@ try {
   check(
     'filtros rápidos com a contagem',
     await run(`[...document.querySelectorAll('[data-orders-filter]')].map((b) => __text(b))`),
-    ['Todos 6', '🆕 Novos 5', '🍨 Preparando 0', '🛵 Saiu / Pronto 1', '✅ Concluídos 0'],
+    ['⏳ Em andamento 6', 'Todos 6', '🆕 Novos 5', '🍨 Preparando 0', '🛵 Saiu / Pronto 1', '✅ Concluídos 0'],
   )
   check('título da aba com os pedidos novos', await run(`document.title`), '(5) Pedidos | Açaí Doce Sabor')
   check(
@@ -261,8 +299,43 @@ try {
   const advance = async (code) => {
     const label = await run(`__text(__card(${q(code)})?.querySelector('[data-order-next]'))`)
     await click(`__card(${q(code)}).querySelector('[data-order-next]')`, 700)
+    // "✅ Concluir" pede confirmação (2026-11-21).
+    if (await run(`!!__card(${q(code)})?.querySelector('[data-order-conclude-confirm]')`)) await click(`__card(${q(code)}).querySelector('[data-order-conclude-confirm]')`, 700)
     return [label, statusOf(code)]
   }
+  const dineIn = q(codes.local)
+  await advance(codes.local)
+  await advance(codes.local)
+  await click(`__card(${dineIn}).querySelector('[data-order-next]')`, 400)
+  check(
+    '"✅ Concluir" pede confirmação leve no cartão, sem gravar nada ainda',
+    [await run(`__text(__card(${dineIn}).querySelector('[data-order-conclude-ask] p'))`), statusOf(codes.local), await run(`!!__card(${dineIn}).querySelector('[data-order-next]')`)],
+    ['Deseja realmente concluir este pedido?', 'pronto_consumo', false],
+  )
+  await click(`__card(${dineIn}).querySelector('[data-order-conclude-cancel]')`, 400)
+  check('"Cancelar" na confirmação: nada muda', [statusOf(codes.local), await run(`__text(__card(${dineIn}).querySelector('[data-order-next]'))`)], ['pronto_consumo', '✅ Concluir'])
+  await click(`__card(${dineIn}).querySelector('[data-order-next]')`, 300)
+  await click(`__card(${dineIn}).querySelector('[data-order-conclude-confirm]')`, 900)
+  check(
+    '"Confirmar": concluído no banco; o cartão fica alguns segundos com o aviso e o "↩ Voltar etapa"',
+    [
+      statusOf(codes.local),
+      await run(`__text(__card(${dineIn})?.querySelector('[data-order-flash]'))`),
+      await run(`__card(${dineIn})?.querySelector('[data-order-back]')?.dataset.orderBack`),
+      await run(`__text(__card(${dineIn})?.querySelector('[data-order-back]'))`),
+    ],
+    ['concluido', '✅ Pedido concluído', 'pronto_consumo', '↩ Voltar etapa (Pronto para consumo)'],
+  )
+  await click(`__card(${dineIn}).querySelector('[data-order-back]')`, 900)
+  check(
+    '"↩ Voltar etapa": volta para "Pronto para consumo" no banco, com o aviso de etapa restaurada',
+    [statusOf(codes.local), await run(`__text(__card(${dineIn}).querySelector('[data-order-flash]'))`), await run(`__text(__card(${dineIn}).querySelector('[data-order-next]'))`)],
+    ['pronto_consumo', '↩ Etapa restaurada: Pronto para consumo', '✅ Concluir'],
+  )
+  await click(`__card(${dineIn}).querySelector('[data-order-back]')`, 900)
+  check('voltar de novo: Preparando (a etapa anterior válida)', statusOf(codes.local), 'preparando')
+  await click(`__card(${dineIn}).querySelector('[data-order-back]')`, 900)
+  check('e de novo: Novo, onde não há mais etapa anterior', [statusOf(codes.local), await run(`!!__card(${dineIn}).querySelector('[data-order-back]')`)], ['novo', false])
   check(
     'comer no local: Aceitar / Preparar → 🍨 Pronto para Consumo → ✅ Concluir, gravado no banco',
     [await advance(codes.local), await advance(codes.local), await advance(codes.local)],
@@ -280,7 +353,7 @@ try {
   check('entrega: Aceitar / Preparar → 🛵 Saiu para Entrega', [await advance(codes.gps), await advance(codes.gps)], [['Aceitar / Preparar', 'preparando'], ['🛵 Saiu para Entrega', 'saiu_para_entrega']])
   check('retirar: Aceitar / Preparar → 🛍️ Pronto para Retirada', [await advance(codes.retirada), await advance(codes.retirada)], [['Aceitar / Preparar', 'preparando'], ['🛍️ Pronto para Retirada', 'pronto_retirada']])
   await click(`__q('[data-orders-filter="saiu_pronto"]')`, 300)
-  check('filtro 🛵 Saiu / Pronto', await run(`__codes()`), [codes.retirada, codes.gps, 'ADS-0099'])
+  check('filtro 🛵 Saiu / Pronto (na ordem da fila)', await run(`__codes()`), ['ADS-0099', codes.gps, codes.retirada])
   await click(`__q('[data-orders-filter="concluidos"]')`, 300)
   check('filtro ✅ Concluídos', await run(`__codes()`), [codes.local])
   await click(`__q('[data-orders-filter="todos"]')`, 300)
@@ -298,6 +371,25 @@ try {
     [statusOf(codes.retirada), await run(`__text(__card(${pickup}).querySelector('[data-order-final]'))`), await run(`!!__card(${pickup}).querySelector('[data-order-next]')`), await run(`__text(__q('[data-orders-filter="concluidos"]'))`)],
     ['cancelado', '❌ Pedido cancelado', false, '✅ Concluídos 1'],
   )
+
+  // --- Busca rápida (2026-11-21) ---
+  const search = async (text) => {
+    await run(`(() => { const el = __q('[data-orders-search]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${q(text)}); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)
+    await sleep(250)
+    return run(`__codes()`)
+  }
+  check('busca pelo nome, sem acento nem maiúsculas: "fabio" acha o Fábio', await search('fabio'), [codes.completo])
+  check('busca por parte do nome: "davi"', await search('davi'), [codes.semGps])
+  check('busca pelo código inteiro', await search(codes.gps), [codes.gps])
+  check('busca por parte do código (sem o "ADS-")', await search(codes.local.slice(-4)), [codes.local])
+  await click(`__q('[data-orders-filter="concluidos"]')`, 300)
+  check('busca junto com o filtro: "davi" em Concluídos não acha nada, com o aviso e "Limpar busca"', [await search('davi'), await run(`__text(__q('[data-orders-empty]'))`)], [[], 'Nenhum pedido encontrado para “davi” neste filtro. Limpar busca'])
+  await click(`__q('[data-orders-search-reset]')`, 300)
+  check('"Limpar busca": volta a lista do filtro', [await run(`__q('[data-orders-search]').value`), await run(`__codes()`)], ['', [codes.local]])
+  await click(`__q('[data-orders-filter="todos"]')`, 300)
+  await search('ana')
+  await click(`__q('[data-orders-search-clear]')`, 300)
+  check('o ✕ da busca limpa e mostra todos de novo', (await run(`__codes()`)).length, 6)
 
   // --- Erro ao gravar ---
   fake.state.failOrdersPatch = true
@@ -344,7 +436,35 @@ try {
   const tonesMuted = await run(`window.__tones`)
   const quietOrder = await placeOrder(customer({ name: 'Gil Silencioso', kind: 'retirada' }), PIX, 300)
   check('silenciado: o pedido chega, sem bipe', [await waitFor(`__card(${q(quietOrder)})`, 3000), (await run(`window.__tones`)) - tonesMuted, await run(`__q('[data-orders-sound-off]').getAttribute('aria-pressed')`)], [true, 0, 'true'])
+  check('silenciado de propósito: nenhum aviso de "som bloqueado" na faixa', await run(`!!__q('[data-orders-sound-hint]')`), false)
   await click(`__q('[data-orders-sound-on]')`, 300)
+
+  // --- Atraso (2026-11-21): só entrega, depois do tempo de entrega da loja (padrão 30–45 min) ---
+  const oldOrder = (number, fulfillment, status) => ({
+    ...fake.db.orders.find((order) => order.code === 'ADS-0099'),
+    id: `antigo-${number}`,
+    number,
+    code: `ADS-${String(number).padStart(4, '0')}`,
+    attempt_key: String(number).repeat(64).slice(0, 64),
+    created_at: new Date(Date.now() - 2 * 60 * 60_000 - 5 * 60_000 - 30_000).toISOString(),
+    status,
+    fulfillment,
+    delivery_fee: fulfillment === 'entrega' ? 'taxa' : fulfillment,
+    customer_name: fulfillment === 'entrega' ? 'Ivo Atrasado' : 'Júlia Balcão',
+  })
+  fake.db.orders.push(oldOrder(97, 'entrega', 'preparando'), oldOrder(96, 'retirada', 'preparando'))
+  await click(`__q('[data-orders-refresh]')`, 1200)
+  await click(`__q('[data-orders-filter="andamento"]')`, 300)
+  check('os pedidos antigos entram no começo da fila', (await run(`__codes()`)).slice(0, 2), ['ADS-0096', 'ADS-0097'])
+  check(
+    'entrega há mais de 45 min: tempo destacado como atrasado; retirada antiga: só o tempo, sem alerta (a loja não configura tempo de retirada)',
+    await run(`['ADS-0097', 'ADS-0096'].map((code) => { const el = __card(code).querySelector('[data-order-elapsed]'); return [__text(el), el.hasAttribute('data-late')] })`),
+    [
+      ['⚠️ Há 2 h 05 min · atrasado', true],
+      ['Há 2 h 05 min', false],
+    ],
+  )
+  await shot('1280-fila-atraso')
 
   // --- Celulares (com a sessão) ---
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
@@ -359,7 +479,9 @@ try {
   await browser.goto(`${baseUrl}/pedidos`, desktop)
   await run(quiet)
   await waitFor(`__q('[data-orders-live]')?.dataset.ordersLive === 'live'`)
+  check('tela acesa no painel', await run(`window.__wake.held`), 1)
   await click(`[...document.querySelectorAll('header a')].find((a) => a.textContent.trim() === 'Cardápio')`, 800)
+  check('saiu do painel (para o cardápio): a tela acesa é liberada', await run(`[window.__wake.held, window.__wake.releases >= 1]`), [0, true])
   const badgeBefore = Number(await run(`__q('[data-orders-badge]')?.dataset.ordersBadge ?? 0`))
   await placeOrder(customer({ name: 'Hugo Cardápio', kind: 'local' }), PIX, 300)
   check(

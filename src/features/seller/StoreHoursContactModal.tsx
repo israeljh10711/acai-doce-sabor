@@ -9,8 +9,8 @@ import { saveStore } from './storeSave.ts'
 
 /**
  * "Horários e Contato" do modo vendedor (pedido de 2026-11-17): o horário automático de todos os
- * dias, o que fazer com pedidos quando a loja está fechada e o contato da loja (o WhatsApp que
- * recebe os pedidos e o endereço do aviso de loja fechada e do rodapé).
+ * dias, o que fazer com pedidos quando a loja está fechada e o contato da loja (o WhatsApp de
+ * atendimento e dúvidas, desde 2026-11-21, e o endereço do aviso de loja fechada e do rodapé).
  */
 export function StoreHoursContactModal({ onClose }: { onClose: () => void }) {
   const seller = useSellerMode()
@@ -127,7 +127,7 @@ export function StoreHoursContactModal({ onClose }: { onClose: () => void }) {
 
         <fieldset className="flex flex-col gap-3">
           <legend className="mb-1 text-sm font-bold text-acai-950">Contato da loja</legend>
-          <ContactInput id={field('whatsapp')} label="WhatsApp (recebe os pedidos)" problem={contactProblems.whatsapp}>
+          <ContactInput id={field('whatsapp')} label="WhatsApp da loja (atendimento e dúvidas)" problem={contactProblems.whatsapp}>
             <input
               id={field('whatsapp')}
               type="tel"

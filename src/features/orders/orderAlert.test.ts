@@ -84,6 +84,25 @@ describe('aviso sonoro de pedido novo (painel ao vivo, 2026-11-20)', () => {
     alert.unlock()
     expect([alert.state(), alert.play(), alert.playAdded()]).toEqual(['blocked', false, false])
   })
+
+  it('navegador sem Web Audio (2026-11-21): estado "sem suporte", diferente de bloqueado; silenciado continua "silenciado"', () => {
+    const alert = createSoundAlert({ createContext: () => null, storage: memory().storage, isSupported: () => false })
+    alert.unlock()
+    expect([alert.state(), alert.play()]).toEqual(['unsupported', false])
+    alert.setOn(false)
+    expect(alert.state()).toBe('off')
+  })
+
+  it('bloqueado x silenciado (2026-11-21): o aviso de bloqueio só vale com o som ligado', async () => {
+    const { createContext } = fakeAudio('suspended')
+    const alert = createSoundAlert({ createContext, storage: memory().storage })
+    expect(alert.state()).toBe('blocked')
+    alert.setOn(false)
+    expect(alert.state()).toBe('off')
+    alert.setOn(true)
+    await Promise.resolve()
+    expect(alert.state()).toBe('on')
+  })
 })
 
 describe('aviso sonoro de itens acrescentados (2026-11-20)', () => {

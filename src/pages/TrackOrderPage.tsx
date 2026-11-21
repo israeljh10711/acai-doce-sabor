@@ -4,6 +4,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { ArrowLeft, Check, Clock } from '../components/ui/icons.tsx'
+import { useStoreSettings } from '../features/catalog/catalogStore.ts'
+import { PixCard } from '../features/checkout/PixCard.tsx'
 import { ComandaItems } from '../features/orders/ComandaItems.tsx'
 import { ModalityBadge } from '../features/orders/OrderCard.tsx'
 import { feeLine } from '../features/orders/ordersPanel.ts'
@@ -12,6 +14,8 @@ import { CUSTOMER_STATUS_LABEL, type TimelineStep, timelineFor } from '../featur
 import { isActive, type TrackedOrder } from '../features/tracking/trackedOrders.ts'
 import { readTrackState } from '../features/tracking/trackState.ts'
 import { supportWhatsAppUrl } from '../features/tracking/support.ts'
+import { pixDue } from '../features/tracking/pixDue.ts'
+import { deliveryWindow } from '../features/store/deliveryTime.ts'
 import { getAddMode, getCustomerLive, useCustomerConnection, useCustomerLive, useTrackedOrders } from '../features/tracking/trackingRuntime.ts'
 import { usePageTitle } from '../hooks/usePageTitle.ts'
 import { paths } from '../paths.ts'
@@ -302,6 +306,7 @@ function TrackedView({ view, demo, live, stale }: { view: OrderView; demo: boole
           {timeline.headline}
         </h2>
         {timeline.description && <p className="mt-1 leading-relaxed text-acai-950">{timeline.description}</p>}
+        <Forecast view={view} finished={timeline.finished} />
         {stale && (
           <p role="status" className="mt-2 text-sm font-semibold text-red-800">
             Sem conexão agora: mostrando a última situação conhecida.
@@ -323,8 +328,80 @@ function TrackedView({ view, demo, live, stale }: { view: OrderView; demo: boole
         <SupportButton code={view.code} />
       </div>
 
+      <TrackingPix view={view} />
+
       <OrderSummary view={view} />
     </>
+  )
+}
+
+/**
+ * Previsão de entrega da loja (2026-11-21): o "Tempo" de entrega que o vendedor configura (o mesmo
+ * do topo do site), contado a partir do pedido. É um prazo de entrega: em Retirar e Comer no Local
+ * não aparece (a loja não configura tempo de preparo). Some quando o pedido termina.
+ */
+function Forecast({ view, finished }: { view: OrderView; finished: boolean }) {
+  const settings = useStoreSettings()
+  const text = settings.deliveryTime.trim()
+  if (finished || view.fulfillment !== 'entrega' || !text) return null
+  const range = deliveryWindow(text)
+  const created = Date.parse(view.createdAt)
+  const until = range && Number.isFinite(created) ? timeOnly.format(created + range.max * 60_000) : null
+  return (
+    <p data-tracking-forecast="" className="mt-3 rounded-xl bg-acai-50 px-3 py-2 text-sm font-semibold text-acai-950 ring-1 ring-line">
+      🕒 Previsão de entrega da loja: <strong className="font-extrabold">{text}</strong> a partir do pedido
+      {until && (
+        <>
+          {' '}
+          (até por volta das <span className="nums">{until}</span>)
+        </>
+      )}
+      .
+    </p>
+  )
+}
+
+/**
+ * Pix no acompanhamento (2026-11-21): a mesma chave do carrinho, com o valor que o pedido gravado
+ * comprova. O site não registra pagamento recebido, então mostra o total e, quando o cliente
+ * acrescentou itens, quanto é a diferença para quem já pagou o valor de antes.
+ */
+function TrackingPix({ view }: { view: OrderView }) {
+  const due = pixDue(view)
+  if (!due) return null
+  return (
+    <section aria-labelledby="pix-titulo" data-tracking-pix="">
+      <PixCard instruction="Faça o Pix e guarde o comprovante. Se a loja pedir, envie pelo botão “💬 Dúvidas? Falar no WhatsApp”, logo acima. Este site não mostra se o Pix já foi recebido: quem confere é a loja.">
+        <div className="mb-3 border-b border-line pb-3">
+          <h2 id="pix-titulo" className="font-display text-lg font-extrabold text-acai-800">
+            💠 Pagamento via Pix
+          </h2>
+          <p className="mt-1 flex items-baseline justify-between gap-3 text-acai-950">
+            <span className="font-semibold">Total do pedido</span>
+            <strong data-pix-total="" className="nums text-2xl font-extrabold whitespace-nowrap text-acai-800">
+              {formatBRL(due.totalCents)}
+            </strong>
+          </p>
+          {due.feePending && <p className="text-sm text-ink-soft">+ entrega a combinar: a loja informa o valor quando entrar em contato.</p>}
+          {due.additionsCents > 0 && (
+            <div data-pix-additions="" className="mt-2 rounded-xl bg-gold-100 p-3 text-sm text-acai-950 ring-1 ring-gold-400">
+              <p className="flex justify-between gap-3">
+                <span>Pedido antes dos acréscimos</span>
+                <span className="nums font-bold whitespace-nowrap">{formatBRL(due.beforeAdditionsCents)}</span>
+              </p>
+              <p className="flex justify-between gap-3">
+                <span>Itens acrescentados</span>
+                <span className="nums font-bold whitespace-nowrap">+ {formatBRL(due.additionsCents)}</span>
+              </p>
+              <p data-pix-difference="" className="mt-1.5 font-semibold">
+                Já fez o Pix de {formatBRL(due.beforeAdditionsCents)}? Faça outro Pix só dos itens acrescentados:{' '}
+                <strong className="nums">{formatBRL(due.additionsCents)}</strong>.
+              </p>
+            </div>
+          )}
+        </div>
+      </PixCard>
+    </section>
   )
 }
 

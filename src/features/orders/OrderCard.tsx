@@ -10,6 +10,7 @@ import {
   canCancel,
   feeLine,
   nextStep,
+  previousStep,
   paymentText,
 } from './ordersPanel.ts'
 
@@ -81,6 +82,10 @@ export function OrderCard({
   onStatus,
   added = false,
   onSeen,
+  onBack,
+  elapsed = null,
+  late = false,
+  flash = null,
 }: {
   order: PanelOrder
   now: number
@@ -89,8 +94,20 @@ export function OrderCard({
   onStatus: (status: OrderStatus) => void
   added?: boolean
   onSeen?: () => void
+  /** "↩ Voltar etapa" (2026-11-21). */
+  onBack?: (status: OrderStatus) => void
+  /** "Há 12 min" desde que o pedido entrou (só nos pedidos em andamento). */
+  elapsed?: string | null
+  /** Passou do tempo de entrega configurado pela loja. */
+  late?: boolean
+  /** O retorno da última ação ("↩ Etapa restaurada: Preparando"), por alguns segundos. */
+  flash?: string | null
 }) {
   const [confirmingCancel, setConfirmingCancel] = useState(false)
+  // "✅ Concluir" pede uma confirmação leve (2026-11-21): um toque sem querer não encerra o pedido.
+  const [confirmingConclude, setConfirmingConclude] = useState(false)
+  const back = previousStep(order)
+  const asking = confirmingCancel || confirmingConclude
   const next = nextStep(order)
   const fee = feeLine(order)
   const whatsapp = customerWhatsApp(order.customerPhone)
@@ -145,6 +162,15 @@ export function OrderCard({
                 {whenText(order.createdAt, now)}
               </span>
               {order.antecipado && <span className="font-bold text-acai-800"> · Pedido antecipado</span>}
+              {elapsed && (
+                <span
+                  data-order-elapsed=""
+                  data-late={late ? '' : undefined}
+                  className={`nums ml-2 inline-block rounded-full px-2 py-0.5 text-xs font-extrabold ring-1 ${late ? 'bg-red-50 text-red-800 ring-red-300' : 'bg-acai-50 text-acai-800 ring-line'}`}
+                >
+                  {late ? `⚠️ ${elapsed} · atrasado` : elapsed}
+                </span>
+              )}
             </p>
           </div>
           <span data-status-pill="" className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-extrabold tracking-wide uppercase ring-1 ${STATUS_STYLE[order.status]}`}>
@@ -239,22 +265,49 @@ export function OrderCard({
         </div>
       </dl>
 
-      {(!finished || whatsapp) && (
+      {(!finished || whatsapp || back) && (
         <footer className="flex flex-col gap-2 border-t border-line pt-3">
-          {next && !confirmingCancel && (
+          {next && !asking && (
             <button
               type="button"
               data-order-next={next.status}
               disabled={busy}
               aria-busy={busy || undefined}
               aria-label={`${next.label} — pedido ${order.code}`}
-              onClick={() => onStatus(next.status)}
+              onClick={() => (next.status === 'concluido' ? setConfirmingConclude(true) : onStatus(next.status))}
               className={`${actionButton} btn-gold`}
             >
               {busy ? 'Salvando…' : next.label}
             </button>
           )}
-          {whatsapp && (
+          {next?.status === 'concluido' && confirmingConclude && (
+            <div role="group" data-order-conclude-ask="" aria-label={`Concluir o pedido ${order.code}`} className="rounded-xl bg-emerald-50 p-3 ring-1 ring-emerald-200">
+              <p className="text-sm font-bold text-emerald-950">Deseja realmente concluir este pedido?</p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  data-order-conclude-cancel=""
+                  onClick={() => setConfirmingConclude(false)}
+                  className={`${actionButton} flex-1 bg-white text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  data-order-conclude-confirm=""
+                  disabled={busy}
+                  onClick={() => {
+                    setConfirmingConclude(false)
+                    onStatus('concluido')
+                  }}
+                  className={`${actionButton} flex-1 bg-emerald-700 text-white hover:bg-emerald-800`}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          )}
+          {whatsapp && !asking && (
             <a
               data-order-whatsapp=""
               href={whatsapp}
@@ -265,7 +318,20 @@ export function OrderCard({
               💬 Chamar Cliente no WhatsApp
             </a>
           )}
+          {back && !asking && onBack && (
+            <button
+              type="button"
+              data-order-back={back.status}
+              disabled={busy}
+              aria-label={`↩ Voltar etapa para ${back.label} — pedido ${order.code}`}
+              onClick={() => onBack(back.status)}
+              className={`${actionButton} min-h-11 bg-white font-bold text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100`}
+            >
+              ↩ Voltar etapa <span className="font-semibold text-ink-soft">({back.label})</span>
+            </button>
+          )}
           {canCancel(order) &&
+            !confirmingConclude &&
             (confirmingCancel ? (
               <div role="group" aria-label={`Cancelar o pedido ${order.code}`} className="rounded-xl bg-red-50 p-3 ring-1 ring-red-200">
                 <p className="text-sm font-bold text-red-900">Cancelar o pedido #{order.code}?</p>
@@ -305,6 +371,11 @@ export function OrderCard({
               </button>
             ))}
         </footer>
+      )}
+      {flash && (
+        <p role="status" data-order-flash="" className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-extrabold text-emerald-900 ring-1 ring-emerald-200">
+          {flash}
+        </p>
       )}
       {error && (
         <p role="alert" className="text-sm font-bold text-red-800">

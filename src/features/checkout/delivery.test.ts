@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { DeliverySettings } from '../store/storeSettings.ts'
 import { DEFAULT_STORE_SETTINGS, storePlaceText } from '../store/storeSettings.ts'
-import { type CustomerDraft, EMPTY_CUSTOMER, OTHER_ZONE, addressPatch, checkCustomer, draftForStorage, feeCents, feeFor, parseCustomerDraft } from './delivery.ts'
+import { COMBINAR_PHONE_TEXT, type CustomerDraft, EMPTY_CUSTOMER, OTHER_ZONE, addressPatch, checkCustomer, draftForStorage, feeCents, feeFor, parseCustomerDraft } from './delivery.ts'
 
 const TAXAS: DeliverySettings = {
   mode: 'taxas',
@@ -37,9 +37,9 @@ describe('frete do pedido (pedido de 2026-11-17)', () => {
 
   it('"Outro bairro" fica a combinar e pede o bairro escrito', () => {
     expect(feeFor(entrega({ zoneId: OTHER_ZONE }), TAXAS)).toEqual({ kind: 'combinar' })
-    const missing = checkCustomer(entrega({ zoneId: OTHER_ZONE, district: ' ' }), TAXAS)
+    const missing = checkCustomer(entrega({ zoneId: OTHER_ZONE, district: ' ', phone: '83999990000' }), TAXAS)
     expect(missing.ok ? null : missing.problems).toEqual({ district: 'Escreva o bairro.' })
-    const result = checkCustomer(entrega({ zoneId: OTHER_ZONE, district: 'Sítio Novo' }), TAXAS)
+    const result = checkCustomer(entrega({ zoneId: OTHER_ZONE, district: 'Sítio Novo', phone: '83999990000' }), TAXAS)
     expect(result.ok && result.customer.fulfillment).toMatchObject({ district: 'Sítio Novo' })
   })
 
@@ -73,15 +73,38 @@ describe('dados do cliente (pedido de 2026-11-17)', () => {
   })
 
   it('na entrega, rua, número e bairro são obrigatórios; a referência é opcional', () => {
-    const result = checkCustomer(entrega({ street: '', number: ' ', district: '' }), COMBINAR)
+    const result = checkCustomer(entrega({ street: '', number: ' ', district: '', phone: '83999990000' }), COMBINAR)
     expect(result.ok ? null : result.problems).toEqual({
       street: 'Escreva a rua.',
       number: 'Escreva o número (ou s/n).',
       district: 'Escreva o bairro.',
     })
-    const ok = checkCustomer(entrega({ reference: '  perto da praça ' }), COMBINAR)
+    const ok = checkCustomer(entrega({ reference: '  perto da praça ', phone: '83999990000' }), COMBINAR)
     expect(ok.ok && ok.customer.fulfillment).toEqual({ kind: 'entrega', street: 'Rua das Flores', number: '12', district: 'Centro', reference: 'perto da praça', gps: null })
     expect(ok.ok && ok.customer.fee).toEqual({ kind: 'combinar' })
+  })
+
+  it('frete a combinar (2026-11-21): telefone obrigatório, com o aviso de que a loja vai ligar', () => {
+    for (const [label, customer, settings] of [
+      ['modo "a combinar"', entrega(), COMBINAR],
+      ['lista de bairros vazia', entrega(), { mode: 'taxas', zones: [] } as DeliverySettings],
+      ['"Outro bairro"', entrega({ zoneId: OTHER_ZONE, district: 'Sítio Novo' }), TAXAS],
+    ] as const) {
+      const result = checkCustomer(customer, settings)
+      expect([label, result.ok ? null : result.problems]).toEqual([label, { phone: COMBINAR_PHONE_TEXT }])
+      expect(checkCustomer({ ...customer, phone: '(83) 99999-0000' }, settings).ok).toBe(true)
+    }
+    expect(COMBINAR_PHONE_TEXT).toBe('Para entregas com frete a combinar, informe seu telefone. A loja entrará em contato para confirmar o valor da entrega.')
+    // Telefone escrito errado: vale a mensagem do DDD.
+    const wrong = checkCustomer(entrega({ phone: '123' }), COMBINAR)
+    expect(wrong.ok ? null : wrong.problems).toEqual({ phone: 'Telefone com DDD, por exemplo (83) 99999-0000.' })
+  })
+
+  it('frete conhecido (bairro com taxa, grátis), retirar e comer no local: telefone continua opcional', () => {
+    expect(checkCustomer(entrega({ zoneId: 'centro' }), TAXAS).ok).toBe(true)
+    expect(checkCustomer(entrega(), GRATIS).ok).toBe(true)
+    expect(checkCustomer(draft({ kind: 'retirada' }), COMBINAR).ok).toBe(true)
+    expect(checkCustomer(draft({ kind: 'local' }), COMBINAR).ok).toBe(true)
   })
 
   it('na lista de bairros, falta escolher o bairro', () => {
@@ -122,24 +145,24 @@ describe('três modalidades e GPS (pedido de 2026-11-20)', () => {
   })
 
   it('o GPS vai junto só na entrega; é opcional', () => {
-    const withGps = checkCustomer(entrega({ gps: GPS }), COMBINAR)
+    const withGps = checkCustomer(entrega({ gps: GPS }), GRATIS)
     expect(withGps.ok && withGps.customer.fulfillment).toMatchObject({ kind: 'entrega', gps: GPS })
-    const without = checkCustomer(entrega(), COMBINAR)
+    const without = checkCustomer(entrega(), GRATIS)
     expect(without.ok && without.customer.fulfillment).toMatchObject({ kind: 'entrega', gps: null })
     for (const kind of ['retirada', 'local'] as const) {
-      const other = checkCustomer(draft({ kind, gps: GPS }), COMBINAR)
+      const other = checkCustomer(draft({ kind, gps: GPS }), GRATIS)
       expect(other.ok && other.customer.fulfillment).toEqual({ kind })
     }
   })
 
   it('o GPS não substitui o endereço: sem rua e número, a entrega não passa', () => {
-    const result = checkCustomer(entrega({ gps: GPS, street: '', number: '' }), COMBINAR)
+    const result = checkCustomer(entrega({ gps: GPS, street: '', number: '' }), GRATIS)
     expect(result.ok ? null : result.problems).toEqual({ street: 'Escreva a rua.', number: 'Escreva o número (ou s/n).' })
   })
 
   it('número aceita 12, 12A e S/N', () => {
     for (const number of ['12', '12A', 'S/N']) {
-      const result = checkCustomer(entrega({ number }), COMBINAR)
+      const result = checkCustomer(entrega({ number }), GRATIS)
       expect(result.ok && result.customer.fulfillment).toMatchObject({ number })
     }
   })

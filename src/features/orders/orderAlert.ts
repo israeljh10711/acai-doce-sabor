@@ -32,8 +32,11 @@ export type AudioContextLike = {
   addEventListener?(type: 'statechange', listener: () => void): void
 }
 
-/** `on`: toca; `blocked`: ligado, mas o navegador ainda não liberou; `off`: silenciado. */
-export type SoundState = 'on' | 'blocked' | 'off'
+/**
+ * `on`: toca; `blocked`: ligado, mas o navegador ainda não liberou (falta um toque na página);
+ * `off`: silenciado pelo vendedor; `unsupported`: o navegador não tem Web Audio (2026-11-21).
+ */
+export type SoundState = 'on' | 'blocked' | 'off' | 'unsupported'
 
 export type SoundAlert = {
   state(): SoundState
@@ -76,9 +79,12 @@ export const ADDED_ITEMS_MELODY: Melody = {
 export function createSoundAlert({
   createContext,
   storage,
+  isSupported = () => true,
 }: {
   createContext: () => AudioContextLike | null
   storage: Pick<Storage, 'getItem' | 'setItem'> | null
+  /** O navegador tem Web Audio? (sem ela, nem adianta pedir o toque para liberar) */
+  isSupported?: () => boolean
 }): SoundAlert {
   let context: AudioContextLike | null = null
   let on = true
@@ -127,6 +133,7 @@ export function createSoundAlert({
   const alert: SoundAlert = {
     state() {
       if (!on) return 'off'
+      if (!isSupported()) return 'unsupported'
       return context?.state === 'running' ? 'on' : 'blocked'
     },
     setOn(next) {
@@ -156,11 +163,16 @@ export function createSoundAlert({
 }
 
 /** O aviso do navegador (um só para o site). */
+const audioConstructor = () => {
+  const scope = globalThis as unknown as { AudioContext?: new () => AudioContextLike; webkitAudioContext?: new () => AudioContextLike }
+  return scope.AudioContext ?? scope.webkitAudioContext
+}
+
 export const soundAlert: SoundAlert = createSoundAlert({
   createContext: () => {
-    const scope = globalThis as unknown as { AudioContext?: new () => AudioContextLike; webkitAudioContext?: new () => AudioContextLike }
-    const Ctor = scope.AudioContext ?? scope.webkitAudioContext
+    const Ctor = audioConstructor()
     return Ctor ? new Ctor() : null
   },
+  isSupported: () => audioConstructor() !== undefined,
   storage: typeof localStorage === 'undefined' ? null : localStorage,
 })

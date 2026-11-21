@@ -10,6 +10,7 @@ import { useLightbox } from '../lightbox/lightboxContext.ts'
 import { FloatingOfferToast } from '../offers/FloatingOfferToast.tsx'
 import type { OfferNotification } from '../offers/offerNotifications.ts'
 import { useOfferScheduler } from '../offers/useOfferScheduler.ts'
+import { useSellerMode } from '../seller/sellerModeContext.ts'
 import { type AddedNotice, AddedToast } from './AddedToast.tsx'
 import { CatalogSections, type SectionView } from './CatalogSections.tsx'
 import { CatalogSidebar } from './CatalogSidebar.tsx'
@@ -219,7 +220,9 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
   // A foto ampliada aberta pela própria oferta só segura a oferta; as outras escondem, como janela.
   const lightbox = useLightbox()
   const zoomOpen = lightbox.current !== null && lightbox.current.origin !== 'offer'
-  const offers = useOfferScheduler(flow !== null || query.trim().length > 0 || notice !== null || zoomOpen || drawerOpen)
+  // Modo Vendedor ligado (2026-11-21): as ofertas flutuantes param e somem; ao sair, voltam.
+  const seller = useSellerMode()
+  const offers = useOfferScheduler(seller.active || flow !== null || query.trim().length > 0 || notice !== null || zoomOpen || drawerOpen)
 
   const takeOffer = (offer: OfferNotification) => {
     offers.scheduler.accept()
@@ -351,14 +354,16 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
         opener={opener}
       />
       <AddedToast notice={notice} onDismiss={dismiss} />
-      <FloatingOfferToast
-        offer={offers.offer}
-        snapshot={offers.snapshot}
-        onAccept={takeOffer}
-        onDismiss={() => offers.scheduler.dismiss()}
-        onHold={(held) => offers.scheduler.setHeld(held)}
-        onReactivate={() => offers.scheduler.reactivate()}
-      />
+      {!seller.active && (
+        <FloatingOfferToast
+          offer={offers.offer}
+          snapshot={offers.snapshot}
+          onAccept={takeOffer}
+          onDismiss={() => offers.scheduler.dismiss()}
+          onHold={(held) => offers.scheduler.setHeld(held)}
+          onReactivate={() => offers.scheduler.reactivate()}
+        />
+      )}
     </>
   )
 }

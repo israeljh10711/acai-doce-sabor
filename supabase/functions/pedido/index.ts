@@ -2757,7 +2757,8 @@ function gpsMapsUrl({ lat, lng }) {
 /**
 * Dados do cliente e frete no carrinho (pedido de 2026-11-17): nome, telefone (opcional),
 * a modalidade e o endereço. O frete segue o que o vendedor configurou em "Entrega / Frete":
-* grátis, por bairro (lista com o valor de cada um) ou a combinar no WhatsApp.
+* grátis, por bairro (lista com o valor de cada um) ou a combinar (a loja liga para o cliente; por
+* isso, desde 2026-11-21, o telefone é obrigatório nesse caso).
 *
 * Três modalidades (pedido de 2026-11-20): entrega (com GPS opcional), retirar na loja para levar
 * e comer no local. Retirar e comer no local são sempre grátis e não pedem endereço.
@@ -2769,6 +2770,8 @@ var DELIVERY_TYPES = [
 	"local"
 ];
 var isDeliveryType = (value) => DELIVERY_TYPES.includes(value);
+/** Frete a combinar: o telefone passa a ser obrigatório (2026-11-21). */
+var COMBINAR_PHONE_TEXT = "Para entregas com frete a combinar, informe seu telefone. A loja entrará em contato para confirmar o valor da entrega.";
 var EMPTY_CUSTOMER = {
 	name: "",
 	phone: "",
@@ -2860,6 +2863,7 @@ function checkCustomer(draft, delivery) {
 		};
 	}
 	const fee = feeFor(draft, delivery);
+	if (fee?.kind === "combinar" && !clean(draft.phone)) problems.phone = COMBINAR_PHONE_TEXT;
 	if (Object.keys(problems).length > 0 || !fee) return {
 		ok: false,
 		problems

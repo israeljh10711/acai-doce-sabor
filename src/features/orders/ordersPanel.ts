@@ -189,10 +189,94 @@ export function canCancel(order: PanelOrder): boolean {
   return OPEN_STATUSES.includes(order.status)
 }
 
+/** O "pronto" de cada modalidade (o passo antes de concluir). */
+const READY_BY_TYPE: Record<DeliveryType, OrderStatus> = { entrega: 'saiu_para_entrega', retirada: 'pronto_retirada', local: 'pronto_consumo' }
+
+/**
+ * "↩ Voltar etapa" (2026-11-21): a etapa imediatamente anterior no mesmo fluxo de `nextStep`,
+ * para desfazer um toque errado. Preparando volta para Novo; o "pronto" da modalidade volta para
+ * Preparando; Concluído volta para o "pronto" da modalidade. Novo não tem etapa anterior, e um
+ * cancelamento nunca é desfeito por aqui. Só situações que já existem e que o banco aceita para a
+ * modalidade (`orders_status_modalidade_check`).
+ */
+export function previousStep(order: PanelOrder): { status: OrderStatus; label: string } | null {
+  switch (order.status) {
+    case 'preparando':
+      return { status: 'novo', label: STATUS_LABEL.novo }
+    case 'pronto':
+    case 'pronto_retirada':
+    case 'pronto_consumo':
+    case 'saiu_para_entrega':
+      return { status: 'preparando', label: STATUS_LABEL.preparando }
+    case 'concluido': {
+      const ready = order.deliveryType ? READY_BY_TYPE[order.deliveryType] : 'pronto'
+      return { status: ready, label: STATUS_LABEL[ready] }
+    }
+    default:
+      return null
+  }
+}
+
+/**
+ * A fila de produção (2026-11-21): do pedido que entrou primeiro para o mais novo, pela hora em que
+ * foi feito (nunca pela última mudança). Pedido sem hora válida vai para o fim.
+ */
+export function queueOrder(orders: readonly PanelOrder[]): PanelOrder[] {
+  const key = (order: PanelOrder) => (order.createdAt > 0 ? order.createdAt : Number.MAX_SAFE_INTEGER)
+  return [...orders].sort((a, b) => key(a) - key(b) || a.number - b.number)
+}
+
+/** Para comparar sem acento, maiúsculas, espaços nem pontuação do código ("ads 0003" acha ADS-0003). */
+const plain = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+const compact = (value: string) => plain(value).replace(/[^a-z0-9]/g, '')
+
+/**
+ * Busca rápida do painel (2026-11-21), na lista que já está na tela (nenhuma consulta ao banco):
+ * pelo código inteiro ou por parte dele, e pelo nome do cliente inteiro ou por parte dele. Mantém
+ * a ordem recebida. Busca vazia: a lista inteira.
+ */
+export function searchOrders(orders: readonly PanelOrder[], query: string): PanelOrder[] {
+  const words = plain(query)
+  if (!words) return [...orders]
+  const code = compact(query)
+  return orders.filter((order) => plain(order.customerName).includes(words) || (code.length > 0 && compact(order.code).includes(code)))
+}
+
+/** "Há 12 min", "Há 1 h 05 min" desde que o pedido entrou (`null`: sem hora válida). */
+export function elapsedText(createdAt: number, now: number): string | null {
+  if (!createdAt || !Number.isFinite(createdAt) || !Number.isFinite(now)) return null
+  const minutes = Math.max(0, Math.floor((now - createdAt) / 60_000))
+  if (minutes < 1) return 'Há menos de 1 min'
+  if (minutes < 60) return `Há ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest === 0 ? `Há ${hours} h` : `Há ${hours} h ${String(rest).padStart(2, '0')} min`
+}
+
+/**
+ * O pedido passou do tempo que a loja configurou? (2026-11-21) O único tempo configurado é o
+ * "Tempo" de entrega da loja (`deliveryTime`), então o alerta vale só para entregas em andamento,
+ * e só quando esse tempo dá para ler em minutos (`limitMinutes`). Sem isso, nenhum alerta.
+ */
+export function isLate(order: PanelOrder, now: number, limitMinutes: number | null): boolean {
+  if (limitMinutes === null || order.deliveryType !== 'entrega' || !OPEN_STATUSES.includes(order.status) || !order.createdAt) return false
+  return now - order.createdAt > limitMinutes * 60_000
+}
+
 /** Os filtros rápidos do topo do painel (2026-11-20). Cancelado só aparece em "Todos". */
-export type OrderFilter = 'todos' | 'novos' | 'preparando' | 'saiu_pronto' | 'concluidos'
+export type OrderFilter = 'andamento' | 'todos' | 'novos' | 'preparando' | 'saiu_pronto' | 'concluidos'
+
+/** O filtro com que o painel abre (2026-11-21): a fila de trabalho, sem concluídos nem cancelados. */
+export const DEFAULT_FILTER: OrderFilter = 'andamento'
 
 export const ORDER_FILTERS: readonly { id: OrderFilter; label: string }[] = [
+  { id: 'andamento', label: '⏳ Em andamento' },
   { id: 'todos', label: 'Todos' },
   { id: 'novos', label: '🆕 Novos' },
   { id: 'preparando', label: '🍨 Preparando' },
@@ -202,6 +286,8 @@ export const ORDER_FILTERS: readonly { id: OrderFilter; label: string }[] = [
 
 function matches(order: PanelOrder, filter: OrderFilter): boolean {
   switch (filter) {
+    case 'andamento':
+      return OPEN_STATUSES.includes(order.status)
     case 'todos':
       return true
     case 'novos':

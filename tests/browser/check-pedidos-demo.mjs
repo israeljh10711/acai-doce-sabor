@@ -199,14 +199,19 @@ try {
   await click(`__q('[data-order-card="DEMO-0002"] [data-order-cancel]')`, 300)
   await click(`__q('[data-order-card="DEMO-0002"] [data-order-cancel-confirm]')`, 700)
   check('cancelar: guardado e identificado', [await run(`__demo()`), await run(`__q('[data-order-card="DEMO-0002"] [data-order-final]')?.textContent`)], [['DEMO-0001:preparando', 'DEMO-0002:cancelado'], '❌ Pedido cancelado'])
-  check('a outra aba vê o cancelamento', await waitFor(`__codes(window.__b.document).includes('DEMO-0002:cancelado')`, 4000), true)
+  // A outra aba abre na fila "Em andamento" (2026-11-21): o cancelado sai dela e aparece em "Todos".
+  check('a outra aba: o cancelado sai da fila "Em andamento"', await waitFor(`!__codes(window.__b.document).some((code) => code.startsWith('DEMO-0002'))`, 4000), true)
+  await run(`window.__b.document.querySelector('[data-orders-filter="todos"]').click(); true`)
+  check('a outra aba vê o cancelamento em "Todos"', await waitFor(`__codes(window.__b.document).includes('DEMO-0002:cancelado')`, 4000), true)
   await run(`window.__b.close(); window.__c.close(); true`)
 
   // --- Recarregar ---
   await browser.goto(`${baseUrl}/pedidos`, desktop)
   await run(quiet)
   await waitFor(`document.querySelectorAll('[data-order-card]').length >= 2`)
-  check('recarregou: os pedidos continuam, sem repetir', await run(`__codes()`), ['DEMO-0002:cancelado', 'DEMO-0001:preparando'])
+  check('recarregou: abre na fila "Em andamento", só com o que falta fazer', await run(`__codes()`), ['DEMO-0001:preparando'])
+  await click(`__q('[data-orders-filter="todos"]')`, 300)
+  check('em "Todos": os pedidos continuam, sem repetir, do mais antigo para o mais novo', await run(`__codes()`), ['DEMO-0001:preparando', 'DEMO-0002:cancelado'])
   check('sem rolagem lateral', await run(`document.documentElement.scrollWidth <= window.innerWidth`), true)
 
   check('console sem erros', browser.consoleProblems(), [])

@@ -1,7 +1,8 @@
 /**
  * Dados do cliente e frete no carrinho (pedido de 2026-11-17): nome, telefone (opcional),
  * a modalidade e o endereço. O frete segue o que o vendedor configurou em "Entrega / Frete":
- * grátis, por bairro (lista com o valor de cada um) ou a combinar no WhatsApp.
+ * grátis, por bairro (lista com o valor de cada um) ou a combinar (a loja liga para o cliente; por
+ * isso, desde 2026-11-21, o telefone é obrigatório nesse caso).
  *
  * Três modalidades (pedido de 2026-11-20): entrega (com GPS opcional), retirar na loja para levar
  * e comer no local. Retirar e comer no local são sempre grátis e não pedem endereço.
@@ -23,6 +24,9 @@ const isDeliveryType = (value: unknown): value is DeliveryType => DELIVERY_TYPES
 
 /** Na lista de bairros: "Outro bairro (taxa a combinar)", para quem não está nela. */
 export const OTHER_ZONE = 'outro'
+
+/** Frete a combinar: o telefone passa a ser obrigatório (2026-11-21). */
+export const COMBINAR_PHONE_TEXT = 'Para entregas com frete a combinar, informe seu telefone. A loja entrará em contato para confirmar o valor da entrega.'
 
 /** O que o cliente escolheu e digitou no carrinho. */
 export type CustomerDraft = {
@@ -180,6 +184,10 @@ export function checkCustomer(
   }
 
   const fee = feeFor(draft, delivery)
+  // Frete a combinar (modo "a combinar", lista vazia ou "Outro bairro", 2026-11-21): sem o WhatsApp
+  // no pedido, o telefone é o único jeito de a loja combinar o valor. Telefone escrito errado já
+  // tem a mensagem dele.
+  if (fee?.kind === 'combinar' && !clean(draft.phone)) problems.phone = COMBINAR_PHONE_TEXT
   if (Object.keys(problems).length > 0 || !fee) return { ok: false, problems }
   return { ok: true, customer: { name, phone, fulfillment, fee } }
 }

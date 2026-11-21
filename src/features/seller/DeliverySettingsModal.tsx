@@ -14,7 +14,7 @@ type Row = ZoneRow & { key: string }
 const MODES: readonly { id: DeliveryMode; label: string; hint: string }[] = [
   { id: 'gratis', label: 'Entrega grátis (R$ 0,00)', hint: 'Não cobra frete em nenhum endereço.' },
   { id: 'taxas', label: 'Taxa fixa ou por bairro / região', hint: 'O cliente escolhe o bairro e o frete soma no total. Para taxa fixa, cadastre uma linha só (ex.: "Toda a cidade").' },
-  { id: 'combinar', label: 'A combinar no WhatsApp', hint: 'Não soma frete no carrinho; a comanda diz "A combinar".' },
+  { id: 'combinar', label: 'A combinar com o cliente', hint: 'Não soma frete no carrinho; o telefone passa a ser obrigatório e a loja liga para combinar o valor.' },
 ]
 
 let rowCounter = 0

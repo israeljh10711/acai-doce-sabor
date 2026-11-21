@@ -95,7 +95,7 @@ export const cartActions = {
   setNote(id: string, note: string) {
     commit(setNote(current(), id, note))
   },
-  /** Esvazia o carrinho (o cliente avisa que já enviou o pedido pelo WhatsApp). */
+  /** Esvazia o carrinho (pedido confirmado pelo site, ou acréscimo confirmado). */
   clear() {
     commit(EMPTY_CART)
   },
