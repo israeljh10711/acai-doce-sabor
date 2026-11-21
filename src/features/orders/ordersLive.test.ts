@@ -54,20 +54,31 @@ function fakeSource(initial: unknown[] = []) {
   return { source, state }
 }
 
+/** Aviso de mentira: conta o bipe de pedido novo (`plays`) e o "ding-dong" de itens acrescentados (`added`). */
 function fakeAlert() {
-  const alert = { plays: 0, play: () => (alert.plays++, true) }
+  const alert = { plays: 0, added: 0, play: () => (alert.plays++, true), playAdded: () => (alert.added++, true) }
   return alert
 }
 
 /** Relógio de mentira para a consulta de reserva. */
 function fakeTimers() {
   const timers = new Map<number, () => void>()
+  const timeouts = new Map<number, () => void>()
   let next = 0
   return {
     timers,
+    timeouts,
     setInterval: (callback: () => void) => (timers.set(++next, callback), next),
     clearInterval: (id: number) => void timers.delete(id),
+    setTimeout: (callback: () => void) => (timeouts.set(++next, callback), next),
+    clearTimeout: (id: number) => void timeouts.delete(id),
     tick: () => [...timers.values()].forEach((callback) => callback()),
+    /** Faz passar o tempo dos destaques. */
+    elapse: () => {
+      const pending = [...timeouts.values()]
+      timeouts.clear()
+      pending.forEach((callback) => callback())
+    },
   }
 }
 
@@ -238,5 +249,160 @@ describe('painel ao vivo: mudar a situação (2026-11-20)', () => {
     const order = live.getSnapshot().orders[0]
     state.rows = []
     expect(await live.setStatus(order, 'preparando')).toEqual({ ok: false, message: 'O pedido não foi encontrado. Atualize a lista.' })
+  })
+})
+
+/** Um lote acrescentado pelo cliente, como a função do banco grava (com a chave única do lote). */
+const batch = (key: string, cents = 300) => ({
+  attempt_key: key,
+  created_at: '2026-11-20T18:30:00.000Z',
+  subtotal_cents: cents,
+  itemsBlock: '',
+  items: [{ name: 'Picolé Gourmet', quantity: 1, total_cents: cents }],
+})
+const batches = (...keys: string[]) => keys.map((key) => batch(key))
+
+describe('painel ao vivo: itens acrescentados pelo cliente (2026-11-20)', () => {
+  async function started(initial: unknown[]) {
+    const { source, state } = fakeSource(initial)
+    const alert = fakeAlert()
+    const timers = fakeTimers()
+    const live = createOrdersLive({ source, alert, timers, now: () => Date.parse('2026-11-20T18:40:00.000Z') })
+    live.start()
+    await settle()
+    return { live, state, alert, timers }
+  }
+
+  it('lote novo num pedido conhecido: o "ding-dong" uma vez, destaque e aviso com o código; o contador de novos não muda', async () => {
+    const { live, state, alert } = await started([row('1'), row('2', 'preparando')])
+    state.onChange({ type: 'UPDATE', row: row('2', 'preparando', { additions: batches('k1') }) })
+    const snapshot = live.getSnapshot()
+    expect([alert.added, alert.plays, snapshot.newCount, snapshot.orders.length]).toEqual([1, 0, 1, 2])
+    expect([Object.keys(snapshot.highlighted), snapshot.notices.map((notice) => [notice.code, notice.batches])]).toEqual([['2'], [['ADS-2', 1]]])
+    expect(snapshot.orders.find((order) => order.id === '2')?.status).toBe('preparando')
+  })
+
+  it('evento repetido (reconexão, inscrição duplicada): toca uma vez só', async () => {
+    const { live, state, alert } = await started([row('1')])
+    const update = { type: 'UPDATE' as const, row: row('1', 'novo', { additions: batches('k1') }) }
+    state.onChange(update)
+    state.onChange(update)
+    state.onChange(update)
+    expect([alert.added, live.getSnapshot().notices.length]).toEqual([1, 1])
+  })
+
+  it('mudança de situação, total mudado, cancelamento, conclusão e UPDATE sem a coluna (TOAST): nada de "ding-dong"', async () => {
+    const { live, state, alert } = await started([row('1', 'novo', { additions: batches('k1') })])
+    state.onChange({ type: 'UPDATE', row: row('1', 'preparando') })
+    state.onChange({ type: 'UPDATE', row: row('1', 'preparando', { total_cents: 999 }) })
+    state.onChange({ type: 'UPDATE', row: row('1', 'pronto_consumo', { additions: batches('k1') }) })
+    state.onChange({ type: 'UPDATE', row: row('1', 'cancelado') })
+    state.onChange({ type: 'UPDATE', row: row('1', 'concluido') })
+    expect([alert.added, alert.plays, live.getSnapshot().notices, live.getSnapshot().highlighted]).toEqual([0, 0, [], {}])
+  })
+
+  it('carga inicial com lotes antigos, e acréscimo que chegou durante a carga e já veio nela: sem aviso', async () => {
+    const { source, state } = fakeSource([row('1', 'preparando', { additions: batches('k1') })])
+    state.holdLoad = true
+    const alert = fakeAlert()
+    const live = createOrdersLive({ source, alert, timers: fakeTimers() })
+    live.start()
+    state.onChange({ type: 'UPDATE', row: row('1', 'preparando', { additions: batches('k1') }) })
+    state.pendingLoad?.()
+    await settle()
+    expect([alert.added, live.getSnapshot().notices.length]).toEqual([0, 0])
+  })
+
+  it('acréscimo que chegou durante a carga e não estava nela: avisa uma vez', async () => {
+    const { source, state } = fakeSource([row('1', 'preparando')])
+    state.holdLoad = true
+    const alert = fakeAlert()
+    const live = createOrdersLive({ source, alert, timers: fakeTimers() })
+    live.start()
+    state.onChange({ type: 'UPDATE', row: row('1', 'preparando', { additions: batches('k1') }) })
+    state.pendingLoad?.()
+    await settle()
+    expect([alert.added, live.getSnapshot().notices.map((notice) => notice.code)]).toEqual([1, ['ADS-1']])
+  })
+
+  it('consulta de reserva (Realtime caído) acha o lote novo: avisa uma vez; a próxima consulta e o Realtime atrasado não repetem', async () => {
+    const { live, state, alert } = await started([row('1', 'preparando')])
+    state.rows = [row('1', 'preparando', { additions: batches('k1') })]
+    await live.refresh()
+    await live.refresh()
+    state.onChange({ type: 'UPDATE', row: row('1', 'preparando', { additions: batches('k1') }) })
+    expect([alert.added, live.getSnapshot().notices.length]).toEqual([1, 1])
+  })
+
+  it('a linha que volta ao mudar a situação já traz o lote (antes do Realtime): avisa uma vez, e o Realtime depois não repete', async () => {
+    const { live, state, alert } = await started([row('1', 'novo')])
+    state.rows = [row('1', 'novo', { additions: batches('k1') })]
+    await live.setStatus(live.getSnapshot().orders[0], 'preparando')
+    state.onChange({ type: 'UPDATE', row: row('1', 'preparando', { additions: batches('k1') }) })
+    expect([alert.added, Object.keys(live.getSnapshot().highlighted)]).toEqual([1, ['1']])
+  })
+
+  it('acréscimos em dois pedidos: dois avisos, só os dois cartões destacados; o terceiro fica como estava', async () => {
+    const { live, state, alert } = await started([row('1'), row('2', 'preparando'), row('3')])
+    state.onChange({ type: 'UPDATE', row: row('1', 'novo', { additions: batches('a') }) })
+    state.onChange({ type: 'UPDATE', row: row('2', 'preparando', { additions: batches('b') }) })
+    expect([alert.added, live.getSnapshot().notices.map((notice) => notice.code), Object.keys(live.getSnapshot().highlighted).sort()]).toEqual([
+      2,
+      ['ADS-1', 'ADS-2'],
+      ['1', '2'],
+    ])
+  })
+
+  it('o mesmo pedido recebe outro lote depois: outro aviso (o anterior não some)', async () => {
+    const { live, state, alert } = await started([row('1')])
+    state.onChange({ type: 'UPDATE', row: row('1', 'novo', { additions: batches('a') }) })
+    state.onChange({ type: 'UPDATE', row: row('1', 'novo', { additions: batches('a', 'b') }) })
+    expect([alert.added, live.getSnapshot().notices.length]).toEqual([2, 2])
+  })
+
+  it('"Visto": some o destaque e os avisos do pedido; fechar um aviso não mexe no destaque', async () => {
+    const { live, state } = await started([row('1'), row('2')])
+    state.onChange({ type: 'UPDATE', row: row('1', 'novo', { additions: batches('a') }) })
+    state.onChange({ type: 'UPDATE', row: row('2', 'novo', { additions: batches('b') }) })
+    live.dismissNotice(live.getSnapshot().notices[1].id)
+    expect([live.getSnapshot().notices.map((notice) => notice.code), Object.keys(live.getSnapshot().highlighted).sort()]).toEqual([['ADS-1'], ['1', '2']])
+    live.markSeen('1')
+    expect([live.getSnapshot().notices, Object.keys(live.getSnapshot().highlighted)]).toEqual([[], ['2']])
+  })
+
+  it('o destaque some quando o vendedor muda a situação do pedido, ou sozinho depois de 10 minutos', async () => {
+    const { live, state, timers } = await started([row('1'), row('2')])
+    state.onChange({ type: 'UPDATE', row: row('1', 'novo', { additions: batches('a') }) })
+    state.onChange({ type: 'UPDATE', row: row('2', 'novo', { additions: batches('b') }) })
+    const second = live.getSnapshot().orders.find((order) => order.id === '2')
+    if (!second) throw new Error('pedido 2 sumiu')
+    await live.setStatus(second, 'preparando')
+    expect(Object.keys(live.getSnapshot().highlighted)).toEqual(['1'])
+    timers.elapse()
+    expect(live.getSnapshot().highlighted).toEqual({})
+  })
+
+  it('muitos acréscimos seguidos: até 4 avisos empilhados (os mais antigos saem)', async () => {
+    const { live, state } = await started([row('1')])
+    const keys = ['a', 'b', 'c', 'd', 'e', 'f']
+    keys.forEach((_key, index) => state.onChange({ type: 'UPDATE', row: row('1', 'novo', { additions: batches(...keys.slice(0, index + 1)) }) }))
+    expect(live.getSnapshot().notices.length).toBe(4)
+  })
+
+  it('sair do Modo Vendedor: esquece lotes, destaques e avisos; ao voltar, os lotes da carga não tocam', async () => {
+    const { live, state, alert } = await started([row('1')])
+    state.onChange({ type: 'UPDATE', row: row('1', 'novo', { additions: batches('a') }) })
+    live.stop()
+    expect([live.getSnapshot().notices, live.getSnapshot().highlighted]).toEqual([[], {}])
+    state.rows = [row('1', 'novo', { additions: batches('a', 'b') })]
+    live.start()
+    await settle()
+    expect([alert.added, live.getSnapshot().notices]).toEqual([1, []])
+  })
+
+  it('pedido que o painel não conhecia: não avisa (não dá para saber qual lote é novo)', async () => {
+    const { live, state, alert } = await started([row('1')])
+    state.onChange({ type: 'UPDATE', row: row('9', 'preparando', { additions: batches('a') }) })
+    expect([alert.added, live.getSnapshot().notices]).toEqual([0, []])
   })
 })

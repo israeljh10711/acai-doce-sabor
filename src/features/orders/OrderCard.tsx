@@ -1,3 +1,4 @@
+import { AnimatePresence, m } from 'motion/react'
 import { useState } from 'react'
 import { formatBRL } from '../../utils/money.ts'
 import { toWhatsAppNumber } from '../../utils/whatsapp.ts'
@@ -68,6 +69,9 @@ const actionButton =
  * modalidade; os itens organizados (SEM, extras pagos, observação); endereço e GPS só na entrega;
  * valores e pagamento como gravados; o próximo passo da modalidade, "❌ Cancelar" com
  * confirmação e "💬 Chamar Cliente no WhatsApp".
+ *
+ * `added` (2026-11-20): o cliente acabou de acrescentar itens e o vendedor ainda não viu. O cartão
+ * ganha a borda roxa e a faixa "➕ Novos itens adicionados" com "✓ Visto" (que tira o destaque).
  */
 export function OrderCard({
   order,
@@ -75,12 +79,16 @@ export function OrderCard({
   busy,
   error,
   onStatus,
+  added = false,
+  onSeen,
 }: {
   order: PanelOrder
   now: number
   busy: boolean
   error: string | null
   onStatus: (status: OrderStatus) => void
+  added?: boolean
+  onSeen?: () => void
 }) {
   const [confirmingCancel, setConfirmingCancel] = useState(false)
   const next = nextStep(order)
@@ -93,11 +101,39 @@ export function OrderCard({
     <article
       data-order-card={order.code}
       data-status={order.status}
+      data-order-added={added ? '' : undefined}
       aria-labelledby={`pedido-${order.id}`}
-      className={`flex flex-col gap-3.5 rounded-2xl bg-white p-4 shadow-card sm:p-5 ${
-        order.status === 'novo' ? 'ring-2 ring-gold-400' : order.status === 'cancelado' ? 'opacity-80 ring-2 ring-red-300' : 'ring-1 ring-line'
+      tabIndex={-1}
+      className={`flex scroll-mt-24 flex-col gap-3.5 rounded-2xl p-4 shadow-card transition-[box-shadow,background-color] duration-300 outline-none sm:p-5 ${
+        added
+          ? 'bg-acai-50 ring-4 ring-acai-600'
+          : `bg-white ${order.status === 'novo' ? 'ring-2 ring-gold-400' : order.status === 'cancelado' ? 'opacity-80 ring-2 ring-red-300' : 'ring-1 ring-line'}`
       }`}
     >
+      <AnimatePresence initial={false}>
+        {added && (
+          <m.div
+            key="novos-itens"
+            data-added-badge=""
+            initial={{ opacity: 0, y: -6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.25 }}
+            className="flex items-center justify-between gap-2 rounded-xl bg-acai-800 py-1.5 pr-1.5 pl-3 text-sm font-extrabold text-white"
+          >
+            <span>➕ Novos itens adicionados</span>
+            <button
+              type="button"
+              data-added-seen=""
+              aria-label={`Visto: itens novos do pedido ${order.code}`}
+              onClick={onSeen}
+              className="inline-flex min-h-10 cursor-pointer items-center rounded-full bg-gold-400 px-3 text-xs font-extrabold text-acai-950 transition hover:bg-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              ✓ Visto
+            </button>
+          </m.div>
+        )}
+      </AnimatePresence>
       <header className="flex flex-col gap-2">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

@@ -194,10 +194,48 @@ Nenhuma chave de servidor vai para o site.
 
 ### Aviso sonoro
 
-- **Quando toca:** um bipe curto de duas notas, feito pela Web Audio do navegador, sem arquivo de som. Toca uma vez para cada pedido "novo" que chega depois da carga.
-- **Quando não toca:** os pedidos que já estavam lá ao abrir, as mudanças de situação e os eventos repetidos.
+Há dois sons, os dois feitos pela Web Audio do navegador, sem arquivo de som:
+
+| Som | Quando toca | Como é |
+|---|---|---|
+| **Pedido novo** | uma vez para cada pedido "novo" que chega depois da carga | bipe duplo curto e agudo (lá e ré, 0,2 s cada) |
+| **Itens acrescentados** (2026-11-20) | uma vez para cada lote de itens que o cliente acrescenta a um pedido já no painel | "ding-dong" ascendente, mais grave e mais longo, com timbre de sino (dó e sol, 0,5 s cada) |
+
+- **Quando não toca:** os pedidos e lotes que já estavam lá ao abrir, as mudanças de situação (inclusive cancelar e concluir), os eventos repetidos e os acréscimos recusados (troco, preço, situação).
 - **Liberação pelo navegador:** o navegador só libera o som depois de um toque na página. Até lá, o painel mostra **🔔 Ativar som** em vez de **🔔 Som Ativo**.
-- **Silenciar:** **🔕 Silenciar** desliga o bipe. A escolha fica guardada no aparelho.
+- **Silenciar:** **🔕 Silenciar** desliga os dois sons. A escolha fica guardada no aparelho.
+
+### Aviso de itens acrescentados pelo cliente (2026-11-20)
+
+**Como o painel sabe que é um acréscimo de verdade:**
+- cada lote em `orders.additions` tem um id único, gravado pelo servidor (`attempt_key`);
+- só a função do banco `adicionar_itens_pedido` escreve nessa coluna, chamada pela função `pedido` depois de conferir a sessão do cliente. O vendedor só pode mudar `status`;
+- por isso, um lote com id que o painel nunca viu, num pedido que ele já conhecia, é sempre um acréscimo confirmado do cliente. Não é preciso olhar quem fez o UPDATE nem mudar o banco.
+
+**Quando não avisa:**
+- **mudança de situação (inclusive cancelar e concluir):** não traz lote novo;
+- **evento repetido do Realtime:** o lote já foi visto;
+- **UPDATE sem a coluna `additions` (TOAST):** fica o que já se sabia;
+- **acréscimo recusado:** nada é gravado, então não chega UPDATE.
+
+**Sem aviso duplicado:** o painel guarda os ids dos lotes já vistos e avisa uma vez por lote, venha ele pelo Realtime, pela consulta de reserva (conexão caída) ou na linha que volta quando o vendedor muda a situação. A carga inicial (abrir ou recarregar o painel) só registra os lotes, sem aviso.
+
+**Em qualquer página:**
+- a escuta é a mesma do painel ao vivo: uma inscrição só, ligada enquanto o vendedor estiver no Modo Vendedor, em qualquer página;
+- o balão "🔔 Novos itens adicionados ao pedido ADS-0003" fica na faixa do vendedor, que o cliente nunca vê;
+- ao sair do Modo Vendedor, a inscrição, os lotes vistos, os destaques e os avisos são apagados.
+
+**O que o vendedor vê:**
+- **Balão no alto da tela:** some sozinho em 9 s. Tem "Ver pedido", que abre o painel no cartão, e ✕. Vários acréscimos empilham até 4 balões, sem apagar os anteriores.
+- **Cartão destacado:** borda roxa e a faixa "➕ Novos itens adicionados" com **✓ Visto**. O destaque sai no "✓ Visto", quando o vendedor muda a situação do pedido, ou sozinho depois de 10 minutos.
+- **O que não muda:** o contador vermelho de pedidos novos, a situação do pedido, o número de cartões e o código.
+
+**Onde está no código:**
+- `src/features/orders/orderAlert.ts`: os dois sons;
+- `src/features/orders/ordersLive.ts`: a detecção, os destaques e os avisos;
+- `src/features/orders/AddedItemsNotices.tsx`: os balões, na faixa do vendedor;
+- `src/features/orders/OrderCard.tsx`: o cartão destacado;
+- `src/features/orders/orderFocus.ts`: o "Ver pedido".
 
 ### Modo de demonstração local (sem o Supabase)
 
@@ -283,7 +321,7 @@ O SQL não apaga nenhum pedido. Pode rodar de novo sem duplicar nada.
 1. Em "➕ Adicionar mais itens a este pedido", o site entra no modo de adição. A faixa "➕ Adicionando itens ao pedido #ADS-0001" fica no topo (sobrevive a recarregar) e tem "Cancelar adição".
 2. O carrinho mostra o pedido atual, os novos itens, o novo total (sem frete de novo) e, no dinheiro, o troco. O site confere se o troco cobre o novo total.
 3. "Confirmar adição ao pedido" acrescenta ao MESMO pedido, com o mesmo código.
-4. No painel do vendedor, o mesmo cartão ganha "➕ Novos itens adicionados pelo cliente", com a hora, os itens e o valor. Não vira cartão novo, não aumenta o contador e não toca o bipe.
+4. No painel do vendedor, o mesmo cartão ganha "➕ Novos itens adicionados pelo cliente", com a hora, os itens e o valor. Não vira cartão novo e não aumenta o contador. O vendedor ouve o "ding-dong" de itens acrescentados (não o bipe de pedido novo), vê o cartão destacado e o balão do aviso, em qualquer página (veja "Aviso de itens acrescentados pelo cliente").
 5. Se a loja terminar de preparar enquanto o cliente escolhe, a tela bloqueia na hora. O banco também recusa, e o cliente pode fazer um pedido novo com os mesmos itens.
 
 ### Modo de demonstração (sem o Supabase)
@@ -311,7 +349,7 @@ A loja não recebe nada desse modo.
 7. **Painel ao vivo:** no computador do balcão, entre no Modo Vendedor, abra **📋 Pedidos** e toque em **🔔 Ativar som**. O topo deve dizer "🟢 Ao vivo". Faça um pedido pelo celular: ele aparece no painel em segundos, com o bipe e o selo vermelho na faixa, sem recarregar. Toque em **Aceitar / Preparar** e confira a coluna `status` em **Table Editor > orders**.
    - No celular, a tela do pedido muda sozinha para "🍨 Preparando seu pedido", com o horário.
    - Em **Table Editor > order_events** aparece uma linha por etapa.
-   - No celular, toque em **➕ Adicionar mais itens a este pedido**, escolha um item e toque em **Confirmar adição ao pedido**. No painel, o mesmo cartão mostra "➕ Novos itens adicionados pelo cliente", sem bipe.
+   - No celular, toque em **➕ Adicionar mais itens a este pedido**, escolha um item e toque em **Confirmar adição ao pedido**. No painel, o mesmo cartão mostra "➕ Novos itens adicionados pelo cliente" e fica destacado, com o "ding-dong" (diferente do bipe de pedido novo) e o balão "🔔 Novos itens adicionados ao pedido ...".
 8. Para apagar o pedido de teste, marque a linha em **Table Editor > orders** e apague. O próximo código continua a numeração (ADS-0002).
 
 ## Se algo der errado

@@ -78,7 +78,11 @@ export type PanelOrder = {
   additions: OrderAddition[]
 }
 
-export type OrderAddition = { createdAt: number; subtotalCents: number; itemsBlock: string; items: PanelOrder['items'] }
+/**
+ * Um lote acrescentado pelo cliente. `key`: o id único do lote, gravado pelo servidor (`attempt_key`,
+ * a mesma tentativa nunca grava dois lotes); o painel o usa para avisar uma vez só por acréscimo.
+ */
+export type OrderAddition = { key: string; createdAt: number; subtotalCents: number; itemsBlock: string; items: PanelOrder['items'] }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
@@ -140,10 +144,12 @@ export function parseOrderRow(raw: unknown): PanelOrder | null {
 /** Os lotes acrescentados pelo cliente; o que não dá para ler fica de fora. */
 function parseAdditions(raw: unknown): OrderAddition[] {
   if (!Array.isArray(raw)) return []
-  return raw.flatMap((entry) => {
+  return raw.flatMap((entry, index) => {
     if (!isRecord(entry)) return []
     const at = typeof entry.created_at === 'string' ? Date.parse(entry.created_at) : Number.NaN
-    return [{ createdAt: Number.isFinite(at) ? at : 0, subtotalCents: cents(entry.subtotal_cents), itemsBlock: typeof entry.itemsBlock === 'string' ? entry.itemsBlock : '', items: parseItems(entry.items) }]
+    // Sem a chave (não deveria acontecer): a hora e a posição identificam o lote.
+    const key = text(entry.attempt_key) || `lote-${String(entry.created_at ?? '')}-${index}`
+    return [{ key, createdAt: Number.isFinite(at) ? at : 0, subtotalCents: cents(entry.subtotal_cents), itemsBlock: typeof entry.itemsBlock === 'string' ? entry.itemsBlock : '', items: parseItems(entry.items) }]
   })
 }
 

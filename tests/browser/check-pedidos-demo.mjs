@@ -7,7 +7,8 @@
 // - o painel mostra "Modo de demonstração local" e o pedido; muda a situação e cancela (guardado);
 // - outras abas do mesmo navegador: a mudança e o pedido novo aparecem sozinhos, com o bipe;
 // - a aba do cliente acompanha a mudança na hora; "Adicionar mais itens" acrescenta ao mesmo pedido
-//   e o painel mostra os novos itens no mesmo cartão, sem bipe;
+//   e o painel mostra os novos itens no mesmo cartão, destacado, com o aviso e o "ding-dong"
+//   de itens acrescentados (não o bipe de pedido novo), sem mudar o contador;
 // - recarregar mantém os pedidos, sem repetir.
 //
 // Uso: node tests/browser/check-pedidos-demo.mjs
@@ -51,11 +52,12 @@ const helpers = `
   };
   window.__fakeAudio = (win = window) => {
     win.__tones = 0;
+    win.__notes = [];
     class FakeAudio {
       constructor() { this.state = 'suspended'; this.currentTime = 0; this.destination = {}; this.listeners = []; }
       addEventListener(type, listener) { this.listeners.push(listener); }
       resume() { this.state = 'running'; this.listeners.forEach((listener) => listener()); return Promise.resolve(); }
-      createOscillator() { return { type: 'sine', frequency: { value: 0 }, connect: (node) => node, start: () => { win.__tones++ }, stop() {} }; }
+      createOscillator() { const osc = { type: 'sine', frequency: { value: 0 }, connect: (node) => node, start: () => { win.__tones++; win.__notes.push(osc.type + ':' + osc.frequency.value) }, stop() {} }; return osc; }
       createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect: (node) => node }; }
     }
     Object.defineProperty(win, 'AudioContext', { value: FakeAudio, configurable: true });
@@ -151,7 +153,7 @@ try {
   check('a aba do cliente mostra "Preparando" sozinha', await waitFor(`window.__t.document.querySelector('[data-step="preparando"]')?.dataset.stepState === 'current'`, 4000), true)
 
   // --- O cliente acrescenta itens ao mesmo pedido ---
-  const tonesBeforeAdd = await run(`window.__tones`)
+  const notesBeforeAdd = await run(`window.__notes.length`)
   await run(`window.__t.document.querySelector('[data-add-items]').click(); true`)
   check('aba do cliente: modo de adição no cardápio', await waitFor(`window.__t.document.querySelector('[data-add-mode-banner="DEMO-0001"]')`, 6000), true)
   await run(`localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'z1', itemId: 'jujuba', choices: [], quantity: 2 }] })); window.__t.location.href = '/carrinho'; true`)
@@ -160,9 +162,13 @@ try {
   await run(`window.__t.document.querySelector('[data-add-confirm]').click(); true`)
   check('itens acrescentados ao mesmo pedido', await waitFor(`window.__t.document.querySelector('[data-order-success="itens"]')`, 6000), true)
   check(
-    'painel: o mesmo cartão com "➕ Novos itens", sem cartão novo e sem bipe',
-    [await waitFor(`__q('[data-order-card="DEMO-0001"] [data-order-addition]')`, 4000), await run(`[__codes(), window.__tones - ${tonesBeforeAdd}, __q('[data-order-card="DEMO-0001"] [data-addition-total]')?.textContent]`)],
-    [true, [['DEMO-0001:preparando'], 0, '+ R$ 2,00']],
+    'painel: o mesmo cartão com "➕ Novos itens", sem cartão novo, destacado, com o aviso e o "ding-dong" (não o bipe)',
+    [
+      await waitFor(`__q('[data-order-card="DEMO-0001"] [data-order-addition]')`, 4000),
+      await waitFor(`__q('[data-added-notice="DEMO-0001"]')`, 4000),
+      await run(`[__codes(), window.__notes.slice(${notesBeforeAdd}), __q('[data-order-card="DEMO-0001"]').matches('[data-order-added]'), __q('[data-order-card="DEMO-0001"] [data-addition-total]')?.textContent, __q('[data-orders-badge]')?.dataset.ordersBadge ?? '0']`),
+    ],
+    [true, true, [['DEMO-0001:preparando'], ['triangle:523.25', 'triangle:783.99'], true, '+ R$ 2,00', '0']],
   )
   await run(`window.__t.close(); true`)
 
@@ -182,7 +188,11 @@ try {
   await sleep(500)
   await run(`window.__c.document.querySelector('[data-finalize]').click(); true`)
   check('pedido de outra aba aparece sozinho no painel', await waitFor(`__codes().includes('DEMO-0002:novo')`, 4000), true)
-  check('com o bipe e o selo atualizado', [await run(`window.__tones`), await run(`__q('[data-orders-badge]')?.dataset.ordersBadge`)], [2, '1'])
+  check(
+    'com o bipe de pedido novo (não o ding-dong) e o selo atualizado',
+    [await run(`window.__notes.slice(${notesBeforeAdd} + 2)`), await run(`__q('[data-orders-badge]')?.dataset.ordersBadge`)],
+    [['sine:880', 'sine:1175'], '1'],
+  )
   check('e também na outra aba do painel', await waitFor(`__codes(window.__b.document).includes('DEMO-0002:novo')`, 4000), true)
 
   // --- Cancelar ---

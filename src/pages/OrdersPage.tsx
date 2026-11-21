@@ -1,8 +1,9 @@
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { Container } from '../components/layout/Container.tsx'
 import { ClipboardList, LockOpen, RotateCcw } from '../components/ui/icons.tsx'
 import { OrderCard } from '../features/orders/OrderCard.tsx'
 import { soundAlert } from '../features/orders/orderAlert.ts'
+import { onOrderFocus, scrollToOrderCard } from '../features/orders/orderFocus.ts'
 import type { OrdersSnapshot } from '../features/orders/ordersLive.ts'
 import { ORDER_FILTERS, type OrderFilter, type OrderStatus, type PanelOrder, STATUS_LABEL, filterCounts, filterOrders } from '../features/orders/ordersPanel.ts'
 import { getOrdersLive, useOrders, useOrdersConnection, useSoundState } from '../features/orders/ordersRuntime.ts'
@@ -66,6 +67,16 @@ function Board() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [announcement, setAnnouncement] = useState('')
 
+  // "Ver pedido" num aviso de itens acrescentados (2026-11-20): mostra o cartão, em qualquer filtro.
+  useEffect(
+    () =>
+      onOrderFocus((code) => {
+        setFilter('todos')
+        scrollToOrderCard(code)
+      }),
+    [],
+  )
+
   const counts = filterCounts(snapshot.orders)
   const shown = filterOrders(snapshot.orders, filter)
   // "Hoje" para os cartões: o dia da última consulta (os cartões só aparecem depois dela).
@@ -103,7 +114,7 @@ function Board() {
               <RotateCcw className="size-4" />
               Atualizar agora
             </button>
-            <div role="group" aria-label="Som do aviso de pedido novo" className="inline-flex gap-1 rounded-xl bg-white/10 p-1 ring-1 ring-white/20">
+            <div role="group" aria-label="Som dos avisos de pedido novo e de itens acrescentados" className="inline-flex gap-1 rounded-xl bg-white/10 p-1 ring-1 ring-white/20">
               <button
                 type="button"
                 data-orders-sound-on=""
@@ -126,7 +137,7 @@ function Board() {
           </div>
           {sound === 'blocked' && (
             <p data-orders-sound-hint="" className="text-sm text-gold-300">
-              O navegador só libera o som depois de um toque: toque em "🔔 Ativar som" (ou em qualquer lugar da página) para ouvir o aviso de pedido novo.
+              O navegador só libera o som depois de um toque: toque em "🔔 Ativar som" (ou em qualquer lugar da página) para ouvir os avisos de pedido novo e de itens acrescentados.
             </p>
           )}
         </div>
@@ -172,6 +183,8 @@ function Board() {
               busy={Boolean(busy[order.id])}
               error={errors[order.id] ?? null}
               onStatus={(status) => void changeStatus(order, status)}
+              added={order.id in snapshot.highlighted}
+              onSeen={() => getOrdersLive().markSeen(order.id)}
             />
           ))}
         </div>

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Clock, Download, LockOpen, Scooter, Upload } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
+import { AddedItemsNotices } from '../orders/AddedItemsNotices.tsx'
 import { useOrders, useOrdersConnection } from '../orders/ordersRuntime.ts'
 import { MIN_PASSWORD_LENGTH } from '../../services/sellerCatalogStore.ts'
 import { DeliverySettingsModal } from './DeliverySettingsModal.tsx'
@@ -18,6 +19,8 @@ import { StoreHoursContactModal } from './StoreHoursContactModal.tsx'
  * "Tempo", "Entrega / Frete" e "Horários e Contato". Desde 2026-11-20, "📋 Pedidos": o painel de
  * pedidos do balcão, com o selo vermelho dos pedidos novos. Enquanto a faixa está na tela (vendedor
  * logado), a escuta dos pedidos fica ligada em qualquer página; ao sair do Modo Vendedor, ela para.
+ * Os avisos de itens acrescentados pelo cliente (2026-11-20) moram aqui também: aparecem em qualquer
+ * página só para o vendedor logado, e somem junto com a faixa ao sair.
  */
 export function SellerBar() {
   const seller = useSellerMode()
@@ -88,6 +91,7 @@ export function SellerBar() {
       {open === 'backup' && <BackupRestore onClose={() => setOpen(null)} />}
       {open === 'delivery' && <DeliverySettingsModal onClose={() => setOpen(null)} />}
       {open === 'hours' && <StoreHoursContactModal onClose={() => setOpen(null)} />}
+      <AddedItemsNotices />
     </div>
   )
 }

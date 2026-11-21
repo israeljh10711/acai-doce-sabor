@@ -89,13 +89,22 @@ describe('leitura dos pedidos no painel (pedido de 2026-11-20, etapa 2)', () => 
 
   it('itens acrescentados pelo cliente (2026-11-20): cada lote com a hora, os itens e o valor', () => {
     const additions = [
-      { created_at: '2026-11-20T19:00:00.000Z', subtotal_cents: 700, itemsBlock: 'bloco', items: [{ name: 'Picolé', quantity: 2, total_cents: 700 }] },
+      { attempt_key: 'a'.repeat(64), created_at: '2026-11-20T19:00:00.000Z', subtotal_cents: 700, itemsBlock: 'bloco', items: [{ name: 'Picolé', quantity: 2, total_cents: 700 }] },
       'estragado',
     ]
     expect(order({ additions }).additions).toEqual([
-      { createdAt: Date.parse('2026-11-20T19:00:00.000Z'), subtotalCents: 700, itemsBlock: 'bloco', items: [{ name: 'Picolé', quantity: 2, totalCents: 700, note: null }] },
+      { key: 'a'.repeat(64), createdAt: Date.parse('2026-11-20T19:00:00.000Z'), subtotalCents: 700, itemsBlock: 'bloco', items: [{ name: 'Picolé', quantity: 2, totalCents: 700, note: null }] },
     ])
     expect(order({ additions: null }).additions).toEqual([])
+  })
+
+  it('lote sem a chave do servidor (não deveria acontecer): a hora e a posição viram a chave', () => {
+    const additions = [
+      { created_at: '2026-11-20T19:00:00.000Z', subtotal_cents: 100, items: [] },
+      { created_at: '2026-11-20T19:00:00.000Z', subtotal_cents: 100, items: [] },
+    ]
+    const keys = order({ additions }).additions.map((addition) => addition.key)
+    expect([keys.length, new Set(keys).size]).toEqual([2, 2])
   })
 
   it('link de mapa gravado diferente das coordenadas: vale o refeito das coordenadas', () => {

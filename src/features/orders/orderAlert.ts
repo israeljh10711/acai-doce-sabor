@@ -5,6 +5,11 @@
  * O navegador só libera o som depois de um toque na página. O áudio é criado nesse toque
  * (`unlock`), e o painel só diz "Som Ativo" quando o navegador já liberou (`state() === 'on'`).
  * Silenciado (`off`), nada toca. A escolha fica guardada no aparelho.
+ *
+ * Dois sons (2026-11-20), com o mesmo liga/desliga e a mesma liberação:
+ * - pedido novo (`play`): bipe duplo curto e agudo (lá e ré, onda senoidal, 0,2 s cada);
+ * - itens acrescentados pelo cliente (`playAdded`): "ding-dong" ascendente, mais grave, mais longo e
+ *   com timbre de sino (dó e sol, onda triangular, 0,5 s cada), para não ser confundido com pedido novo.
  */
 
 /** O pedaço da Web Audio que o aviso usa (o do navegador, ou um de mentira nos testes). */
@@ -36,12 +41,37 @@ export type SoundAlert = {
   setOn(on: boolean): void
   /** Qualquer toque na página: libera o som se estiver ligado. */
   unlock(): void
-  /** Toca o bipe se estiver ligado e liberado. Devolve se tocou. */
+  /** Toca o bipe de pedido novo se estiver ligado e liberado. Devolve se tocou. */
   play(): boolean
+  /** Toca o "ding-dong" de itens acrescentados (mesmas regras do bipe). Devolve se tocou. */
+  playAdded(): boolean
   subscribe(listener: () => void): () => void
 }
 
 export const SOUND_KEY = 'acai_doce_sabor_pedidos_som_v1'
+
+type Note = { at: number; frequency: number; length: number }
+type Melody = { wave: string; peak: number; notes: readonly Note[] }
+
+/** Pedido novo: duas notas curtas e agudas (lá e ré). */
+export const NEW_ORDER_MELODY: Melody = {
+  wave: 'sine',
+  peak: 0.25,
+  notes: [
+    { at: 0, frequency: 880, length: 0.2 },
+    { at: 0.2, frequency: 1175, length: 0.2 },
+  ],
+}
+
+/** Itens acrescentados: "ding-dong" ascendente, mais grave e mais longo (dó e sol, timbre de sino). */
+export const ADDED_ITEMS_MELODY: Melody = {
+  wave: 'triangle',
+  peak: 0.22,
+  notes: [
+    { at: 0, frequency: 523.25, length: 0.5 },
+    { at: 0.32, frequency: 783.99, length: 0.6 },
+  ],
+}
 
 export function createSoundAlert({
   createContext,
@@ -73,6 +103,27 @@ export function createSoundAlert({
     return context
   }
 
+  /** Toca as notas se o som estiver ligado e o navegador já tiver liberado. */
+  const sing = (melody: Melody): boolean => {
+    if (!on || !context || context.state !== 'running') return false
+    const ctx = context
+    const start = ctx.currentTime + 0.01
+    for (const { at, frequency, length } of melody.notes) {
+      const oscillator = ctx.createOscillator()
+      const gain = ctx.createGain()
+      oscillator.type = melody.wave
+      oscillator.frequency.value = frequency
+      gain.gain.setValueAtTime(0.0001, start + at)
+      gain.gain.exponentialRampToValueAtTime(melody.peak, start + at + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + at + length - 0.02)
+      oscillator.connect(gain)
+      gain.connect(ctx.destination)
+      oscillator.start(start + at)
+      oscillator.stop(start + at + length)
+    }
+    return true
+  }
+
   const alert: SoundAlert = {
     state() {
       if (!on) return 'off'
@@ -94,29 +145,8 @@ export function createSoundAlert({
       if (ctx && ctx.state !== 'running') void ctx.resume().then(notify, notify)
       else notify()
     },
-    play() {
-      if (!on || !context || context.state !== 'running') return false
-      const ctx = context
-      const start = ctx.currentTime + 0.01
-      // Duas notas suaves (lá e ré), curtas, com volume moderado.
-      for (const [offset, frequency] of [
-        [0, 880],
-        [0.2, 1175],
-      ] as const) {
-        const oscillator = ctx.createOscillator()
-        const gain = ctx.createGain()
-        oscillator.type = 'sine'
-        oscillator.frequency.value = frequency
-        gain.gain.setValueAtTime(0.0001, start + offset)
-        gain.gain.exponentialRampToValueAtTime(0.25, start + offset + 0.02)
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.18)
-        oscillator.connect(gain)
-        gain.connect(ctx.destination)
-        oscillator.start(start + offset)
-        oscillator.stop(start + offset + 0.2)
-      }
-      return true
-    },
+    play: () => sing(NEW_ORDER_MELODY),
+    playAdded: () => sing(ADDED_ITEMS_MELODY),
     subscribe(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)

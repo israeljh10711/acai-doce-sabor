@@ -7,7 +7,9 @@
 //   só para a sessão dela (a Bia não recebe) e a Bia não abre o pedido da Ana nem pelo código;
 // - "➕ Adicionar mais itens": a faixa do modo de adição sobrevive a recarregar; troco conferido;
 //   "Confirmar adição" acrescenta ao MESMO pedido (mesmo código, sem frete de novo, total novo);
-//   no painel o cartão mostra "➕ Novos itens adicionados pelo cliente", sem cartão novo nem bipe;
+//   no painel o cartão mostra "➕ Novos itens adicionados pelo cliente", sem cartão novo; o vendedor
+//   ouve o "ding-dong" (não o bipe de pedido novo), vê o cartão destacado e o aviso, em qualquer
+//   página (também no cardápio), e o contador de pedidos novos não muda;
 // - toque duplo e tentativa repetida não acrescentam duas vezes; troco que não cobre é recusado;
 // - o pedido avança enquanto o cliente escolhe: a adição é bloqueada (na tela e no banco);
 // - vários pedidos no mesmo aparelho; sem Realtime, a tela continua se atualizando sozinha;
@@ -61,13 +63,15 @@ const helpers = `
   window.__card = (code) => __q('[data-order-card="' + code + '"]');
   window.__codes = () => [...document.querySelectorAll('[data-order-card]')].map((card) => card.dataset.orderCard);
   window.__noOverflow = () => document.documentElement.scrollWidth <= window.innerWidth;
+  // Web Audio de mentira: conta as notas e guarda o timbre e a altura de cada uma ("sine:880").
   window.__fakeAudio = () => {
     window.__tones = 0;
+    window.__notes = [];
     class FakeAudio {
       constructor() { this.state = 'suspended'; this.currentTime = 0; this.destination = {}; this.listeners = []; }
       addEventListener(type, listener) { this.listeners.push(listener); }
       resume() { this.state = 'running'; this.listeners.forEach((listener) => listener()); return Promise.resolve(); }
-      createOscillator() { return { type: 'sine', frequency: { value: 0 }, connect: (node) => node, start: () => { window.__tones++ }, stop() {} }; }
+      createOscillator() { const osc = { type: 'sine', frequency: { value: 0 }, connect: (node) => node, start: () => { window.__tones++; window.__notes.push(osc.type + ':' + osc.frequency.value) }, stop() {} }; return osc; }
       createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect: (node) => node }; }
     }
     Object.defineProperty(window, 'AudioContext', { value: FakeAudio, configurable: true });
@@ -214,7 +218,8 @@ try {
   )
 
   // --- Ana acrescenta itens ao mesmo pedido ---
-  const tonesBefore = await seller.run(`window.__tones`)
+  const notesBefore = await seller.run(`window.__notes.length`)
+  const badgeBefore = await seller.run(`__q('[data-orders-badge]')?.dataset.ordersBadge ?? '0'`)
   await ana.click(`__q('[data-add-items]')`, 500)
   check(
     '"➕ Adicionar mais itens": o cardápio com a faixa do modo de adição',
@@ -257,16 +262,42 @@ try {
     true,
   )
   check(
-    'painel: "➕ Novos itens adicionados pelo cliente" no MESMO cartão, sem cartão novo e sem bipe',
+    'painel: "➕ Novos itens adicionados pelo cliente" no MESMO cartão, sem cartão novo',
     [
       await seller.waitFor(`__text(__card('ADS-0001')?.querySelector('[data-order-addition]'))?.includes('➕ Novos itens adicionados pelo cliente')`),
       await seller.run(`[__codes().length, __text(__card('ADS-0001').querySelector('[data-order-addition] [data-order-items]')), __text(__card('ADS-0001').querySelector('[data-addition-total]')), /^\\d{2}:\\d{2}$/.test(__text(__card('ADS-0001').querySelector('[data-addition-time]')))]`),
-      (await seller.run(`window.__tones`)) - tonesBefore,
     ],
-    [true, [2, '2x Jujuba R$ 2,00', '+ R$ 2,00', true], 0],
+    [true, [2, '2x Jujuba R$ 2,00', '+ R$ 2,00', true]],
   )
-
+  // Aviso de itens acrescentados (2026-11-20): o "ding-dong" (não o bipe de pedido novo), o destaque e o balão.
+  check(
+    'som: o "ding-dong" ascendente uma vez (dó e sol, triangular), sem o bipe de pedido novo',
+    await seller.run(`window.__notes.slice(${notesBefore})`),
+    ['triangle:523.25', 'triangle:783.99'],
+  )
+  check(
+    'destaque: só o cartão do ADS-0001, com "➕ Novos itens adicionados"; o ADS-0002 fica como estava',
+    await seller.run(`[!!__card('ADS-0001').matches('[data-order-added]'), __text(__card('ADS-0001').querySelector('[data-added-badge]'))?.startsWith('➕ Novos itens adicionados'), __card('ADS-0002').matches('[data-order-added]')]`),
+    [true, true, false],
+  )
+  check(
+    'aviso: "🔔 Novos itens adicionados ao pedido ADS-0001"',
+    await seller.run(`__text(__q('[data-added-notice="ADS-0001"]'))?.includes('🔔 Novos itens adicionados ao pedido ADS-0001')`),
+    true,
+  )
+  check(
+    'o contador vermelho de pedidos novos não muda, e a situação do pedido também não',
+    await seller.run(`[__q('[data-orders-badge]')?.dataset.ordersBadge ?? '0', __card('ADS-0001').dataset.status]`),
+    [badgeBefore, 'preparando'],
+  )
   await shotOf(seller, '[data-order-card="ADS-0001"]', 'cartao-vendedor-com-adicao')
+  await seller.click(`__card('ADS-0001').querySelector('[data-added-seen]')`, 600)
+  check('"✓ Visto": o destaque sai', await seller.run(`[__card('ADS-0001').matches('[data-order-added]'), !!__q('[data-added-notice="ADS-0001"]')]`), [false, false])
+
+  // --- Em outra página do Modo Vendedor (o cardápio), pela navegação do site (sem recarregar) ---
+  await seller.click(`__q('header a[href="/monte-seu-pedido"]')`, 800)
+  check('vendedor no cardápio (navegação dentro do site)', await seller.waitFor(`location.pathname === '/monte-seu-pedido'`), true)
+  const notesOnMenu = await seller.run(`window.__notes.length`)
 
   // --- Toque duplo e tentativa repetida: uma adição só ---
   await ana.click(`__q('[data-add-items]')`, 400)
@@ -274,6 +305,19 @@ try {
   await ana.waitFor(`__q('[data-add-confirm]')`)
   await ana.run(`(() => { const b = __q('[data-add-confirm]'); b.click(); b.click(); return true })()`)
   check('toque duplo em "Confirmar adição": um lote só', [await ana.waitFor(`__q('[data-order-success="itens"]')`), anaOrder.additions.length, anaOrder.total_cents], [true, 2, 600])
+  check(
+    'no cardápio: o aviso do ADS-0001 aparece e o "ding-dong" toca uma vez (um lote só)',
+    [await seller.waitFor(`__q('[data-added-notice="ADS-0001"]')`), await seller.run(`[location.pathname, window.__notes.slice(${notesOnMenu})]`)],
+    [true, ['/monte-seu-pedido', ['triangle:523.25', 'triangle:783.99']]],
+  )
+  writeFileSync(join(outDir, 'aviso-no-cardapio.png'), Buffer.from((await seller.browser.send('Page.captureScreenshot', { format: 'png' })).data, 'base64'))
+  await seller.click(`__q('[data-added-notice="ADS-0001"] [data-added-notice-open]')`, 800)
+  check(
+    '"Ver pedido": abre o painel no cartão do ADS-0001, destacado e com o foco',
+    await seller.waitFor(`location.pathname === '/pedidos' && __card('ADS-0001')?.matches('[data-order-added]') && document.activeElement === __card('ADS-0001')`),
+    true,
+  )
+  const notesBeforeRepeat = await seller.run(`window.__notes.length`)
   const repeat = { op: 'adicionar', orderId: anaOrder.id, attemptId: 'tentativa-repetida-0001', cart: JUJUBAS(1, 'j11'), expectedSubtotalCents: 100 }
   const firstTry = await ana.run(`__pedido(${q(repeat)})`)
   const secondTry = await ana.run(`__pedido(${q(repeat)})`)
@@ -282,6 +326,10 @@ try {
     [firstTry.ok, firstTry.repeated, secondTry.ok, secondTry.repeated, anaOrder.additions.length, anaOrder.total_cents],
     [true, false, true, true, 3, 700],
   )
+  await seller.waitFor(`window.__notes.length >= ${notesBeforeRepeat + 2}`)
+  await sleep(800)
+  check('o lote repetido não toca de novo: um "ding-dong" só para as duas chamadas', await seller.run(`window.__notes.length - ${notesBeforeRepeat}`), 2)
+  const notesBeforeRefused = await seller.run(`window.__notes.length`)
   check(
     'troco que não cobre o novo total: recusado pelo banco (nada muda)',
     [await ana.run(`__pedido({ op: 'adicionar', orderId: ${q(anaOrder.id)}, attemptId: 'tentativa-troco-000001', cart: ${q(JUJUBAS(4, 'j12'))}, expectedSubtotalCents: 400 }).then((r) => [r.ok, r.reason, r.totalCents])`), anaOrder.additions.length],
@@ -311,6 +359,12 @@ try {
   )
   await ana.click(`__q('[data-add-new-order]')`, 400)
   check('"Fazer um novo pedido com estes itens": a finalização normal, com o item no carrinho', await ana.run(`[!!__q('[data-finalize]'), !!__q('[data-add-mode-banner]'), __cartItems()]`), [true, false, 1])
+  await sleep(800)
+  check(
+    'acréscimos recusados (troco, preço, situação) e a mudança de situação pelo vendedor: nenhum som',
+    await seller.run(`window.__notes.length - ${notesBeforeRefused}`),
+    0,
+  )
 
   // --- Vários pedidos no mesmo aparelho ---
   await placeOrder(ana, { name: 'Ana', kind: 'retirada', method: 'pix' })
