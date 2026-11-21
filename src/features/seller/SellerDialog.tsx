@@ -12,6 +12,7 @@ export function SellerDialog({
   onClose,
   children,
   wide = false,
+  extraWide = false,
 }: {
   title: string
   titleId: string
@@ -19,6 +20,8 @@ export function SellerDialog({
   onClose: () => void
   children: ReactNode
   wide?: boolean
+  /** O editor de produto do painel (2026-11-21): até 48rem. */
+  extraWide?: boolean
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const opener = useRef<Element | null>(null)
@@ -39,7 +42,7 @@ export function SellerDialog({
       aria-labelledby={titleId}
       onClose={onClose}
       onClick={(event) => event.target === dialog.current && dialog.current?.close()}
-      className={`m-auto max-h-[94dvh] overflow-hidden rounded-3xl bg-white p-0 shadow-lift backdrop:bg-acai-950/70 ${wide ? 'w-[min(94vw,34rem)]' : 'w-[min(94vw,26rem)]'}`}
+      className={`m-auto max-h-[94dvh] overflow-hidden rounded-3xl bg-white p-0 shadow-lift backdrop:bg-acai-950/70 ${extraWide ? 'w-[min(96vw,48rem)]' : wide ? 'w-[min(94vw,34rem)]' : 'w-[min(94vw,26rem)]'}`}
     >
       <div className="flex max-h-[94dvh] flex-col">
         <div className="flex items-start justify-between gap-3 border-b border-line px-5 pt-5 pb-4">

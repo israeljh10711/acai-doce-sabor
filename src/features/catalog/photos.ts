@@ -131,7 +131,11 @@ const PRODUCT_PHOTOS: Readonly<Record<CategorySlug, ProductPhotoData>> = {
 }
 
 /** Foto fixa do produto: a mesma em todo o site, seja qual for o recipiente ou os ingredientes. */
-export const productPhoto = (slug: CategorySlug): ProductPhotoData => PRODUCT_PHOTOS[slug]
+/**
+ * Produto novo da vitrine sem foto enviada (cardápio dinâmico, 2026-11-21): a foto do açaí
+ * tradicional, até o vendedor enviar a dele.
+ */
+export const productPhoto = (slug: string): ProductPhotoData => PRODUCT_PHOTOS[slug as CategorySlug] ?? PRODUCT_PHOTOS['acai-tradicional']
 
 /** Todas as fotos de produto (para os testes). */
 export const ALL_PRODUCT_PHOTOS: readonly ProductPhotoData[] = Object.values(PRODUCT_PHOTOS)

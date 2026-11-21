@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { LEGACY_ANCHORS, MAIN_ANCHORS, NAV_ANCHORS, OFFERS_ANCHOR, navEntries } from './catalogNav.ts'
+import { legacyAnchors, mainAnchor, navAnchors, navEntries, offersAnchor } from './catalogNav.ts'
 import { HIGHLIGHT_IDS, highlightItems } from './highlights.ts'
 import { searchMenu } from './search.ts'
 
 describe('entradas da navegação do cardápio (barra lateral, menu do celular e botões da barra fixa)', () => {
   it('são as 9 seções, em 2 grupos, com as âncoras, os nomes, as dicas e as contagens do catálogo', () => {
     const all = navEntries(searchMenu(''))
-    expect(all.map((entry) => entry.anchor)).toEqual(NAV_ANCHORS)
-    expect(NAV_ANCHORS).toEqual([
+    expect(all.map((entry) => entry.anchor)).toEqual(navAnchors())
+    expect(navAnchors()).toEqual([
       'secao-acai-oca',
       'secao-acai-tradicional',
       'secao-acai-batido',
@@ -40,8 +40,8 @@ describe('entradas da navegação do cardápio (barra lateral, menu do celular e
       'glassWater',
       'candy',
     ])
-    expect(OFFERS_ANCHOR).toBe('secao-combos')
-    expect(MAIN_ANCHORS['milk-shake']).toBe('secao-milkshake')
+    expect(offersAnchor()).toBe('secao-combos')
+    expect(mainAnchor('milk-shake')).toBe('secao-milkshake')
   })
 
   it('na busca, as contagens são as do resultado e as seções sem resultado ficam indisponíveis', () => {
@@ -62,7 +62,7 @@ describe('entradas da navegação do cardápio (barra lateral, menu do celular e
   })
 
   it('os endereços antigos (#acai-oca, #bebidas...) levam às seções novas', () => {
-    expect(LEGACY_ANCHORS).toEqual({
+    expect(legacyAnchors()).toEqual({
       'acai-oca': 'secao-acai-oca',
       'acai-tradicional': 'secao-acai-tradicional',
       'acai-batido': 'secao-acai-batido',
@@ -97,5 +97,13 @@ describe('faixa "Mais pedidos & ofertas do dia"', () => {
 describe('busca: sinônimos citados no pedido de 2026-11-16', () => {
   it('batida, dindin, refri, agua, casquinha e barca acham os produtos', () => {
     expect(['batida', 'dindin', 'refri', 'agua', 'casquinha', 'barca'].map((query) => searchMenu(query).total)).toEqual([1, 2, 1, 1, 6, 1])
+  })
+})
+
+describe('produto novo da vitrine (cardápio dinâmico)', () => {
+  it('ganha âncora secao-<id> e as âncoras ficam as mesmas enquanto o cardápio não muda', () => {
+    expect(mainAnchor('acai-zero')).toBe('secao-acai-zero')
+    expect(navAnchors()).toBe(navAnchors())
+    expect(legacyAnchors()).toBe(legacyAnchors())
   })
 })

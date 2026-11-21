@@ -101,7 +101,8 @@ export function draftForStorage(draft: CustomerDraft): CustomerDraft {
 
 /** O carrinho mostra a lista de bairros (com o valor de cada um) só no modo de taxas com bairros. */
 export function zoneList(delivery: DeliverySettings): readonly DeliveryZone[] {
-  return delivery.mode === 'taxas' ? delivery.zones : []
+  // Bairro desligado pelo vendedor (2026-11-21) não aparece.
+  return delivery.mode === 'taxas' ? delivery.zones.filter((zone) => zone.active !== false) : []
 }
 
 /**

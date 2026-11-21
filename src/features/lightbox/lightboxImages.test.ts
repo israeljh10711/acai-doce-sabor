@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getExtraItem } from '../catalog/extras.ts'
 import { getTopping } from '../catalog/menu.ts'
-import { FEATURED_OFFER_NOTIFICATIONS } from '../offers/offerNotifications.ts'
+import { featuredOffers } from '../offers/offerNotifications.ts'
 import { extraLightbox, offerLightbox, productLightbox, toppingLightbox } from './lightboxImages.ts'
 
 const file = (src: string) => src.split('/').slice(-2).join('/')
@@ -62,7 +62,7 @@ describe('o que a foto ampliada mostra', () => {
   })
 
   it('oferta: o texto da notificação e a foto do item (ou a da loja, no Oca e no Batido)', () => {
-    const images = FEATURED_OFFER_NOTIFICATIONS.map((offer) => offerLightbox(offer))
+    const images = featuredOffers().map((offer) => offerLightbox(offer))
     expect(images.map((image) => image.id)).toEqual([
       'item:pote-de-acai-1-litro',
       'item:barca-de-acai',
@@ -77,7 +77,7 @@ describe('o que a foto ampliada mostra', () => {
       'item:moreninha',
       'item:cremosinho',
     ])
-    for (const [index, offer] of FEATURED_OFFER_NOTIFICATIONS.entries()) {
+    for (const [index, offer] of featuredOffers().entries()) {
       expect([images[index].title, images[index].price], offer.id).toEqual([offer.title, offer.priceText])
     }
   })

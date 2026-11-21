@@ -14,9 +14,8 @@ import { useSellerMode } from '../seller/sellerModeContext.ts'
 import { type AddedNotice, AddedToast } from './AddedToast.tsx'
 import { CatalogSections, type SectionView } from './CatalogSections.tsx'
 import { CatalogSidebar } from './CatalogSidebar.tsx'
-import { MAIN_ANCHORS, NAV_ANCHORS, navEntries } from './catalogNav.ts'
+import { mainOfAnchor, navAnchors, navEntries } from './catalogNav.ts'
 import { CategoryNav } from './CategoryNav.tsx'
-import type { CategorySlug } from './categories.ts'
 import { type ChoiceDraft, EMPTY_DRAFT, draftChoices } from './choiceDraft.ts'
 import { ExtraOptionsDialog } from './ExtraOptionsDialog.tsx'
 import { DRAWERS, type DrawerId, EXTRA_ITEMS, type ExtraItem, choiceGroupsOf, normalizeChoices } from './extras.ts'
@@ -32,8 +31,6 @@ import { useCatalogVersion } from './catalogStore.ts'
 import { useScrollSpy, whenScrollSettles } from './useScrollSpy.ts'
 
 const drawerOfAnchor = (anchor: string): DrawerId | null => DRAWERS.find((drawer) => drawer.anchor === anchor)?.id ?? null
-const mainOfAnchor = (anchor: string): CategorySlug | null =>
-  (Object.keys(MAIN_ANCHORS) as CategorySlug[]).find((slug) => MAIN_ANCHORS[slug] === anchor) ?? null
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -116,7 +113,8 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
 
   /* Seção à vista, marcada na barra lateral, no menu e nos botões da barra fixa. */
   const observeKey = `${result.query}|${[...collapsed].join(',')}|${[...closedNow].join(',')}`
-  const spy = useScrollSpy(NAV_ANCHORS, observeKey)
+  const anchors = navAnchors()
+  const spy = useScrollSpy(anchors, `${observeKey}|${anchors.join(',')}`)
 
   /*
    * Navegação: limpa a busca que esconde o destino, abre a seção recolhida, rola até ela e,

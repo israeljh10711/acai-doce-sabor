@@ -5,7 +5,7 @@
 import type { CategorySlug } from './categories.ts'
 import type { EmblemIcon } from './extras.ts'
 
-export const CATEGORY_ICONS: Readonly<Record<CategorySlug, EmblemIcon>> = {
+export const CATEGORY_ICONS: Readonly<Partial<Record<CategorySlug, EmblemIcon>>> = {
   'acai-oca': 'crown',
   'acai-tradicional': 'iceCreamBowl',
   'acai-batido': 'cupSoda',

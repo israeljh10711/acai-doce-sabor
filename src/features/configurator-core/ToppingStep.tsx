@@ -5,7 +5,7 @@ import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppin
 import { ingredientPhoto } from '../catalog/photos.ts'
 import { toppingLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
-import { COMPLETE_GROUPS, completeToppings, quantityOf, selectedByGroup } from '../catalog/selection.ts'
+import { completeToppings, extraUnits, groupLimitOf, groupUnits, isCompleteGroup, quantityOf } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { blockerText, toppingLabel } from './messages.ts'
 import { QuantityStepper } from './QuantityStepper.tsx'
@@ -24,14 +24,28 @@ const cardBase =
 
 /** Texto da dica ao lado do título do grupo. */
 function hintFor(product: Product, group: ToppingGroupId, cfg: ConfiguratorApi): { text: string; full: boolean } {
-  const { rule } = TOPPING_GROUPS[group]
+  const { rule, name, minSelect = 0, freeCount, extraPriceCents = 0 } = TOPPING_GROUPS[group]
   // Completo: sem cota; a dica conta o que está marcado.
-  if (cfg.selection.complete && COMPLETE_GROUPS.includes(group)) {
+  if (cfg.selection.complete && isCompleteGroup(group)) {
     const options = completeToppings(product).filter((topping) => topping.group === group)
     const marked = options.filter((topping) => quantityOf(cfg.selection, topping.id) > 0).length
     return { text: `Completo · ${marked} de ${options.length} marcados, sem custo`, full: false }
   }
-  const optional = !product.groups.includes('dry')
+  // Grupo com mínimo, máximo ou preço extra (cardápio dinâmico, 2026-11-21): a dica diz a regra.
+  const limit = groupLimitOf(product, group)
+  const units = groupUnits(product, cfg.selection, group)
+  const rules = [
+    minSelect > 0 ? `escolha pelo menos ${minSelect}` : '',
+    freeCount !== undefined && extraPriceCents > 0
+      ? `${freeCount} grátis, depois ${formatBRL(extraPriceCents)} cada${extraUnits(product, cfg.selection, group) > 0 ? ` (${extraUnits(product, cfg.selection, group)} a mais)` : ''}`
+      : '',
+  ].filter(Boolean)
+  if (rules.length > 0 || (limit !== undefined && rule !== 'included')) {
+    const full = limit !== undefined && units >= limit
+    const count = limit !== undefined ? `${units} de ${limit}` : `${units} escolhidos`
+    return { text: [count, ...rules].join(' · ') + (full ? ' · limite atingido' : ''), full }
+  }
+  const optional = !product.groups.some((candidate) => TOPPING_GROUPS[candidate]?.rule === 'limited')
   if (rule === 'limited') {
     const full = cfg.freeUsed >= cfg.freeCap
     if (cfg.size) {
@@ -44,13 +58,11 @@ function hintFor(product: Product, group: ToppingGroupId, cfg: ConfiguratorApi):
   }
   if (rule === 'included') {
     const priced = toppingsOf(product, group).some((topping) => topping.priceCents > 0)
-    if (group === 'fruit') {
-      // Na barca, até 2 frutas (pedido de 2026-11-16).
-      const limit = product.groupLimits?.fruit
-      if (limit === undefined) return { text: 'Uma de cada, sem custo', full: false }
-      const count = selectedByGroup(product, cfg.selection, 'fruit').length
-      const full = count >= limit
-      return { text: `${count} de ${limit} frutas, sem custo${full ? ' · limite atingido' : ''}`, full }
+    if (limit !== undefined) {
+      // Na barca, até 2 frutas (pedido de 2026-11-16); em outro grupo, o máximo que o vendedor pôs.
+      const full = units >= limit
+      const what = group === 'fruit' ? 'frutas' : name.toLocaleLowerCase('pt-BR')
+      return { text: `${units} de ${limit} ${what}, ${priced ? 'cremes à parte' : 'sem custo'}${full ? ' · limite atingido' : ''}`, full }
     }
     return { text: priced ? 'Uma de cada · cremes à parte' : 'Uma de cada, sem custo', full: false }
   }
@@ -220,7 +232,7 @@ function StepperCard({
         onAdd={() => cfg.add(topping.id)}
         onRemove={() => cfg.remove(topping.id)}
         addBlockedReason={
-          blocker === 'item-max' && cfg.selection.complete && COMPLETE_GROUPS.includes(topping.group)
+          blocker === 'item-max' && cfg.selection.complete && isCompleteGroup(topping.group)
             ? 'No Completo, vai 1 de cada'
             : blocker
               ? blockerText(blocker, cfg.freeCap)

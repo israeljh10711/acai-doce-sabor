@@ -153,7 +153,7 @@ export class OfferScheduler {
   private showKey = 0
   private readonly countdown = new Countdown()
   private readonly listeners = new Set<() => void>()
-  private readonly ids: readonly string[]
+  private ids: readonly string[]
   private readonly random: () => number
   private readonly storage: StorageLike | null
   private readonly timing: OfferTiming
@@ -167,6 +167,13 @@ export class OfferScheduler {
     this.timing = timing
     this.memory = readMemory(storage)
     this.snapshot = this.makeSnapshot()
+  }
+
+  /** Troca as ofertas sorteadas (o vendedor mudou as ofertas; cardápio dinâmico, 2026-11-21). */
+  setIds(ids: readonly string[]): void {
+    if (ids.length === this.ids.length && ids.every((id, index) => id === this.ids[index])) return
+    this.ids = ids
+    this.memory = { ...this.memory, bag: this.memory.bag.filter((id) => ids.includes(id)) }
   }
 
   subscribe = (listener: () => void) => {

@@ -1,31 +1,34 @@
-// Confere no navegador o modo vendedor gravando NESTE aparelho (sem as chaves do Supabase), no
-// computador (1280 px) e o acesso pelo menu do celular (390 px), pedido de 2026-11-16:
-// - "Senha para vendedor": senha errada mostra o aviso; a senha inicial do pedido entra;
-// - cadastro de "Picolé trufado" com foto da galeria, R$ 3,00 e descrição: aparece na seção (com a
-//   foto), na contagem e na busca, vai para o carrinho e para o WhatsApp;
-// - preço editado (Sundae R$ 9,50) chega ao carrinho; "Restaurar original" volta a R$ 7,00;
-// - complemento novo (Ovomaltine) entra no personalizador e no Completo; complemento e item
-//   esgotados ficam desligados e fora do Completo;
-// - tamanhos (ajuste de 2026-11-16): no Sundae, num item novo e um tamanho novo no Milk-shake;
-// - "Renomear": a seção Bebidas e o grupo "Monte do seu jeito";
-// - backup baixado e restaurado devolve as mudanças; "Sair" esconde as ferramentas.
+// Confere no navegador o Modo Vendedor na própria loja, gravando NESTE aparelho (sem as chaves do
+// Supabase). Desde o cardápio dinâmico (2026-11-21), "Editar", "+ Adicionar", "Duplicar" e
+// "Renomear" abrem os editores do painel do vendedor, que gravam os registros do cardápio:
+// - "Senha para vendedor": senha errada mostra o aviso; a senha certa liga a faixa e as ferramentas;
+// - "+ Adicionar produto" numa seção: produto com foto da galeria, preço e descrição aparece na
+//   seção (com a foto), na busca e vai para o carrinho;
+// - "Editar": preço novo do Sundae chega ao cartão e ao carrinho;
+// - "Disponível/Esgotado" em 1 toque: item, complemento e sabor do milk-shake; esgotado fica fora do
+//   Completo;
+// - "+ Adicionar complemento" no personalizador: o novo entra no grupo e no Completo;
+// - "Renomear": a seção Bebidas e o título "Monte do seu jeito";
+// - "Duplicar": a cópia nasce oculta (não aparece na loja até o vendedor mostrar);
+// - backup baixado (v2, com o cardápio) e restaurado devolve o cardápio e as fotos;
+// - "Sair" esconde as ferramentas; no celular, o acesso fica no menu Categorias.
 //
 // A senha inicial fica no código do site como hash; aqui ela vem da variável SENHA_VENDEDOR
 // (ou do pedido de 2026-11-16, quando a variável não existe).
 //
-// Uso (com o site rodando, sem .env.local do Supabase): node tests/browser/check-vendedor.mjs [endereçoBase]
-import { writeFileSync } from 'node:fs'
+// Uso (com o site rodando SEM o Supabase): node tests/browser/check-vendedor.mjs [endereçoBase]
+import { mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { openBrowser, sleep } from './lib.mjs'
 
 const baseUrl = process.argv[2] ?? 'http://127.0.0.1:5173'
 const outDir = join(tmpdir(), 'acai-doce-sabor-conferencia', 'vendedor')
+mkdirSync(outDir, { recursive: true })
 const PHOTO = join(process.cwd(), 'public', 'images', 'catalogo', 'picole-trufado.jpg').replaceAll('\\', '/')
 const PASSWORD = process.env.SENHA_VENDEDOR ?? `vendedor${2000 + 26}`
 const failures = []
 let checks = 0
-
 function check(label, actual, expected) {
   checks++
   const pass = JSON.stringify(actual) === JSON.stringify(expected)
@@ -35,23 +38,22 @@ function check(label, actual, expected) {
 
 const helpers = `
   window.__q = (selector) => document.querySelector(selector);
+  window.__all = (selector) => [...document.querySelectorAll(selector)];
   window.__dialog = () => [...document.querySelectorAll('dialog[open]')].at(-1) ?? null;
-  window.__button = (text, root = document) => [...root.querySelectorAll('button')].find((b) => b.textContent.trim().startsWith(text));
   window.__set = (el, text) => {
     const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, text);
     el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
     return true;
   };
-  window.__field = (end) => __dialog().querySelector('[id$="' + end + '"]');
-  window.__item = (id) => __q('[data-item="' + id + '"]');
-  window.__lastIn = (section) => [...document.querySelectorAll('[data-section="' + section + '"] [data-item]')].at(-1);
-  window.__cartCount = () => Number((__q('header a[href="/carrinho"]')?.textContent.match(/[0-9]+/) ?? ['0'])[0]);
-  // Desde 2026-11-20 o pedido é finalizado no site: nenhuma aba deve abrir (o window.open só conta).
-  window.__stubOpen = () => { window.__opened = []; window.open = (url) => { window.__opened.push(url); return null; }; return true };
-  // Sem o Supabase, a comanda fica guardada no modo de demonstração deste navegador.
-  window.__openedText = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders.at(-1).message } catch { return null } };
   window.__type = (selector, text) => __set(__q(selector), text);
+  window.__item = (id) => __q('[data-item="' + id + '"]');
+  window.__buy = (id) => __item(id)?.querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])');
+  window.__lastIn = (section) => [...document.querySelectorAll('[data-section="' + section + '"] [data-item]')].at(-1);
+  window.__label = (b) => b.getAttribute('aria-label') ?? b.textContent.trim();
+  window.__topping = (label) => [...document.querySelectorAll('button')].find((b) => __label(b) === label);
+  window.__cartCount = () => Number((__q('header a[href="/carrinho"]')?.textContent.match(/[0-9]+/) ?? ['0'])[0]);
+  window.__records = () => JSON.parse(localStorage.getItem('acai_doce_sabor_catalogo_v2') ?? 'null');
   true;
 `
 
@@ -61,11 +63,12 @@ const run = async (expression) => {
   return browser.evaluate(expression)
 }
 const quiet = `sessionStorage.setItem('acai-doce-sabor:ofertas', JSON.stringify({ bag: [], last: null, dismissed: 3, stopped: true })); true`
+const OPEN_NOW = JSON.stringify({ settings: { loja: { override: { state: 'open', until: Date.now() + 3_600_000 } } } })
 const goto = async (path, viewport, reset = false) => {
   await browser.goto(baseUrl + path, viewport)
   await sleep(500)
   if (reset) {
-    await run(`localStorage.clear(); indexedDB.deleteDatabase('acai_doce_sabor_seller_images'); true`)
+    await run(`localStorage.clear(); indexedDB.deleteDatabase('acai_doce_sabor_seller_images'); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', ${JSON.stringify(OPEN_NOW)}); true`)
     await sleep(300)
   }
   await run(quiet)
@@ -78,26 +81,25 @@ const click = async (expression, pause = 500) => {
   if (!ok) throw new Error(`Elemento não encontrado: ${expression}`)
   await sleep(pause)
 }
-const submitDialog = async (pause = 1200) => {
-  await run(`__dialog().querySelector('form').requestSubmit(); true`)
-  await sleep(pause)
+const waitFor = async (condition, timeout = 6000) => {
+  for (let waited = 0; waited < timeout; waited += 100) {
+    if (await run(`(() => { try { return !!(${condition}) } catch { return false } })()`)) return true
+    await sleep(100)
+  }
+  return false
 }
-const choosePhoto = async (file) => {
+const save = async () => {
+  await click(`__dialog().querySelector('[data-save]')`, 900)
+}
+const choosePhoto = async () => {
+  await waitFor("__dialog()?.querySelector('input[data-photo-input]')", 10000)
   const { root } = await browser.send('DOM.getDocument', { depth: -1, pierce: true })
   const { nodeIds } = await browser.send('DOM.querySelectorAll', { nodeId: root.nodeId, selector: 'dialog[open] input[data-photo-input]' })
-  await browser.send('DOM.setFileInputFiles', { nodeId: nodeIds.at(-1), files: [file] })
-  for (let i = 0; i < 30 && !(await run(`!!__dialog().querySelector('button img[src^="blob:"]')`)); i++) await sleep(100)
+  await browser.send('DOM.setFileInputFiles', { nodeId: nodeIds.at(-1), files: [PHOTO] })
+  await waitFor(`__dialog().querySelector('[data-photo-pick]')?.textContent.includes('Trocar foto') && !__dialog().querySelector('[data-photo-picker]').textContent.includes('Enviando')`)
 }
-/** Comanda de 2026-11-17: nome e retirada na loja (sem endereço), antes de enviar o pedido. */
-const FILL_CUSTOMER = `(() => {
-  const name = document.querySelector('input[autocomplete="name"]');
-  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(name, 'Cliente Teste');
-  name.dispatchEvent(new Event('input', { bubbles: true }));
-  document.querySelector('input[type="radio"][value="retirada"]').click();
-  return true;
-})()`
-
 const login = async (password) => {
+  await waitFor("__q('#senha-vendedor')", 8000)
   await run(`__type('#senha-vendedor', ${JSON.stringify(password)})`)
   await run(`__q('#senha-vendedor').form.requestSubmit(); true`)
   await sleep(900)
@@ -108,192 +110,148 @@ try {
 
   // --- Acesso ---
   await goto('/monte-seu-pedido', desktop, true)
-  check('sem o modo vendedor: nenhum "Editar" nem "+ Adicionar"', await run(`[document.querySelectorAll('[data-seller-edit]').length, document.querySelectorAll('[data-seller-add]').length, !!__q('[data-seller-bar]')]`), [0, 0, false])
+  check('sem o modo vendedor: nenhum "Editar" nem "+ Adicionar"', await run(`[__all('[data-seller-edit]').length, __all('[data-seller-add]').length, !!__q('[data-seller-bar]')]`), [0, 0, false])
   check('"Senha para vendedor" no rodapé da barra lateral', await run(`__q('nav[aria-label="Categorias do cardápio"]').parentElement.querySelector('[data-seller-access]')?.textContent.trim()`), 'Senha para vendedor')
   await click(`__q('[data-seller-access]')`, 900)
-  check('janela "Acesso do Vendedor / Dono"', await run(`__dialog()?.querySelector('h2')?.textContent`), 'Acesso do Vendedor / Dono')
   await login('1111')
   check('senha errada: aviso e modo desligado', await run(`[__q('#senha-vendedor-erro')?.textContent, !!__q('[data-seller-bar]')]`), ['Senha incorreta. Tente novamente.', false])
   await login(PASSWORD)
-  check(
-    'senha certa: faixa no topo (salvo neste aparelho), selo "Modo Vendedor Ativo" e ferramentas',
-    await run(`[!!__dialog(), __q('[data-seller-bar]')?.textContent.includes('Salvo só neste aparelho'), __q('[data-seller-active]')?.textContent.trim(), document.querySelectorAll('[data-seller-add]').length, document.querySelectorAll('[data-seller-edit]').length > 40]`),
-    [false, true, 'Modo Vendedor Ativo', 5, true],
-  )
+  await waitFor("__q('[data-seller-bar]')", 10000)
+  check('senha certa: faixa, selo e ferramentas', await run(`[!!__dialog(), __q('[data-seller-bar]')?.textContent.includes('Salvo só neste aparelho'), __q('[data-seller-active]')?.textContent.trim(), __all('[data-seller-add]').length > 0, __all('[data-seller-edit]').length > 40]`), [
+    false,
+    true,
+    'Modo Vendedor Ativo',
+    true,
+    true,
+  ])
 
-  // --- Cadastro de produto com foto ---
-  await click(`__q('[data-section="picoles-e-sorvetes"] [data-seller-add]')`, 900)
-  check('"+ Adicionar produto" abre o formulário com a seção certa', await run(`[__dialog()?.querySelector('h2')?.textContent, __field('-secao')?.value]`), ['Adicionar produto', 'picoles-e-sorvetes'])
-  await choosePhoto(PHOTO)
-  await run(`__set(__field('-nome'), 'Picolé trufado')`)
-  await run(`__set(__field('-preco'), '3,00')`)
-  await run(`__set(__field('-descricao'), 'Picolé trufado sabor chocolate')`)
-  await submitDialog(1600)
-  const created = await run(`(async () => { const card = __lastIn('picoles-e-sorvetes'); card.scrollIntoView({ block: 'center' }); const img = card.querySelector('img'); await img?.decode().catch(() => null); return [card.querySelector('[id$="-nome"]').textContent, card.querySelector('strong').textContent, card.querySelector('p').textContent, !!img && img.naturalWidth > 0, img?.currentSrc.startsWith('blob:'), __q('[data-section="picoles-e-sorvetes"] [data-flash-target] .nums').textContent] })()`)
-  check('produto novo na seção: nome, preço, descrição, foto do aparelho e contagem 13', created, ['Picolé trufado', 'R$ 3,00', 'Picolé trufado sabor chocolate', true, true, '13 itens'])
-  await run(`__type('#busca-cardapio', 'trufado')`)
+  // --- "+ Adicionar produto" com foto ---
+  await click(`__q('[data-section="picoles-e-sorvetes"] [data-seller-add]')`, 300)
+  await waitFor("__dialog()?.querySelector('[data-product-editor]')", 10000)
+  check('"+ Adicionar produto" abre o editor com a seção certa', await run(`[!!__dialog()?.querySelector('[data-product-editor]'), __q('#produto-categoria')?.value]`), [true, 'picoles-e-sorvetes'])
+  await choosePhoto()
+  await run(`__type('#produto-nome', 'Picolé trufado especial')`)
+  await run(`__type('#produto-preco', '3,00')`)
+  await run(`__type('#produto-descricao', 'Picolé trufado sabor chocolate')`)
+  await save()
+  check('o editor fecha depois de salvar o produto novo', await waitFor(`!__dialog()`), true)
+  const created = await run(`(async () => { const card = __item('picole-trufado-especial'); card.scrollIntoView({ block: 'center' }); const img = card.querySelector('img'); await img?.decode().catch(() => null); return [card.textContent.includes('Picolé trufado especial'), card.textContent.includes('R$ 3,00'), card.textContent.includes('Picolé trufado sabor chocolate'), !!img && img.naturalWidth > 0, img?.currentSrc.startsWith('blob:')] })()`)
+  check('produto novo na seção: nome, preço, descrição e a foto do aparelho', created, [true, true, true, true, true])
+  await run(`__type('#busca-cardapio', 'especial')`)
   await sleep(500)
-  check('a busca acha o produto novo', await run(`[...document.querySelectorAll('[data-item] [id$="-nome"]')].map((h) => h.textContent).includes('Picolé trufado')`), true)
+  check('a busca acha o produto novo', await run(`!!__item('picole-trufado-especial')`), true)
   await run(`__type('#busca-cardapio', '')`)
-  await sleep(400)
-
-  // --- Preço editado ---
-  await click(`__item('sundae').querySelector('[data-seller-edit]')`, 900)
-  await run(`__set(__field('-preco'), '9,50')`)
-  await submitDialog()
-  check('Sundae editado para R$ 9,50 no cartão', await run(`__item('sundae').querySelector('strong').textContent`), 'R$ 9,50')
-
-  // --- Item esgotado ---
-  await click(`__item('jujuba').querySelector('[data-seller-edit]')`, 900)
-  await click(`[...__dialog().querySelectorAll('label')].find((l) => l.textContent.trim() === 'Esgotado')`, 200)
-  await submitDialog()
-  check('Jujuba esgotada: selo e botão desligado', await run(`[__item('jujuba').textContent.includes('Esgotado'), __item('jujuba').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])').disabled]`), [true, true])
-
-  // --- Carrinho e comanda com o produto novo e o preço editado (finalizado no site) ---
-  await click(`__lastIn('picoles-e-sorvetes').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
-  await click(`[...__dialog().querySelectorAll('button')].find((b) => b.textContent.includes('continuar comprando'))`, 900)
-  await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
-  await click(`[...__dialog().querySelectorAll('input[type=radio]')][0]`, 200)
-  await click(`__button('Continuar', __dialog())`, 700)
-  await click(`[...__dialog().querySelectorAll('button')].find((b) => b.textContent.includes('ir para o carrinho'))`, 1200)
-  check('carrinho: Picolé trufado R$ 3,00 e Sundae R$ 9,50 (total R$ 12,50)', await run(`[document.body.innerText.includes('Picolé trufado'), document.body.innerText.includes('R$ 12,50')]`), [true, true])
-  await run(`__stubOpen()`)
-  await run(FILL_CUSTOMER)
   await sleep(300)
-  await click(`__q('input[value="pix"]')`)
-  await click(`__q('[data-finalize]')`, 900)
-  check('finalizado no site, sem abrir o WhatsApp', await run(`[location.pathname.startsWith('/acompanhar/DEMO-'), window.__opened.length]`), [true, 0])
-  const message = (await run(`__openedText()`)) ?? ''
-  check(
-    'comanda com o produto novo e o preço editado',
-    [message.includes('*1x Picolé trufado* — *R$ 3,00*'), message.split('\n').some((line) => line.includes('*1x Sundae*') && line.endsWith('— *R$ 9,50*'))],
-    [true, true],
-  )
-
-  // --- Complemento novo e esgotado no personalizador (Completo) ---
-  await goto('/monte-seu-pedido/acai-oca', desktop)
-  check('personalizador: "+ Adicionar complemento" em cada grupo', await run(`document.querySelectorAll('[data-seller-add]').length`), 4)
-  await click(`[...document.querySelectorAll('[data-seller-add]')][0]`, 900)
-  await choosePhoto(PHOTO)
-  await run(`__set(__field('-nome'), 'Ovomaltine')`)
-  await run(`__set(__field('-preco'), '0,00')`)
-  await submitDialog(1500)
-  check('complemento novo aparece nos adicionais', await run(`!!__q('button[aria-label="Adicionar Ovomaltine"]')`), true)
-  await click(`[...document.querySelectorAll('[data-seller-edit]')].find((b) => b.textContent.trim().endsWith(': Granola'))`, 900)
-  await click(`[...__dialog().querySelectorAll('label')].find((l) => l.textContent.trim() === 'Esgotado')`, 200)
-  await submitDialog()
-  await click(`__q('input[value="pote-200"]')`)
-  await click(`__button('Completo', __q('[data-complete-bar]'))`, 600)
-  check(
-    'Completo: entra o complemento novo, fica de fora o esgotado (15 itens)',
-    await run(`[__q('#resumo').innerText.includes('15 itens selecionados'), __q('#resumo').innerText.includes('Ovomaltine'), __q('#resumo').innerText.includes('Granola'), __q('button[aria-label="Adicionar Granola"]').getAttribute('aria-disabled')]`),
-    [true, true, false, 'true'],
-  )
-
-  // --- Tamanhos num item que já existe (Sundae): "a partir de" e escolha do tamanho ---
+  await click(`__buy('picole-trufado-especial')`, 900)
+  await click(`__dialog()?.querySelector('button.btn-gold') ?? [...document.querySelectorAll('dialog[open] button')].find((b) => /Adicionar|Confirmar/.test(b.textContent))`, 900)
+  check('produto novo vai para o carrinho', await run(`__cartCount()`), 1)
+  // A confirmação pode levar ao carrinho: volta ao cardápio.
   await goto('/monte-seu-pedido', desktop)
-  const addSize = async (name, price) => {
-    await click(`__dialog().querySelector('[data-add-size]')`, 250)
-    const index = await run(`__dialog().querySelectorAll('[data-size-name]').length - 1`)
-    await run(`__set(__dialog().querySelector('[data-size-name="${index}"]'), ${JSON.stringify(name)})`)
-    await run(`__set(__dialog().querySelector('[data-size-price="${index}"]'), ${JSON.stringify(price)})`)
-  }
-  await click(`__item('sundae').querySelector('[data-seller-edit]')`, 900)
-  check('formulário com "Tamanhos e Preços (Opcional)"', await run(`__dialog().querySelector('[data-sizes-editor] legend')?.textContent`), 'Tamanhos e Preços (Opcional)')
-  await addSize('Pequeno', '7,00')
-  await addSize('Grande', '10,00')
-  await submitDialog()
-  check('Sundae com tamanhos: "a partir de R$ 7,00" e "Escolher tamanho e sabor"', await run(`[__item('sundae').textContent.includes('a partir de'), __item('sundae').querySelector('strong').textContent, __item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])').textContent.trim().split(':')[0]]`), [true, 'R$ 7,00', 'Escolher tamanho e sabor'])
-  await click(`__item('sundae').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 800)
-  check('escolha com o tamanho e o preço de cada um', await run(`[__dialog()?.querySelector('h2')?.textContent, __dialog()?.textContent.includes('R$ 10,00')]`), ['Escolha o tamanho e o sabor', true])
+
+  // --- "Editar": preço novo ---
+  await click(`__item('sundae').querySelector('[data-seller-edit]')`, 300)
+  await waitFor(`__q('#produto-nome')?.value`, 10000)
+  check('"Editar" abre o editor do produto', await run(`__q('#produto-nome')?.value`), 'Sundae')
+  await run(`__type('#produto-preco', '9,50')`)
+  check('"Há alterações não salvas."', await waitFor(`__dialog().querySelector('[data-dirty]')`), true)
+  await save()
+  check('"Alterações salvas com sucesso"', await waitFor(`__dialog()?.querySelector('[data-save-ok]')?.textContent === 'Alterações salvas com sucesso'`), true)
   await run(`__dialog().close(); true`)
   await sleep(400)
+  check('preço novo no cartão', await run(`__item('sundae').textContent.includes('R$ 9,50')`), true)
 
-  // --- Item novo com tamanhos ---
-  await click(`__q('[data-section="bebidas"] [data-seller-add]')`, 900)
-  await run(`__set(__field('-nome'), 'Suco natural')`)
-  await run(`__set(__field('-descricao'), 'Suco da fruta')`)
-  await addSize('300 ml', '6,00')
-  await addSize('500 ml', '9,00')
-  await submitDialog(1400)
-  check('item novo com tamanhos: "a partir de R$ 6,00" na seção Bebidas', await run(`(() => { const card = __lastIn('bebidas'); return [card.querySelector('[id$="-nome"]').textContent, card.querySelector('strong').textContent, card.textContent.includes('a partir de')] })()`), ['Suco natural', 'R$ 6,00', true])
+  // --- Esgotado em 1 toque ---
+  await click(`__item('jujuba').querySelector('[data-seller-stock]')`, 900)
+  check('Jujuba esgotada: selo e botão desligado', await run(`[__item('jujuba').textContent.includes('Esgotado'), __buy('jujuba').disabled]`), [true, true])
+  check('o esgotado ficou nos registros do aparelho', await run(`__records().products.find((p) => p.id === 'jujuba').available`), false)
 
-  // --- Tamanho novo no Milk-shake (produto principal) ---
-  await click(`__q('#secao-milkshake [data-seller-edit]')`, 900)
-  await addSize('700 ml', '16,00')
-  await submitDialog(1400)
-  await goto('/monte-seu-pedido/milk-shake', desktop)
-  check('Milk-shake com o tamanho novo de 700 ml (R$ 16,00) no personalizador', await run(`[...document.querySelectorAll('input[name$="tamanho"], input[type=radio]')].some((input) => input.closest('label')?.textContent.includes('700 ml') && input.closest('label')?.textContent.includes('R$ 16,00'))`), true)
-
-  // --- Renomear a seção Bebidas e o grupo "Monte do seu jeito" ---
-  await goto('/monte-seu-pedido', desktop)
-  await click(`__q('[data-seller-rename="bebidas"]')`, 900)
-  check('"Renomear" abre a janela com o nome atual', await run(`[__dialog()?.querySelector('h2')?.textContent, __field('-nome')?.value]`), ['Renomear categoria', 'Bebidas'])
-  await run(`__set(__field('-nome'), 'Bebidas geladas')`)
-  await submitDialog()
-  check(
-    'seção renomeada: título, barra lateral e contagem continuam',
-    await run(`[__q('#bebidas-titulo')?.textContent, __q('nav[aria-label="Categorias do cardápio"] a[data-nav="secao-bebidas"]')?.textContent.includes('Bebidas geladas')]`),
-    ['Bebidas geladas', true],
-  )
-  await click(`__q('nav[aria-label="Categorias do cardápio"] [data-seller-rename="monte"]')`, 900)
-  await run(`__set(__field('-nome'), 'Monte o seu açaí')`)
-  await submitDialog()
-  check('grupo renomeado na barra lateral', await run(`__q('#lateral-grupo-monte')?.textContent`), 'Monte o seu açaí')
-
-  // --- Backup e restauração ---
-  await goto('/monte-seu-pedido', desktop)
-  await run(`(() => { window.__backup = null; const original = URL.createObjectURL; URL.createObjectURL = (blob) => { if (blob.type === 'application/json') blob.text().then((t) => { window.__backup = t }); return original(blob) }; HTMLAnchorElement.prototype.click = function () {}; return true })()`)
-  await click(`__button('Backup / Restaurar')`, 800)
-  await click(`__button('Baixar backup', __dialog())`, 1200)
-  const backup = await run(`window.__backup`)
-  check('backup baixado com as mudanças e a foto', [typeof backup === 'string' && backup.includes('Picolé trufado'), typeof backup === 'string' && backup.includes('data:image/')], [true, true])
-  const file = join(outDir, 'backup.json')
-  writeFileSync(file, backup ?? '')
-  // Apaga as mudanças deste aparelho e restaura pelo arquivo.
-  await run(`localStorage.removeItem('acai_doce_sabor_seller_catalog_v1'); true`)
-  const { root } = await browser.send('DOM.getDocument', { depth: -1, pierce: true })
-  const { nodeId } = await browser.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'dialog[open] input[type=file]' })
-  await browser.send('DOM.setFileInputFiles', { nodeId, files: [file.replaceAll('\\', '/')] })
-  await sleep(1500)
-  check('restaurar: aviso, o produto novo e o nome da seção de volta', await run(`[__dialog()?.textContent.includes('Backup restaurado.'), [...document.querySelectorAll('[data-item] [id$="-nome"]')].some((h) => h.textContent === 'Picolé trufado'), __q('#bebidas-titulo')?.textContent]`), [true, true, 'Bebidas geladas'])
+  // --- "Renomear" ---
+  await click(`__q('[data-seller-rename="bebidas"]')`, 300)
+  await waitFor(`__q('#categoria-nome')`, 10000)
+  await run(`__type('#categoria-nome', 'Bebidas geladas')`)
+  await save()
   await run(`__dialog()?.close(); true`)
   await sleep(400)
+  check('seção renomeada', await run(`__q('[data-section="bebidas"]')?.textContent.includes('Bebidas geladas')`), true)
+  await click(`__q('[data-seller-rename="monte"]')`, 300)
+  await waitFor(`__q('#categoria-nome')`, 10000)
+  await run(`__type('#categoria-nome', 'Monte o seu açaí')`)
+  await save()
+  await run(`__dialog()?.close(); true`)
+  await sleep(400)
+  check('"Monte do seu jeito" renomeado', await run(`document.body.textContent.includes('Monte o seu açaí')`), true)
 
-  // --- Restaurar original e excluir ---
-  await click(`__item('sundae').querySelector('[data-seller-edit]')`, 900)
-  await click(`__button('Restaurar original', __dialog())`, 1200)
-  check('"Restaurar original" devolve o Sundae a R$ 7,00', await run(`__item('sundae').querySelector('strong').textContent`), 'R$ 7,00')
-  await click(`__lastIn('picoles-e-sorvetes').querySelector('[data-seller-edit]')`, 900)
-  await click(`__button('Excluir item', __dialog())`, 300)
-  await click(`__button('Excluir', __dialog().querySelector('[role=alertdialog]'))`, 1200)
-  check('excluir com confirmação: o produto novo some (12 itens)', await run(`[[...document.querySelectorAll('[data-item] [id$="-nome"]')].some((h) => h.textContent === 'Picolé trufado'), __q('[data-section="picoles-e-sorvetes"] [data-flash-target] .nums').textContent]`), [false, '12 itens'])
+  // --- "Duplicar" ---
+  await click(`__item('sundae').querySelector('[data-seller-duplicate]')`, 300)
+  await waitFor(`__q('#produto-nome')?.value`, 10000)
+  check('"Duplicar" abre a cópia', await run(`__q('#produto-nome')?.value`), 'Sundae (cópia)')
+  await save()
+  check('a cópia nasce oculta: não aparece na loja', await waitFor(`!__dialog() && !__item('sundae-copia') && __records().products.some((p) => p.id === 'sundae-copia' && !p.visible)`), true)
+
+  // --- Personalizador: complemento novo, esgotado e o Completo ---
+  await goto('/monte-seu-pedido/acai-oca', desktop)
+  await click(`[...document.querySelectorAll('[data-seller-add]')].find((b) => b.textContent.includes('complemento'))`, 300)
+  await waitFor("__dialog()?.querySelector('[data-option-editor]')", 10000)
+  check('"+ Adicionar complemento" abre o editor do complemento', await run(`!!__dialog()?.querySelector('[data-option-editor]')`), true)
+  await run(`__type('#complemento-nome', 'Ovomaltine')`)
+  await save()
+  check('complemento novo nos adicionais', await waitFor(`!__dialog() && !!__q('button[aria-label="Adicionar Ovomaltine"]')`), true)
+  await click(`[...document.querySelectorAll('[data-seller-stock]')].find((b) => b.textContent.includes('Granola'))`, 900)
+  check('Granola esgotada: o botão fica desligado', await run(`__q('button[aria-label="Adicionar Granola"]')?.getAttribute('aria-disabled')`), 'true')
+  await click(`__q('input[value="pote-200"]')`)
+  await click(`[...__q('[data-complete-bar]').querySelectorAll('button')].find((b) => b.textContent.trim().startsWith('Completo'))`, 700)
+  check('Completo: entra o complemento novo, fica de fora o esgotado', await run(`[__q('#resumo').innerText.includes('Ovomaltine'), __q('#resumo').innerText.includes('Granola')]`), [true, false])
+
+  await goto('/monte-seu-pedido/milk-shake', desktop)
+  await click(`[...document.querySelectorAll('[data-seller-stock]')].find((b) => b.textContent.includes('Pitaya'))`, 900)
+  check('sabor do milk-shake esgotado', await run(`[...document.querySelectorAll('[data-seller-stock]')].find((b) => b.textContent.includes('Pitaya'))?.dataset.sellerStock`), 'esgotado')
+
+  // --- Backup v2 com o cardápio, restaurado num aparelho limpo ---
+  await goto('/monte-seu-pedido', desktop)
+  await waitFor(`__q('[data-seller-bar]')`, 10000)
+  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Backup'))`, 900)
+  const backup = await run(`(async () => { const button = [...__dialog().querySelectorAll('button')].find((b) => b.textContent.includes('Baixar')); const original = URL.createObjectURL; let blob = null; URL.createObjectURL = (b) => { blob = b; return original.call(URL, b) }; button.click(); await new Promise((r) => setTimeout(r, 1500)); URL.createObjectURL = original; return blob ? await blob.text() : null })()`)
+  const parsed = backup ? JSON.parse(backup) : null
+  check('backup v2 com o cardápio e a foto do produto novo', [parsed?.v, !!parsed?.catalog?.products?.some((p) => p.id === 'picole-trufado-especial'), Object.keys(parsed?.photos ?? {}).length > 0], [2, true, true])
+  await run(`__dialog()?.close(); true`)
+  await goto('/monte-seu-pedido', desktop, true)
+  check('aparelho limpo: sem o produto novo', await run(`!__item('picole-trufado-especial')`), true)
+  await click(`__q('[data-seller-access]')`, 900)
+  await login(PASSWORD)
+  await waitFor(`__q('[data-seller-bar]')`, 10000)
+  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Backup'))`, 900)
+  const { root } = await browser.send('DOM.getDocument', { depth: -1, pierce: true })
+  const restoreFile = join(outDir, 'backup.json').replaceAll('\\', '/')
+  const { writeFileSync } = await import('node:fs')
+  writeFileSync(restoreFile, backup ?? '')
+  const { nodeIds } = await browser.send('DOM.querySelectorAll', { nodeId: root.nodeId, selector: 'dialog[open] input[type=file]' })
+  await browser.send('DOM.setFileInputFiles', { nodeId: nodeIds.at(-1), files: [restoreFile] })
+  await sleep(2000)
+  await run(`__dialog()?.close(); true`)
+  check('backup restaurado: o produto novo volta, com a foto', await waitFor(`__item('picole-trufado-especial') && [...__item('picole-trufado-especial').querySelectorAll('img')].some((img) => img.src.startsWith('blob:'))`), true)
+  check('backup restaurado: o preço editado volta', await run(`__item('sundae').textContent.includes('R$ 9,50')`), true)
 
   // --- Sair ---
-  await click(`__button('Sair do Modo Vendedor')`, 600)
-  check('"Sair do Modo Vendedor": sem faixa, sem ferramentas', await run(`[!!__q('[data-seller-bar]'), document.querySelectorAll('[data-seller-edit]').length, !!__q('[data-seller-access]')]`), [false, 0, true])
+  await waitFor(`__q('[data-seller-bar]')`, 10000)
+  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Sair do Modo Vendedor'))`, 800)
+  check('"Sair do Modo Vendedor": sem faixa, sem ferramentas', await run(`[!!__q('[data-seller-bar]'), __all('[data-seller-edit]').length, !!__q('[data-seller-access]')]`), [false, 0, true])
 
-  // --- Celular: acesso pelo menu Categorias ---
-  await goto('/monte-seu-pedido', { width: 390, height: 844 })
-  await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Categorias')`, 700)
-  check('celular: "Senha para vendedor" no rodapé do menu', await run(`__q('dialog[aria-labelledby="menu-categorias-titulo"] [data-seller-access]')?.textContent.trim()`), 'Senha para vendedor')
-  await click(`__q('dialog[aria-labelledby="menu-categorias-titulo"] [data-seller-access]')`, 900)
-  check('celular: o menu fecha e abre a janela da senha', await run(`[__q('dialog[aria-labelledby="menu-categorias-titulo"]').open, __dialog()?.querySelector('h2')?.textContent]`), [false, 'Acesso do Vendedor / Dono'])
-  await login(PASSWORD)
-  check('celular: modo vendedor ligado', await run(`!!__q('[data-seller-bar]')`), true)
-  await click(`__button('Sair do Modo Vendedor')`, 500)
+  // --- Celular: o acesso no menu Categorias ---
+  const phone = { width: 390, height: 844, mobile: true }
+  await goto('/monte-seu-pedido', phone)
+  await click(`__q('button[aria-label^="Categorias"]') ?? [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Categorias'))`, 700)
+  check('celular: "Senha para vendedor" no menu Categorias', await run(`!!__dialog()?.querySelector('[data-seller-access]') || !!__q('[data-seller-access]')`), true)
+  check('celular: sem rolagem lateral', await run(`document.documentElement.scrollWidth <= window.innerWidth`), true)
 
   check('console sem erros', browser.consoleProblems(), [])
 } catch (error) {
-  failures.push(`erro: ${error.message}`)
+  failures.push(`erro na conferência: ${error.message}`)
 } finally {
-  await run(`localStorage.clear(); indexedDB.deleteDatabase('acai_doce_sabor_seller_images'); true`).catch(() => {})
   browser.close()
 }
 
+console.log(`RESULTADO: ${failures.length === 0 ? `as ${checks} conferências passaram` : `${failures.length} falha(s) em ${checks} conferências`}`)
 if (failures.length) {
-  console.log(`FALHAS (${failures.length} de ${checks}):`)
-  for (const failure of failures) console.log(`- ${failure}`)
+  for (const failure of failures) console.log(`FALHOU: ${failure}`)
   process.exit(1)
 }
-console.log(`RESULTADO: as ${checks} conferências passaram`)

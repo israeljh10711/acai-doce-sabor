@@ -1,5 +1,5 @@
 import { Container } from '../components/layout/Container.tsx'
-import { LEGACY_ANCHORS } from '../features/catalog/catalogNav.ts'
+import { legacyAnchors } from '../features/catalog/catalogNav.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { StoreClosedCard } from '../features/store-hours/StoreClosedCard.tsx'
 import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
@@ -15,7 +15,7 @@ export function BuildOrderPage() {
     description:
       'Cardápio do Açaí Doce Sabor: Açaí Oca, Tradicional, Batido e Milk-shake montados do seu jeito, combos, barcas, potes de 1 e 2 litros, picolés, sorvetes, bebidas e doces. Teixeira, PB.',
   })
-  useHashScroll(LEGACY_ANCHORS)
+  useHashScroll(legacyAnchors())
 
   return (
     <>

@@ -9,7 +9,6 @@
  * - resumo com subtotal, frete e total; forma de pagamento com troco.
  * Usa o negrito (`*texto*`) e o itálico (`_texto_`) no estilo do WhatsApp (o painel entende).
  */
-import { storeInfo } from '../../services/storeInfo.ts'
 import { formatBRL } from '../../utils/money.ts'
 import { type Cart, type CartItem, cartTotalCents, describeExtra, lineTotalCents, summarizeSelection } from '../cart/cart.ts'
 import { getStoreSettings } from '../catalog/catalogState.ts'
@@ -198,7 +197,9 @@ export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado,
   const { fulfillment } = customer
   const delivery = fulfillment.kind === 'entrega'
 
-  const lines = [`🍧 *NOVO PEDIDO — ${storeInfo.name.toLocaleUpperCase('pt-BR')}* 🍧`]
+  // O nome das Configurações da loja (2026-11-21).
+  const storeName = getStoreSettings().identity.name
+  const lines = [`🍧 *NOVO PEDIDO — ${storeName.toLocaleUpperCase('pt-BR')}* 🍧`]
   if (code) lines.push(`🔖 *Pedido:* ${code}`)
   lines.push(`📅 *Data/Hora:* ${dateTimeText(sentAt)}`)
   if (antecipado) lines.push('⏰ *Pedido antecipado:* enviado com a loja fechada')
@@ -220,7 +221,7 @@ export function buildOrderMessage({ cart, customer, payment, sentAt, antecipado,
     '💳 *FORMA DE PAGAMENTO*',
     ...paymentLines(payment, amount, totalCents, feeKnown, delivery),
     '',
-    `💜 _Obrigado pela preferência! ${storeInfo.name}_`,
+    `💜 _Obrigado pela preferência! ${storeName}_`,
   )
   return lines.join('\n')
 }

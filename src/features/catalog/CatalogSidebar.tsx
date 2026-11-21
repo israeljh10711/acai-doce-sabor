@@ -1,5 +1,5 @@
 import { ArrowRight, Flame } from '../../components/ui/icons.tsx'
-import { MONTE_TITLE, type NavEntry, OFFERS_ANCHOR } from './catalogNav.ts'
+import { MONTE_TITLE, type NavEntry, offersAnchor } from './catalogNav.ts'
 import { SellerAccessButton, SellerRenameButton } from '../seller/SellerAccess.tsx'
 import { SectionIcon } from './SectionIcon.tsx'
 
@@ -38,10 +38,10 @@ export function CatalogSidebar({ entries, current, onGo }: NavProps) {
 export function OffersShortcut({ onGo }: { onGo: (anchor: string) => void }) {
   return (
     <a
-      href={`#${OFFERS_ANCHOR}`}
+      href={`#${offersAnchor()}`}
       onClick={(event) => {
         event.preventDefault()
-        onGo(OFFERS_ANCHOR)
+        onGo(offersAnchor())
       }}
       className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-acai-800 bg-linear-to-r from-acai-800 to-acai-600 p-3 text-white shadow-sm transition hover:brightness-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
     >

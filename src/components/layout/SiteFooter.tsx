@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { useStoreSettings } from '../../features/catalog/catalogStore.ts'
-import { hoursText } from '../../features/store-hours/hours.ts'
+import { scheduleText } from '../../features/store-hours/hours.ts'
 import { storeAddressText } from '../../features/store/storeSettings.ts'
 import { paths } from '../../paths.ts'
 import { storeInfo } from '../../services/storeInfo.ts'
@@ -12,9 +12,12 @@ const linkClass =
   'inline-flex min-h-11 items-center font-medium text-white/85 hover:text-gold-400 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white'
 
 export function SiteFooter() {
-  const { instagramHandle, instagramUrl, name } = storeInfo
-  // Horário e contato atuais (o vendedor muda em "Horários e Contato", 2026-11-17).
-  const { hours, contact } = useStoreSettings()
+  // Horário, contato e identidade atuais (Configurações da loja, 2026-11-17 e 2026-11-21).
+  const settings = useStoreSettings()
+  const { contact } = settings
+  const { name } = settings.identity
+  const instagramHandle = settings.identity.instagram
+  const instagramUrl = instagramHandle ? `https://www.instagram.com/${instagramHandle}/` : storeInfo.instagramUrl
 
   return (
     <footer className="bg-acai-950 text-white/80">
@@ -24,7 +27,7 @@ export function SiteFooter() {
           <div>
             <p className="font-display text-lg font-extrabold tracking-tight text-white uppercase" translate="no">{name}</p>
             <p className="text-sm">{storeAddressText(contact)}</p>
-            <p className="text-sm">{hoursText(hours)}</p>
+            <p className="text-sm">{scheduleText(settings)}</p>
           </div>
         </div>
 

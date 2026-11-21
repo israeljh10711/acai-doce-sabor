@@ -36,13 +36,14 @@ export type CatalogBackend = {
   signOut(): Promise<void>
   changePassword(next: string): Promise<boolean>
   isSignedIn(): boolean
-  exportBackup(): Promise<string>
+  exportBackup(catalog?: BackupCatalog): Promise<string>
   importBackup(json: string): Promise<CatalogChanges>
   /**
    * Só no aparelho (pedido de 2026-11-17): apaga as fotos que nenhuma mudança usa e que têm mais de
    * 1 hora (uma recém-enviada por outra aba ainda vai ser gravada). Devolve as referências apagadas.
    */
-  pruneUnusedPhotos?(now: number): Promise<string[]>
+  /** Apaga fotos do aparelho sem uso; `keep`: as que os registros do cardápio usam (2026-11-21). */
+  pruneUnusedPhotos?(now: number, keep?: ReadonlySet<string>): Promise<string[]>
 }
 
 /** Fotos do aparelho (`idb:`) que alguma mudança usa. */
@@ -85,7 +86,14 @@ export function withChange(changes: CatalogChanges, kind: ChangeKind, id: string
 
 /* Backup: as mudanças e as fotos do aparelho (como data URLs), num arquivo .json. */
 
-export type Backup = { app: 'acai-doce-sabor'; v: 1; createdAt: string; changes: CatalogChanges; photos: Record<string, string> }
+/**
+ * v2 (cardápio dinâmico, 2026-11-21): também o cardápio (`catalog`, no formato do banco) e as fotos
+ * do aparelho que ele usa. Um arquivo v1 continua sendo lido (sem o cardápio).
+ */
+export type Backup = { app: 'acai-doce-sabor'; v: 1 | 2; createdAt: string; changes: CatalogChanges; photos: Record<string, string>; catalog?: unknown }
+
+/** O cardápio que entra no backup e as fotos do aparelho que ele usa. */
+export type BackupCatalog = { data: unknown; photos: ReadonlySet<string> }
 
 export async function blobToDataUrl(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer())
@@ -111,14 +119,14 @@ export function parseBackup(json: string): Backup {
     raw = null
   }
   const record = raw as Partial<Backup> | null
-  if (!record || record.app !== 'acai-doce-sabor' || record.v !== 1) throw new Error('Arquivo de backup inválido')
+  if (!record || record.app !== 'acai-doce-sabor' || (record.v !== 1 && record.v !== 2)) throw new Error('Arquivo de backup inválido')
   const photos: Record<string, string> = {}
   if (record.photos && typeof record.photos === 'object') {
     for (const [ref, data] of Object.entries(record.photos)) {
       if (typeof data === 'string' && ref.startsWith('idb:')) photos[ref] = data
     }
   }
-  return { app: 'acai-doce-sabor', v: 1, createdAt: String(record.createdAt ?? ''), changes: parseChanges(record.changes), photos }
+  return { app: 'acai-doce-sabor', v: record.v, createdAt: String(record.createdAt ?? ''), changes: parseChanges(record.changes), photos, ...(record.v === 2 && record.catalog ? { catalog: record.catalog } : {}) }
 }
 
 /* Gravação no aparelho */
@@ -188,8 +196,8 @@ export function createLocalBackend(deps: LocalDeps): CatalogBackend {
       return true
     },
     isSignedIn: () => store.getItem(SESSION_KEY) === '1',
-    async pruneUnusedPhotos(now) {
-      const used = usedPhotoRefs(read())
+    async pruneUnusedPhotos(now, keep) {
+      const used = new Set([...usedPhotoRefs(read()), ...(keep ?? [])])
       const removed: string[] = []
       for (const id of await deps.images.ids()) {
         const sentAt = photoTime(id)
@@ -199,14 +207,14 @@ export function createLocalBackend(deps: LocalDeps): CatalogBackend {
       }
       return removed
     },
-    async exportBackup() {
+    async exportBackup(catalog) {
       const changes = read()
-      const used = usedPhotoRefs(changes)
+      const used = new Set([...usedPhotoRefs(changes), ...(catalog?.photos ?? [])])
       const photos: Record<string, string> = {}
       for (const [id, blob] of await deps.images.all()) {
         if (used.has(`idb:${id}`)) photos[`idb:${id}`] = await blobToDataUrl(blob)
       }
-      const backup: Backup = { app: 'acai-doce-sabor', v: 1, createdAt: new Date().toISOString(), changes, photos }
+      const backup: Backup = { app: 'acai-doce-sabor', v: 2, createdAt: new Date().toISOString(), changes, photos, ...(catalog ? { catalog: catalog.data } : {}) }
       return JSON.stringify(backup)
     },
     async importBackup(json) {

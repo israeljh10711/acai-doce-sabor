@@ -1,7 +1,7 @@
 import { type RefObject, useEffect, useRef } from 'react'
 import { Logo } from '../../components/brand/Logo.tsx'
 import { Close } from '../../components/ui/icons.tsx'
-import { storeInfo } from '../../services/storeInfo.ts'
+import { useStoreSettings } from './catalogStore.ts'
 import type { NavEntry } from './catalogNav.ts'
 import { SellerAccessButton } from '../seller/SellerAccess.tsx'
 import { CategoryList, OffersShortcut } from './CatalogSidebar.tsx'
@@ -24,6 +24,7 @@ type MobileCategoryDrawerProps = {
  * fecha o menu e leva até ela; fechar sem escolher devolve o foco ao botão "Categorias".
  */
 export function MobileCategoryDrawer({ open, onClose, entries, current, onGo, opener }: MobileCategoryDrawerProps) {
+  const storeName = useStoreSettings().identity.name
   const dialog = useRef<HTMLDialogElement>(null)
   const chosen = useRef<string | null>(null)
 
@@ -63,7 +64,7 @@ export function MobileCategoryDrawer({ open, onClose, entries, current, onGo, op
                 Categorias
               </p>
               <p className="truncate text-xs text-ink-soft" translate="no">
-                {storeInfo.name}
+                {storeName}
               </p>
             </div>
           </div>

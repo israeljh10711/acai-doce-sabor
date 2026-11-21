@@ -9,7 +9,11 @@
 //   se cola no painel), carregado com um "Deno" de mentira;
 // - o acompanhamento do cliente (2026-11-20): a sessão anônima (signup, renovação e /auth/v1/user),
 //   o histórico order_events com o gatilho, a função adicionar_itens_pedido e o Realtime de
-//   order_events só para o dono (como o RLS).
+//   order_events só para o dono (como o RLS);
+// - o cardápio do banco (cardápio dinâmico, 2026-11-21): catalogo_publico() com o RLS (o visitante
+//   recebe só o visível e não arquivado; o vendedor e a chave de servidor recebem tudo), começando
+//   pela semente tirada do cardápio do código; `fake.setCatalog` troca o cardápio e avisa o Realtime
+//   de catalog_meta.
 //
 // Uso: const fake = await startFakeSupabase({ port }); ... fake.db.changes.push(...); fake.close()
 import { randomUUID } from 'node:crypto'
@@ -17,6 +21,33 @@ import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { attachFakeRealtime } from './fake-realtime.mjs'
+
+const { baseCatalogRecords } = await import(pathToFileURL(join(process.cwd(), 'src', 'features', 'catalog', 'baseRecords.ts')).href)
+const { recordsToDatabase } = await import(pathToFileURL(join(process.cwd(), 'src', 'services', 'catalogRepository.ts')).href)
+
+/** O cardápio da semente, no formato de catalogo_publico() (uma cópia nova a cada banco). */
+export const seedCatalog = () => JSON.parse(JSON.stringify(recordsToDatabase(baseCatalogRecords())))
+
+/** catalogo_publico() com o RLS de quem chama: o visitante só vê o público. */
+export function catalogFor(catalog, everything) {
+  if (everything) return catalog
+  const categories = catalog.categories.filter((category) => category.visible && category.archived_at === null)
+  const visibleCategory = new Set(categories.map((category) => category.id))
+  const products = catalog.products.filter((product) => product.visible && product.archived_at === null && visibleCategory.has(product.category_id))
+  const visibleProduct = new Set(products.map((product) => product.id))
+  const ofProduct = (rows) => rows.filter((row) => visibleProduct.has(row.product_id))
+  return {
+    ...catalog,
+    categories,
+    products,
+    variants: ofProduct(catalog.variants),
+    choices: ofProduct(catalog.choices),
+    choice_options: ofProduct(catalog.choice_options),
+    product_groups: ofProduct(catalog.product_groups),
+    options: catalog.options.filter((option) => option.archived_at === null),
+    offers: ofProduct(catalog.offers).filter((offer) => offer.status === 'ativa' && (!offer.ends_at || Date.parse(offer.ends_at) > Date.now())),
+  }
+}
 
 export const PUBLIC_KEY = 'sb_publishable_teste'
 export const SERVER_KEY = 'sb_secret_teste'
@@ -35,7 +66,7 @@ const CORS = {
 }
 
 export function createFakeDatabase() {
-  return { changes: [], orders: [], events: [], sequence: 0, eventSequence: 0, calls: [], customers: new Map(), refreshTokens: new Map() }
+  return { changes: [], orders: [], events: [], sequence: 0, eventSequence: 0, calls: [], customers: new Map(), refreshTokens: new Map(), catalog: seedCatalog() }
 }
 
 const pick = (row, columns) => (columns.length === 0 || columns[0] === '' || columns[0] === '*' ? row : Object.fromEntries(columns.map((column) => [column, row[column]])))
@@ -165,6 +196,10 @@ function rest(db, method, url, headers, body, state = {}) {
     return { status: 200, body: [pick(order, select[0] === '*' ? [] : select)] }
   }
 
+  if (url.pathname === '/rest/v1/rpc/catalogo_publico' && method === 'POST') {
+    if (state.failCatalog) return { status: 503, body: { message: 'Fora do ar (Supabase de mentira)' } }
+    return { status: 200, body: catalogFor(db.catalog, server || seller) }
+  }
   if (url.pathname === '/rest/v1/catalog_changes' && method === 'GET') {
     return { status: 200, body: db.changes.map(({ kind, id, data }) => pick({ kind, id, data }, select)) }
   }
@@ -239,7 +274,7 @@ const readBody = (request) =>
  */
 export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), env = {} } = {}) {
   const handler = await loadFunction()
-  const state = { failFunction: false, failOrdersPatch: false, failRpc: false, anonymousSignIn: true, loseReply: false }
+  const state = { failFunction: false, failOrdersPatch: false, failRpc: false, anonymousSignIn: true, loseReply: false, failCatalog: false }
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1')
     const headers = Object.fromEntries(Object.entries(request.headers).map(([name, value]) => [name.toLowerCase(), String(value)]))
@@ -288,6 +323,11 @@ export async function startFakeSupabase({ port = 0, db = createFakeDatabase(), e
     state,
     env: fakeEnv,
     realtime,
+    /** Troca o cardápio do banco (a revisão sobe) e avisa quem ouve catalog_meta, como o gatilho. */
+    setCatalog(next) {
+      db.catalog = { ...next, revision: (db.catalog.revision ?? 0) + 1 }
+      realtime.publish('UPDATE', { id: 1, revision: db.catalog.revision }, 'catalog_meta')
+    },
     close: () => {
       realtime.closeAll()
       return new Promise((resolve) => server.close(resolve))

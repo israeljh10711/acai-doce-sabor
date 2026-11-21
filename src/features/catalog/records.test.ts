@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { formatBRL } from '../../utils/money.ts'
 import { BASE_OFFER_RECORDS, offerText } from '../offers/baseOffers.ts'
-import { FEATURED_OFFER_NOTIFICATIONS } from '../offers/offerNotifications.ts'
+import { featuredOffers } from '../offers/offerNotifications.ts'
 import { VITRINE_TITLE, baseCatalogRecords, slugOf, uniqueIds } from './baseRecords.ts'
 import { BASE_CATEGORIES } from './categories.ts'
 import { BASE_MONTE_TITLE } from './catalogNav.ts'
@@ -105,9 +105,9 @@ describe('registros da semente', () => {
         oldPrice: item?.originalPriceCents ? formatBRL(item.originalPriceCents) : null,
       })
     })
-    expect(data.offers.map((offer) => offer.id)).toEqual(FEATURED_OFFER_NOTIFICATIONS.map((offer) => offer.id))
-    expect(texts).toEqual(FEATURED_OFFER_NOTIFICATIONS.map((offer) => offer.subtitle))
-    expect(BASE_OFFER_RECORDS.map((offer) => offer.title)).toEqual(FEATURED_OFFER_NOTIFICATIONS.map((offer) => offer.title))
+    expect(data.offers.map((offer) => offer.id)).toEqual(featuredOffers().map((offer) => offer.id))
+    expect(texts).toEqual(featuredOffers().map((offer) => offer.subtitle))
+    expect(BASE_OFFER_RECORDS.map((offer) => offer.title)).toEqual(featuredOffers().map((offer) => offer.title))
   })
   it('gera ids pelo nome, sem repetir', () => {
     expect(slugOf('Trio (Chocolate, flocos e creme)')).toBe('trio-chocolate-flocos-e-creme')

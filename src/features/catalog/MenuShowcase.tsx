@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { ArrowRight, Crown, Flame } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
 import { formatBRL } from '../../utils/money.ts'
-import { MAIN_ANCHORS } from './catalogNav.ts'
+import { mainAnchor } from './catalogNav.ts'
 import { CATEGORIES, type Category, type CategorySlug } from './categories.ts'
 import { PRODUCTS } from './menu.ts'
 import { ProductPhoto } from './ProductPhoto.tsx'
@@ -48,7 +48,7 @@ export function MenuShowcase({
             // entrada: assim a rolagem até o cartão para no lugar certo.
             <li
               key={category.slug}
-              id={MAIN_ANCHORS[category.slug]}
+              id={mainAnchor(category.slug)}
               tabIndex={-1}
               data-flash-target=""
               className="scroll-mt-34 rounded-[1.75rem] focus:outline-none lg:scroll-mt-6"
@@ -91,7 +91,7 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
   return (
     // A âncora fica no <article>, sem o deslocamento da animação de entrada (que fica por dentro).
     <article
-      id={MAIN_ANCHORS[category.slug]}
+      id={mainAnchor(category.slug)}
       tabIndex={-1}
       data-flash-target=""
       aria-labelledby={`${category.slug}-titulo`}

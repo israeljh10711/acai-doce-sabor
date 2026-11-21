@@ -3,7 +3,7 @@ import { cartCount } from '../../features/cart/cart.ts'
 import { StoreHeaderBadge } from '../../features/store-hours/StoreHeaderBadge.tsx'
 import { useCart } from '../../features/cart/cartStore.ts'
 import { paths } from '../../paths.ts'
-import { storeInfo } from '../../services/storeInfo.ts'
+import { useStoreSettings } from '../../features/catalog/catalogStore.ts'
 import { Logo } from '../brand/Logo.tsx'
 import { Bag } from '../ui/icons.tsx'
 import { Container } from './Container.tsx'
@@ -12,6 +12,8 @@ const focusRing =
   'focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white'
 
 export function SiteHeader() {
+  // O nome das Configurações da loja (2026-11-21).
+  const { name } = useStoreSettings().identity
   const count = cartCount(useCart())
 
   return (
@@ -25,7 +27,7 @@ export function SiteHeader() {
           {/* No celular o nome sai da vista (não cabe ao lado de Cardápio e Carrinho), mas continua
               lido por leitores de tela; o símbolo da logo fica. */}
           <span className="font-display text-[1.05rem] font-extrabold tracking-tight whitespace-nowrap uppercase max-sm:sr-only" translate="no">
-            {storeInfo.name}
+            {name}
           </span>
         </Link>
 

@@ -8,8 +8,8 @@ import {
   type Selection,
   freeLimit,
   freeUsed,
-  COMPLETE_GROUPS,
   completeToppings,
+  isCompleteGroup,
   quantityOf,
 } from '../catalog/selection.ts'
 import { formatBRL } from '../../utils/money.ts'
@@ -67,7 +67,7 @@ export function removedText(product: Product, selection: Selection, toppingId: s
 
   const removed = `Você tirou ${toppingLabel(topping)}.`
   const quantity = quantityOf(selection, toppingId)
-  if (selection.complete && quantity === 0 && COMPLETE_GROUPS.includes(topping.group)) {
+  if (selection.complete && quantity === 0 && isCompleteGroup(topping.group)) {
     return `${removed} O Completo continua, sem ${toppingLabel(topping)}.`
   }
 

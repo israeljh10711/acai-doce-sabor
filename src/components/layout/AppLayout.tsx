@@ -1,4 +1,6 @@
-import { Outlet, ScrollRestoration } from 'react-router'
+import { Outlet, ScrollRestoration, useLocation } from 'react-router'
+import { CatalogGate } from '../../features/catalog/CatalogGate.tsx'
+import { needsCatalog } from '../../features/catalog/catalogNav.ts'
 import { LightboxProvider } from '../../features/lightbox/LightboxProvider.tsx'
 import { SellerBarSlot } from '../../features/seller/SellerAccess.tsx'
 import { SellerModeProvider } from '../../features/seller/SellerModeProvider.tsx'
@@ -19,6 +21,7 @@ export function AppLayout() {
 }
 
 function Layout() {
+  const { pathname } = useLocation()
   return (
     <div className="flex min-h-dvh flex-col">
       <a
@@ -35,7 +38,14 @@ function Layout() {
 
       {/* Cada página cuida da própria largura, com o Container, para poder ter faixas de ponta a ponta. */}
       <main id="conteudo" tabIndex={-1} className="flex-1 focus:outline-none">
-        <Outlet />
+        {/* Cardápio do banco (2026-11-21): as páginas do cardápio esperam a leitura. */}
+        {needsCatalog(pathname) ? (
+          <CatalogGate>
+            <Outlet />
+          </CatalogGate>
+        ) : (
+          <Outlet />
+        )}
       </main>
 
       <SiteFooter />

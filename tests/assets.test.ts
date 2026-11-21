@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { EXTRA_ITEMS, choiceGroupsOf } from '../src/features/catalog/extras.ts'
 import { TOPPINGS } from '../src/features/catalog/menu.ts'
 import { ALL_PRODUCT_PHOTOS, catalogPhotoSrc, ingredientFile, ingredientZoomFile } from '../src/features/catalog/photos.ts'
-import { FEATURED_OFFER_NOTIFICATIONS } from '../src/features/offers/offerNotifications.ts'
+import { featuredOffers } from '../src/features/offers/offerNotifications.ts'
 import catalogPhotos from '../src/features/catalog/catalogPhotos.json'
 import catalog from '../scripts/fotos/catalogo.json'
 import whatsapp from '../scripts/fotos/whatsapp.json'
@@ -142,8 +142,8 @@ describe('arquivos de imagem', () => {
   })
 
   it('a miniatura de cada uma das 12 notificações de oferta existe e é uma imagem válida', () => {
-    expect(FEATURED_OFFER_NOTIFICATIONS).toHaveLength(12)
-    for (const offer of FEATURED_OFFER_NOTIFICATIONS) {
+    expect(featuredOffers()).toHaveLength(12)
+    for (const offer of featuredOffers()) {
       const file = publicFile(offer.photo.src)
       expect(existsSync(file), `${offer.id}: ${file}`).toBe(true)
       expect(imageInfo(readFileSync(file))?.format, offer.id).toBe('webp')

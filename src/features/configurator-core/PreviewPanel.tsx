@@ -1,6 +1,6 @@
 import { Expand } from '../../components/ui/icons.tsx'
 import { formatBRL } from '../../utils/money.ts'
-import type { Product } from '../catalog/menu.ts'
+import { type Product, TOPPING_GROUPS } from '../catalog/menu.ts'
 import { ILLUSTRATIVE_NOTICE } from '../catalog/notices.ts'
 import { ProductVisual } from '../catalog/ItemVisual.tsx'
 import { isProductAvailable } from '../catalog/availability.ts'
@@ -24,7 +24,8 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
   const lightbox = useLightbox()
 
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
-  const hasFreeLimit = product.groups.includes('dry')
+  // Algum grupo conta no limite grátis do tamanho (no código, os adicionais).
+  const hasFreeLimit = product.groups.some((group) => TOPPING_GROUPS[group]?.rule === 'limited')
   const caption = cfg.size
     ? [cfg.size.name, flavor?.name].filter(Boolean).join(' · ')
     : 'Monte na ordem que quiser'

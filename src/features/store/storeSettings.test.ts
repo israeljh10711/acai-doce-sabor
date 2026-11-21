@@ -16,6 +16,11 @@ describe('configurações da loja (pedido de 2026-11-17)', () => {
       closedOrders: 'antecipado',
       delivery: { mode: 'combinar', zones: [] },
       contact: { whatsapp: '(83) 99699-9980', street: 'Rua Francisco Tota, 12', city: 'Teixeira', uf: 'PB' },
+      // Cardápio dinâmico (2026-11-21): identidade, Pix, formas de pagamento e horário por dia.
+      identity: { name: 'Açaí Doce Sabor', subtitle: 'Açaí e milk-shake em Teixeira, PB', slogan: '', phone: '', instagram: 'acaiidocesabor' },
+      week: null,
+      pix: { enabled: true, type: 'telefone', key: '83996999980', holder: 'Açaí Doce Sabor' },
+      payments: { pix: true, dinheiro: true, cartao: true },
     })
     expect(parseStoreSettings(undefined)).toEqual(DEFAULT_STORE_SETTINGS)
     expect(DELIVERY_TIMES).toEqual(['20–35 min', '30–45 min', '45–60 min', '60–80 min'])

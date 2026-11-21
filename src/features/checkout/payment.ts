@@ -13,6 +13,16 @@ export const PAYMENT_METHODS: readonly { id: PaymentMethod; label: string }[] = 
   { id: 'dinheiro', label: 'Dinheiro' },
 ]
 
+/**
+ * As formas que a loja aceita agora (Configurações da loja, 2026-11-21): o Pix só com a chave
+ * ligada; crédito e débito com "Cartão"; o dinheiro com "Dinheiro".
+ */
+export function allowedMethods(payments: { pix: boolean; dinheiro: boolean; cartao: boolean }, pixEnabled: boolean): PaymentMethod[] {
+  return PAYMENT_METHODS.map((method) => method.id).filter((id) =>
+    id === 'pix' ? payments.pix && pixEnabled : id === 'dinheiro' ? payments.dinheiro : payments.cartao,
+  )
+}
+
 export function paymentLabel(method: PaymentMethod): string {
   return PAYMENT_METHODS.find((candidate) => candidate.id === method)?.label ?? method
 }

@@ -36,7 +36,20 @@ export const EMPTY_SELECTION: Selection = Object.freeze({
   toppings: Object.freeze({}),
 })
 
-const ruleOf = (topping: Topping) => TOPPING_GROUPS[topping.group].rule
+const ruleOf = (topping: Topping) => TOPPING_GROUPS[topping.group]?.rule ?? 'paid'
+
+/**
+ * Máximo de unidades de um grupo neste produto (cardápio dinâmico, 2026-11-21): o do produto (a
+ * barca: 2 frutas) ou o do grupo. Sem nenhum, sem máximo.
+ */
+export function groupLimitOf(product: Product, group: ToppingGroupId): number | undefined {
+  return product.groupLimits?.[group] ?? TOPPING_GROUPS[group]?.maxSelect
+}
+
+/** Unidades escolhidas de um grupo. */
+export function groupUnits(product: Product, selection: Selection, group: ToppingGroupId): number {
+  return selectedByGroup(product, selection, group).reduce((sum, entry) => sum + entry.quantity, 0)
+}
 
 export function selectedSize(product: Product, selection: Selection): ProductSize | undefined {
   return product.sizes.find((size) => size.id === selection.sizeId)
@@ -102,25 +115,20 @@ export function addBlocker(
 ): AddBlocker | null {
   const topping = getTopping(toppingId)
   if (!topping || !offers(product, topping)) return 'not-in-product'
-  // Esgotado pelo vendedor (modo vendedor, 2026-11-16).
-  if (topping.available === false && !options.ignoreStock) return 'unavailable'
+  // Esgotado pelo vendedor (modo vendedor, 2026-11-16), sozinho ou o grupo inteiro (2026-11-21).
+  if ((topping.available === false || TOPPING_GROUPS[topping.group]?.available === false) && !options.ignoreStock) return 'unavailable'
 
   const quantity = quantityOf(selection, toppingId)
   // Completo: adicionais e frutas vão 1 de cada, sem cota nem limite do grupo.
   if (selection.complete && inComplete(product, topping)) return quantity >= 1 ? 'item-max' : null
 
-  switch (ruleOf(topping)) {
-    case 'limited':
-      if (quantity >= MAX_PAID_UNITS) return 'item-max'
-      return freeUsed(selection) >= freeCap(product, selection) ? 'free-limit' : null
-    case 'included': {
-      if (quantity >= 1) return 'item-max'
-      const limit = product.groupLimits?.[topping.group]
-      return limit !== undefined && selectedByGroup(product, selection, topping.group).length >= limit ? 'group-limit' : null
-    }
-    case 'paid':
-      return quantity >= MAX_PAID_UNITS ? 'item-max' : null
-  }
+  const rule = ruleOf(topping)
+  if (quantity >= (rule === 'included' ? 1 : MAX_PAID_UNITS)) return 'item-max'
+  // Máximo do grupo (o da barca: 2 frutas; ou o que o vendedor definiu no grupo).
+  const limit = groupLimitOf(product, topping.group)
+  if (limit !== undefined && groupUnits(product, selection, topping.group) >= limit) return 'group-limit'
+  if (rule === 'limited' && freeUsed(selection) >= freeCap(product, selection)) return 'free-limit'
+  return null
 }
 
 /** Soma uma unidade do ingrediente. Devolve a mesma seleção quando não pode. */
@@ -242,12 +250,34 @@ export function priceOf(product: Product, selection: Selection): Price | null {
       totalCents: topping.priceCents * quantity,
     })),
   )
+  // Grupo com unidades grátis e preço extra (cardápio dinâmico, 2026-11-21): cada unidade além
+  // das grátis custa o preço extra do grupo, além do preço do complemento.
+  for (const group of product.groups) {
+    const extra = extraUnits(product, selection, group)
+    if (extra === 0) continue
+    const { name, extraPriceCents = 0 } = TOPPING_GROUPS[group]
+    paidLines.push({
+      toppingId: `grupo:${group}`,
+      name: `${name} além das grátis`,
+      quantity: extra,
+      unitCents: extraPriceCents,
+      totalCents: extraPriceCents * extra,
+    })
+  }
   const paidCents = paidLines.reduce((sum, line) => sum + line.totalCents, 0)
 
   return { sizeCents: size.priceCents, paidLines, paidCents, totalCents: size.priceCents + paidCents }
 }
 
-export type MissingChoice = 'size' | 'flavor'
+/** Unidades de um grupo que passam das grátis e pagam o preço extra (0 quando o grupo não cobra). */
+export function extraUnits(product: Product, selection: Selection, group: ToppingGroupId): number {
+  const settings = TOPPING_GROUPS[group]
+  if (!settings || settings.freeCount === undefined || !settings.extraPriceCents) return 0
+  return Math.max(0, groupUnits(product, selection, group) - settings.freeCount)
+}
+
+/** O que falta: o tamanho, o sabor ou o mínimo de um grupo obrigatório (`grupo:<id>`). */
+export type MissingChoice = 'size' | 'flavor' | `grupo:${string}`
 
 /** Escolhas obrigatórias que ainda faltam para o produto ficar completo. */
 export function missingChoices(product: Product, selection: Selection, options: AddOptions = {}): MissingChoice[] {
@@ -256,7 +286,21 @@ export function missingChoices(product: Product, selection: Selection, options: 
   // Sabor que esgotou depois de escolhido conta como falta (menos ao reler o carrinho guardado).
   const flavor = product.flavors.find((candidate) => candidate.id === selection.flavorId)
   if (product.flavors.length > 0 && (!flavor || (flavor.available === false && !options.ignoreStock))) missing.push('flavor')
+  // Grupo com mínimo (cardápio dinâmico, 2026-11-21). No Completo, os grupos dele já contam.
+  for (const group of product.groups) {
+    const min = TOPPING_GROUPS[group]?.minSelect ?? 0
+    if (min > 0 && groupUnits(product, selection, group) < min) missing.push(`grupo:${group}`)
+  }
   return missing
+}
+
+/** "o tamanho", "o sabor" ou "pelo menos 2 em Frutas": completa "Falta escolher ...". */
+export function missingChoiceText(choice: MissingChoice, flavorMissing: string): string {
+  if (choice === 'size') return 'o tamanho'
+  if (choice === 'flavor') return flavorMissing
+  const group = TOPPING_GROUPS[choice.slice('grupo:'.length) as ToppingGroupId]
+  const min = group?.minSelect ?? 1
+  return `${min === 1 ? 'pelo menos 1' : `pelo menos ${min}`} em ${group?.name ?? 'complementos'}`
 }
 
 /*
@@ -264,15 +308,16 @@ export function missingChoices(product: Product, selection: Selection, options: 
  * tamanho e diz o que não quer. Só nos produtos com `completo` (Oca, Tradicional, Pote 1 L e Barca).
  */
 
-/** Grupos do Completo: adicionais e frutas. Caldas, cremes e itens pagos ficam de fora. */
-export const COMPLETE_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit']
-
-/** O ajuste de 2026-11-16 cita o leite condensado entre as caldas: o Completo não o marca. */
-const OUTSIDE_COMPLETE: ReadonlySet<string> = new Set(['leite-condensado'])
+/**
+ * Grupos do Completo: os marcados no grupo (`inCompleto`; no código, adicionais e frutas).
+ * Caldas, cremes e itens pagos ficam de fora. Desde 2026-11-21 vem do banco.
+ */
+export function isCompleteGroup(group: ToppingGroupId): boolean {
+  return TOPPING_GROUPS[group]?.inCompleto === true
+}
 
 /** No Completo, os itens destes grupos vão 1 de cada e sem cota (marcados por ele ou à parte). */
-const inComplete = (product: Product, topping: Topping) =>
-  Boolean(product.completo) && COMPLETE_GROUPS.includes(topping.group)
+const inComplete = (product: Product, topping: Topping) => Boolean(product.completo) && isCompleteGroup(topping.group)
 
 /**
  * O que o Completo marca no produto, na ordem do cardápio: os adicionais e as frutas sem custo,
@@ -280,9 +325,11 @@ const inComplete = (product: Product, topping: Topping) =>
  */
 export function completeToppings(product: Product): readonly Topping[] {
   if (!product.completo) return []
-  return COMPLETE_GROUPS.flatMap((group) => toppingsOf(product, group)).filter(
-    (topping) => topping.available !== false && topping.priceCents === 0 && !OUTSIDE_COMPLETE.has(topping.id),
-  )
+  // O leite condensado (ajuste de 2026-11-16) fica de fora: `noCompleto` no complemento.
+  return product.groups
+    .filter(isCompleteGroup)
+    .flatMap((group) => toppingsOf(product, group))
+    .filter((topping) => topping.available !== false && TOPPING_GROUPS[topping.group]?.available !== false && topping.priceCents === 0 && !topping.noCompleto)
 }
 
 /**

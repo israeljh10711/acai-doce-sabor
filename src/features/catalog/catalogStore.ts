@@ -1,13 +1,25 @@
 /**
- * O cardápio que o site mostra agora: o do código com as mudanças do vendedor por cima
- * (modo vendedor, pedido de 2026-11-16). O estado fica em `catalogState.ts` (sem React, usado
- * também pela função do pedido no servidor); aqui ficam os ganchos que redesenham a tela.
+ * O cardápio que o site mostra agora (do banco desde 2026-11-21; ver `catalogState.ts`, que não
+ * usa React e serve também à função do pedido). Aqui ficam os ganchos que redesenham a tela.
  */
 import { useSyncExternalStore } from 'react'
 import { type StoreSettings } from '../store/storeSettings.ts'
-import { catalogVersion, getStoreSettings, subscribeCatalog } from './catalogState.ts'
+import { type CatalogStatus, catalogVersion, getCatalogStatus, getStoreSettings, subscribeCatalog } from './catalogState.ts'
 
-export { catalogVersion, getCatalogChanges, getStoreSettings, setCatalogChanges, setPhotoUrls, subscribeCatalog } from './catalogState.ts'
+export {
+  catalogVersion,
+  getCatalogChanges,
+  getCatalogRecords,
+  getCatalogStatus,
+  getLiveOffers,
+  getStoreSettings,
+  refreshCatalogClock,
+  setCatalogChanges,
+  setCatalogRecords,
+  setCatalogStatus,
+  setPhotoUrls,
+  subscribeCatalog,
+} from './catalogState.ts'
 
 /** Configurações da loja, redesenhando quando o vendedor muda alguma. */
 export function useStoreSettings(): StoreSettings {
@@ -20,4 +32,9 @@ export function useStoreSettings(): StoreSettings {
  */
 export function useCatalogVersion(): number {
   return useSyncExternalStore(subscribeCatalog, catalogVersion, catalogVersion)
+}
+
+/** Situação da leitura do cardápio (carregando, pronto ou erro). */
+export function useCatalogStatus(): CatalogStatus {
+  return useSyncExternalStore(subscribeCatalog, getCatalogStatus, getCatalogStatus)
 }

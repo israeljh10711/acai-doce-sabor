@@ -212,7 +212,8 @@ try {
   check('login: o painel carrega os pedidos', await waitFor(`document.querySelectorAll('[data-order-card]').length >= 6`), true)
   await waitFor(`__q('[data-orders-link]')`)
   check('ao vivo: conectado ao Realtime', await waitFor(`__q('[data-orders-live]')?.dataset.ordersLive === 'live'`), true)
-  check('uma inscrição só (faixa e página dividem), com o token do vendedor', [fake.realtime.sellerSubscriptions(), fake.realtime.stats.subscriptions.every((sub) => sub.token === SELLER_TOKEN)], [1, true])
+  // A do cardápio (catalog_meta, 2026-11-21) é pública e fica fora da conta.
+  check('uma inscrição só (faixa e página dividem), com o token do vendedor', [fake.realtime.sellerSubscriptions(), fake.realtime.ordersSubscriptions().every((sub) => sub.token === SELLER_TOKEN)], [1, true])
   check(
     '"📋 Pedidos" na faixa com o selo vermelho dos novos',
     await run(`[__text(__q('[data-orders-link]')), __q('[data-orders-link]').getAttribute('aria-label'), __q('[data-orders-badge]')?.dataset.ordersBadge, getComputedStyle(__q('[data-orders-badge] span:last-child')).backgroundColor]`),

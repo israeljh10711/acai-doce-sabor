@@ -6,12 +6,10 @@ import { AddedItemsNotices } from '../orders/AddedItemsNotices.tsx'
 import { soundAlert } from '../orders/orderAlert.ts'
 import { useOrders, useOrdersConnection, useSoundState } from '../orders/ordersRuntime.ts'
 import { MIN_PASSWORD_LENGTH } from '../../services/sellerCatalogStore.ts'
-import { DeliverySettingsModal } from './DeliverySettingsModal.tsx'
 import { SellerDialog } from './SellerDialog.tsx'
 import { useSellerMode } from './sellerModeContext.ts'
 import { barButton } from './sellerStyles.ts'
 import { DeliveryTimeButton, StoreSwitch } from './StoreControls.tsx'
-import { StoreHoursContactModal } from './StoreHoursContactModal.tsx'
 
 /**
  * Faixa do modo vendedor no topo de todas as páginas (pedido de 2026-11-16): o aviso de como
@@ -25,7 +23,7 @@ import { StoreHoursContactModal } from './StoreHoursContactModal.tsx'
  */
 export function SellerBar() {
   const seller = useSellerMode()
-  const [open, setOpen] = useState<'password' | 'backup' | 'delivery' | 'hours' | null>(null)
+  const [open, setOpen] = useState<'password' | 'backup' | null>(null)
   useOrdersConnection()
   const { newCount } = useOrders()
   const sound = useSoundState()
@@ -79,14 +77,18 @@ export function SellerBar() {
           </Link>
           <StoreSwitch />
           <DeliveryTimeButton />
-          <button type="button" data-delivery-settings="" aria-haspopup="dialog" className={barButton} onClick={() => setOpen('delivery')}>
+          {/* Cardápio dinâmico (2026-11-21): tudo no painel do vendedor, que grava no banco. */}
+          <Link to={paths.admin()} data-admin-link="" className={barButton}>
+            🗂️ Cardápio
+          </Link>
+          <Link to={`${paths.admin('loja')}#loja-entrega`} data-delivery-settings="" className={barButton}>
             <Scooter className="size-4" />
             Entrega / Frete
-          </button>
-          <button type="button" data-hours-contact="" aria-haspopup="dialog" className={barButton} onClick={() => setOpen('hours')}>
+          </Link>
+          <Link to={`${paths.admin('loja')}#loja-horario`} data-hours-contact="" className={barButton}>
             <Clock className="size-4" />
             Horários e Contato
-          </button>
+          </Link>
         </div>
       </div>
       {/*
@@ -116,8 +118,6 @@ export function SellerBar() {
       )}
       {open === 'password' && <ChangePassword onClose={() => setOpen(null)} />}
       {open === 'backup' && <BackupRestore onClose={() => setOpen(null)} />}
-      {open === 'delivery' && <DeliverySettingsModal onClose={() => setOpen(null)} />}
-      {open === 'hours' && <StoreHoursContactModal onClose={() => setOpen(null)} />}
       <AddedItemsNotices />
     </div>
   )

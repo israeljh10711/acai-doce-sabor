@@ -12,7 +12,13 @@ export const routePatterns = {
   /** Acompanhamento do pedido pelo cliente (pedido 100% no site, 2026-11-20). */
   track: '/acompanhar',
   trackOrder: '/acompanhar/:codigo',
+  /** Painel do vendedor: cardápio, ofertas e configurações da loja (cardápio dinâmico, 2026-11-21). */
+  admin: '/vendedor',
 } as const
+
+/** Abas do painel do vendedor (`?aba=`). */
+export const ADMIN_TABS = ['catalogo', 'categorias', 'produtos', 'complementos', 'ofertas', 'loja'] as const
+export type AdminTab = (typeof ADMIN_TABS)[number]
 
 /** Endereços prontos para usar em links. */
 export const paths = {
@@ -26,4 +32,6 @@ export const paths = {
   orders: routePatterns.orders,
   /** Sem código, a lista dos pedidos deste aparelho; com o código, aquele pedido. */
   track: (code?: string) => (code ? `${routePatterns.track}/${encodeURIComponent(code)}` : routePatterns.track),
+  /** Painel do vendedor, numa aba. */
+  admin: (tab?: AdminTab) => (tab && tab !== 'catalogo' ? `${routePatterns.admin}?aba=${tab}` : routePatterns.admin),
 } as const

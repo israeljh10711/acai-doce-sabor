@@ -1,11 +1,12 @@
 import { type ReactNode, Suspense, lazy, useMemo, useState } from 'react'
 import { setCatalogChanges, setPhotoUrls } from '../catalog/catalogStore.ts'
-import { addPhotoUrl, cleanupPhotos, getSellerBackend } from './sellerBackend.ts'
+import { addPhotoUrl, catalogForBackup, cleanupPhotos, getSellerBackend, restoreCatalogFromBackup } from './sellerBackend.ts'
 import { type EditTarget, type SellerMode, SellerModeContext } from './sellerModeContext.ts'
 
 // As telas do vendedor só carregam quando alguém abre (o cliente não baixa nada disso).
 const SellerAuthModal = lazy(() => import('./SellerAuthModal.tsx').then((module) => ({ default: module.SellerAuthModal })))
-const SellerItemFormModal = lazy(() => import('./SellerItemFormModal.tsx').then((module) => ({ default: module.SellerItemFormModal })))
+// Cardápio dinâmico (2026-11-21): os editores do painel, que gravam no banco.
+const StorefrontEditor = lazy(() => import('../admin/StorefrontEditor.tsx').then((module) => ({ default: module.StorefrontEditor })))
 
 /**
  * Modo vendedor / dono (pedido de 2026-11-16): sessão, gravação das mudanças e as janelas de
@@ -48,9 +49,11 @@ export function SellerModeProvider({ children }: { children: ReactNode }) {
         addPhotoUrl(ref, blob)
         return ref
       },
-      exportBackup: () => backend.exportBackup(),
+      // Backup v2 (2026-11-21): com o cardápio.
+      exportBackup: () => backend.exportBackup(catalogForBackup()),
       async importBackup(json) {
         setCatalogChanges(await backend.importBackup(json))
+        restoreCatalogFromBackup(json)
         setPhotoUrls(await backend.loadPhotoUrls())
         void cleanupPhotos()
       },
@@ -64,7 +67,7 @@ export function SellerModeProvider({ children }: { children: ReactNode }) {
       {children}
       <Suspense fallback={null}>
         {authOpen && <SellerAuthModal onClose={() => setAuthOpen(false)} />}
-        {active && target && <SellerItemFormModal target={target} onClose={() => setTarget(null)} />}
+        {active && target && <StorefrontEditor target={target} onClose={() => setTarget(null)} />}
       </Suspense>
     </SellerModeContext.Provider>
   )

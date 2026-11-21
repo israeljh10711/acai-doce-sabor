@@ -1046,20 +1046,17 @@ var BASE_EXTRA_ITEMS = [
 var EXTRA_ITEMS = BASE_EXTRA_ITEMS;
 /** As seções como aparecem agora (o vendedor pode renomear). Ligação viva. */
 var DRAWERS = BASE_DRAWERS;
-var drawersById = new Map(DRAWERS.map((drawer) => [drawer.id, drawer]));
+new Map(DRAWERS.map((drawer) => [drawer.id, drawer]));
 /** Troca as seções (só `catalogStore.ts` chama). */
 function setDrawers(drawers) {
 	DRAWERS = drawers;
-	drawersById = new Map(drawers.map((drawer) => [drawer.id, drawer]));
+	new Map(drawers.map((drawer) => [drawer.id, drawer]));
 }
 var itemsById = new Map(EXTRA_ITEMS.map((item) => [item.id, item]));
 /** Troca os itens (só `catalogStore.ts` chama). */
 function setExtraItems(items) {
 	EXTRA_ITEMS = items;
 	itemsById = new Map(items.map((item) => [item.id, item]));
-}
-function drawerById(id) {
-	return drawersById.get(id);
 }
 function getExtraItem(id) {
 	return itemsById.get(id);
@@ -1137,8 +1134,8 @@ function flavorsFromToppings(toppings, group) {
 		...topping.available === false ? { available: false } : {}
 	}));
 }
-/** Os grupos em uso (do banco, ou os do código). Ligação viva. */
-var TOPPING_GROUPS = {
+/** Os grupos como estão no código (a semente do banco). O Completo marca adicionais e frutas. */
+var BASE_TOPPING_GROUPS = {
 	dry: {
 		id: "dry",
 		name: "Adicionais",
@@ -1167,6 +1164,12 @@ var TOPPING_GROUPS = {
 		rule: "paid"
 	}
 };
+/** Os grupos em uso (do banco, ou os do código). Ligação viva. */
+var TOPPING_GROUPS = BASE_TOPPING_GROUPS;
+/** Troca os grupos (só `catalogState.ts` chama). */
+function setToppingGroups(groups) {
+	TOPPING_GROUPS = groups;
+}
 var free = (group, id, name, extra = {}) => ({
 	id,
 	name,
@@ -1398,13 +1401,13 @@ function getTopping(id) {
 	return toppingsById.get(id);
 }
 /** O produto oferece este ingrediente? Aceita o grupo dele e não está fora da lista do item. */
-function offers(product, topping) {
+function offers$1(product, topping) {
 	return product.groups.includes(topping.group) && (!topping.onlyIn || topping.onlyIn.includes(product.slug));
 }
 /** Ingredientes de um grupo que o produto aceita, na ordem do cardápio. */
 function toppingsOf(product, group) {
 	if (!product.groups.includes(group)) return [];
-	return TOPPINGS.filter((topping) => topping.group === group && offers(product, topping));
+	return TOPPINGS.filter((topping) => topping.group === group && offers$1(product, topping));
 }
 /** Nome da escolha obrigatória do produto: "Sabor", ou "Cobertura" na barca. */
 function flavorTermOf(product) {
@@ -1436,7 +1439,18 @@ var EMPTY_SELECTION = Object.freeze({
 	flavorId: null,
 	toppings: Object.freeze({})
 });
-var ruleOf = (topping) => TOPPING_GROUPS[topping.group].rule;
+var ruleOf = (topping) => TOPPING_GROUPS[topping.group]?.rule ?? "paid";
+/**
+* Máximo de unidades de um grupo neste produto (cardápio dinâmico, 2026-11-21): o do produto (a
+* barca: 2 frutas) ou o do grupo. Sem nenhum, sem máximo.
+*/
+function groupLimitOf(product, group) {
+	return product.groupLimits?.[group] ?? TOPPING_GROUPS[group]?.maxSelect;
+}
+/** Unidades escolhidas de um grupo. */
+function groupUnits(product, selection, group) {
+	return selectedByGroup(product, selection, group).reduce((sum, entry) => sum + entry.quantity, 0);
+}
 function selectedSize(product, selection) {
 	return product.sizes.find((size) => size.id === selection.sizeId);
 }
@@ -1470,21 +1484,16 @@ function freeUsed(selection) {
 }
 function addBlocker(product, selection, toppingId, options = {}) {
 	const topping = getTopping(toppingId);
-	if (!topping || !offers(product, topping)) return "not-in-product";
-	if (topping.available === false && !options.ignoreStock) return "unavailable";
+	if (!topping || !offers$1(product, topping)) return "not-in-product";
+	if ((topping.available === false || TOPPING_GROUPS[topping.group]?.available === false) && !options.ignoreStock) return "unavailable";
 	const quantity = quantityOf(selection, toppingId);
 	if (selection.complete && inComplete(product, topping)) return quantity >= 1 ? "item-max" : null;
-	switch (ruleOf(topping)) {
-		case "limited":
-			if (quantity >= 10) return "item-max";
-			return freeUsed(selection) >= freeCap(product, selection) ? "free-limit" : null;
-		case "included": {
-			if (quantity >= 1) return "item-max";
-			const limit = product.groupLimits?.[topping.group];
-			return limit !== void 0 && selectedByGroup(product, selection, topping.group).length >= limit ? "group-limit" : null;
-		}
-		case "paid": return quantity >= 10 ? "item-max" : null;
-	}
+	const rule = ruleOf(topping);
+	if (quantity >= (rule === "included" ? 1 : 10)) return "item-max";
+	const limit = groupLimitOf(product, topping.group);
+	if (limit !== void 0 && groupUnits(product, selection, topping.group) >= limit) return "group-limit";
+	if (rule === "limited" && freeUsed(selection) >= freeCap(product, selection)) return "free-limit";
+	return null;
 }
 /** Soma uma unidade do ingrediente. Devolve a mesma seleção quando não pode. */
 function addTopping(product, selection, toppingId, options = {}) {
@@ -1571,6 +1580,18 @@ function priceOf(product, selection) {
 		unitCents: topping.priceCents,
 		totalCents: topping.priceCents * quantity
 	})));
+	for (const group of product.groups) {
+		const extra = extraUnits(product, selection, group);
+		if (extra === 0) continue;
+		const { name, extraPriceCents = 0 } = TOPPING_GROUPS[group];
+		paidLines.push({
+			toppingId: `grupo:${group}`,
+			name: `${name} além das grátis`,
+			quantity: extra,
+			unitCents: extraPriceCents,
+			totalCents: extraPriceCents * extra
+		});
+	}
 	const paidCents = paidLines.reduce((sum, line) => sum + line.totalCents, 0);
 	return {
 		sizeCents: size.priceCents,
@@ -1579,27 +1600,40 @@ function priceOf(product, selection) {
 		totalCents: size.priceCents + paidCents
 	};
 }
+/** Unidades de um grupo que passam das grátis e pagam o preço extra (0 quando o grupo não cobra). */
+function extraUnits(product, selection, group) {
+	const settings = TOPPING_GROUPS[group];
+	if (!settings || settings.freeCount === void 0 || !settings.extraPriceCents) return 0;
+	return Math.max(0, groupUnits(product, selection, group) - settings.freeCount);
+}
 /** Escolhas obrigatórias que ainda faltam para o produto ficar completo. */
 function missingChoices(product, selection, options = {}) {
 	const missing = [];
 	if (!selectedSize(product, selection)) missing.push("size");
 	const flavor = product.flavors.find((candidate) => candidate.id === selection.flavorId);
 	if (product.flavors.length > 0 && (!flavor || flavor.available === false && !options.ignoreStock)) missing.push("flavor");
+	for (const group of product.groups) {
+		const min = TOPPING_GROUPS[group]?.minSelect ?? 0;
+		if (min > 0 && groupUnits(product, selection, group) < min) missing.push(`grupo:${group}`);
+	}
 	return missing;
 }
-/** Grupos do Completo: adicionais e frutas. Caldas, cremes e itens pagos ficam de fora. */
-var COMPLETE_GROUPS = ["dry", "fruit"];
-/** O ajuste de 2026-11-16 cita o leite condensado entre as caldas: o Completo não o marca. */
-var OUTSIDE_COMPLETE = /* @__PURE__ */ new Set(["leite-condensado"]);
+/**
+* Grupos do Completo: os marcados no grupo (`inCompleto`; no código, adicionais e frutas).
+* Caldas, cremes e itens pagos ficam de fora. Desde 2026-11-21 vem do banco.
+*/
+function isCompleteGroup(group) {
+	return TOPPING_GROUPS[group]?.inCompleto === true;
+}
 /** No Completo, os itens destes grupos vão 1 de cada e sem cota (marcados por ele ou à parte). */
-var inComplete = (product, topping) => Boolean(product.completo) && COMPLETE_GROUPS.includes(topping.group);
+var inComplete = (product, topping) => Boolean(product.completo) && isCompleteGroup(topping.group);
 /**
 * O que o Completo marca no produto, na ordem do cardápio: os adicionais e as frutas sem custo,
 * menos os esgotados e o leite condensado.
 */
 function completeToppings(product) {
 	if (!product.completo) return [];
-	return COMPLETE_GROUPS.flatMap((group) => toppingsOf(product, group)).filter((topping) => topping.available !== false && topping.priceCents === 0 && !OUTSIDE_COMPLETE.has(topping.id));
+	return product.groups.filter(isCompleteGroup).flatMap((group) => toppingsOf(product, group)).filter((topping) => topping.available !== false && TOPPING_GROUPS[topping.group]?.available !== false && topping.priceCents === 0 && !topping.noCompleto);
 }
 /** Desliga o modo Completo quando o cliente tirou tudo o que ele marcou. */
 function settleComplete(product, selection) {
@@ -1908,12 +1942,6 @@ var BASE_CATEGORIES = [
 		]
 	}
 ];
-/** As categorias como aparecem agora (base com as mudanças do vendedor). Ligação viva. */
-var CATEGORIES = BASE_CATEGORIES;
-/** Troca as categorias (só `catalogStore.ts` chama). */
-function setCategories(categories) {
-	CATEGORIES = categories;
-}
 // src/services/storeInfo.ts
 /**
 * Dados públicos da loja, informados pelo proprietário.
@@ -1966,6 +1994,15 @@ function formatBrazilPhone(phone) {
 	if (national.length === 10) return `(${national.slice(0, 2)}) ${national.slice(2, 6)}-${national.slice(6)}`;
 	return null;
 }
+var WEEKDAY_NAMES = [
+	"domingo",
+	"segunda-feira",
+	"terça-feira",
+	"quarta-feira",
+	"quinta-feira",
+	"sexta-feira",
+	"sábado"
+];
 var MINUTES_PER_DAY = 1440;
 /** Frete máximo aceito por bairro (R$ 1.000,00): só barra valor digitado errado. */
 var MAX_FEE_CENTS = 1e5;
@@ -1986,6 +2023,25 @@ var DEFAULT_STORE_SETTINGS = {
 		street: storeInfo.address.street,
 		city: storeInfo.address.city,
 		uf: "PB"
+	},
+	identity: {
+		name: storeInfo.name,
+		subtitle: "Açaí e milk-shake em Teixeira, PB",
+		slogan: "",
+		phone: "",
+		instagram: storeInfo.instagramHandle
+	},
+	week: null,
+	pix: {
+		enabled: true,
+		type: "telefone",
+		key: storeInfo.pix.key,
+		holder: storeInfo.pix.holder
+	},
+	payments: {
+		pix: true,
+		dinheiro: true,
+		cartao: true
 	}
 };
 var isRecord$5 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -2029,7 +2085,8 @@ function parseZones(raw) {
 		zones.push({
 			id,
 			name,
-			feeCents: fee
+			feeCents: fee,
+			...entry.active === false ? { active: false } : {}
 		});
 		if (zones.length === 30) break;
 	}
@@ -2054,6 +2111,81 @@ function parseContact(raw) {
 	if (typeof raw.uf === "string" && /^[A-Za-z]{2}$/.test(raw.uf.trim())) contact.uf = raw.uf.trim().toUpperCase();
 	return Object.keys(contact).length > 0 ? contact : void 0;
 }
+function parseWeek(raw) {
+	if (raw === null) return null;
+	if (!Array.isArray(raw) || raw.length !== 7) return void 0;
+	const week = [];
+	for (const day of raw) {
+		if (!isRecord$5(day) || typeof day.open !== "boolean" || !Array.isArray(day.periods) || day.periods.length > 3) return void 0;
+		const periods = [];
+		for (const period of day.periods) {
+			const hours = parseHours(period);
+			if (!hours || periods.length > 0 && hours.opensAt < periods[periods.length - 1].closesAt) return void 0;
+			periods.push(hours);
+		}
+		if (day.open && periods.length === 0) return void 0;
+		week.push({
+			open: day.open,
+			periods
+		});
+	}
+	return week;
+}
+function parseIdentity(raw) {
+	if (!isRecord$5(raw)) return void 0;
+	const identity = {};
+	const name = cleanText(raw.name, 60);
+	if (name) identity.name = name;
+	for (const field of ["subtitle", "slogan"]) {
+		if (raw[field] === "") identity[field] = "";
+		const text = cleanText(raw[field], 120);
+		if (text) identity[field] = text;
+	}
+	if (raw.phone === "") identity.phone = "";
+	const phone = typeof raw.phone === "string" ? formatBrazilPhone(raw.phone) : null;
+	if (phone) identity.phone = phone;
+	if (raw.instagram === "") identity.instagram = "";
+	if (typeof raw.instagram === "string" && /^@?[A-Za-z0-9._]{1,30}$/.test(raw.instagram.trim())) identity.instagram = raw.instagram.trim().replace(/^@/, "");
+	return Object.keys(identity).length > 0 ? identity : void 0;
+}
+var PIX_TYPES = [
+	"cpf",
+	"cnpj",
+	"email",
+	"telefone",
+	"aleatoria"
+];
+/** O que está errado na chave Pix para o tipo dela (só números no CPF, CNPJ e celular), ou `null`. */
+function pixKeyProblem(type, key) {
+	const digits = key.replace(/\D/g, "");
+	if (type === "cpf") return digits.length === 11 ? null : "O CPF tem 11 números.";
+	if (type === "cnpj") return digits.length === 14 ? null : "O CNPJ tem 14 números.";
+	if (type === "telefone") return digits.length === 10 || digits.length === 11 || digits.length === 13 && digits.startsWith("55") ? null : "O celular tem DDD e número (10 ou 11 números).";
+	if (type === "email") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(key.trim()) && key.trim().length <= 77 ? null : "Escreva o e-mail da chave Pix.";
+	return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key.trim()) ? null : "A chave aleatória tem 32 letras e números, com hífens.";
+}
+function parsePix(raw) {
+	if (!isRecord$5(raw) || typeof raw.enabled !== "boolean" || !PIX_TYPES.includes(raw.type)) return void 0;
+	const key = typeof raw.key === "string" ? raw.key.trim() : "";
+	const holder = cleanText(raw.holder, 80) ?? "";
+	const type = raw.type;
+	if (raw.enabled && (pixKeyProblem(type, key) !== null || !holder)) return void 0;
+	return {
+		enabled: raw.enabled,
+		type,
+		key: key.slice(0, 80),
+		holder
+	};
+}
+function parsePayments(raw) {
+	if (!isRecord$5(raw) || typeof raw.pix !== "boolean" || typeof raw.dinheiro !== "boolean" || typeof raw.cartao !== "boolean") return void 0;
+	if (!raw.pix && !raw.dinheiro && !raw.cartao) return void 0;
+	return {
+		pix: raw.pix,
+		dinheiro: raw.dinheiro,
+		cartao: raw.cartao
+	};
+}
 /** A mudança guardada (aparelho ou Supabase), só com os campos válidos. */
 function parseStoreSettingsChange(raw) {
 	if (!isRecord$5(raw)) return {};
@@ -2069,6 +2201,14 @@ function parseStoreSettingsChange(raw) {
 	if (delivery) change.delivery = delivery;
 	const contact = parseContact(raw.contact);
 	if (contact) change.contact = contact;
+	const week = parseWeek(raw.week);
+	if (week !== void 0) change.week = week;
+	const identity = parseIdentity(raw.identity);
+	if (identity) change.identity = identity;
+	const pix = parsePix(raw.pix);
+	if (pix) change.pix = pix;
+	const payments = parsePayments(raw.payments);
+	if (payments) change.payments = payments;
 	return change;
 }
 /** As configurações em uso: o que o vendedor mudou por cima do padrão. */
@@ -2078,9 +2218,14 @@ function resolveStoreSettings(change) {
 		...DEFAULT_STORE_SETTINGS,
 		...change,
 		override: change.override ?? null,
+		week: change.week ?? null,
 		contact: {
 			...DEFAULT_STORE_SETTINGS.contact,
 			...change.contact
+		},
+		identity: {
+			...DEFAULT_STORE_SETTINGS.identity,
+			...change.identity
 		}
 	};
 }
@@ -2561,23 +2706,253 @@ var BASE_MONTE_TITLE = MONTE_TITLE;
 function setMonteTitle(title) {
 	MONTE_TITLE = title;
 }
-var MAIN_ANCHORS = {
-	"acai-oca": "secao-acai-oca",
-	"acai-tradicional": "secao-acai-tradicional",
-	"acai-batido": "secao-acai-batido",
-	"milk-shake": "secao-milkshake"
-};
-drawerById("combos-e-ofertas").anchor;
-[...CATEGORIES.map((category) => MAIN_ANCHORS[category.slug]), ...DRAWERS.map((drawer) => drawer.anchor)];
-Object.fromEntries([...CATEGORIES.map((category) => [category.slug, MAIN_ANCHORS[category.slug]]), ...DRAWERS.map((drawer) => [drawer.id, drawer.anchor])]);
+// src/features/catalog/records.ts
+/** Em ordem: pela posição e, no empate, pelo id (a mesma ordem do banco). */
+function byPosition(list) {
+	return [...list].sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+// src/features/catalog/recordsAdapter.ts
+/** Situação da oferta na hora `now`. */
+function offerState(offer, now) {
+	if (offer.status !== "ativa") return offer.status;
+	if (offer.startsAt && Date.parse(offer.startsAt) > now) return "agendada";
+	if (offer.endsAt && Date.parse(offer.endsAt) <= now) return "encerrada";
+	return "ativa";
+}
+var live = (record) => record.archivedAt === null;
+/** Preço promocional de cada produto (`id/`) e tamanho (`id/tamanho`): a oferta de menor posição. */
+function promotions(offers, now) {
+	const chosen = /* @__PURE__ */ new Map();
+	for (const offer of byPosition(offers)) {
+		if (offer.promoPriceCents === null || offerState(offer, now) !== "ativa") continue;
+		const key = `${offer.productId}/${offer.variantId ?? ""}`;
+		if (!chosen.has(key)) chosen.set(key, offer);
+	}
+	return chosen;
+}
+/** Preço de um tamanho com a oferta (a do tamanho; sem ela, a do produto todo). */
+function variantPrice(promos, variant) {
+	const promo = (promos.get(`${variant.productId}/${variant.id}`) ?? promos.get(`${variant.productId}/`))?.promoPriceCents ?? null;
+	return {
+		regular: variant.priceCents,
+		price: promo !== null && promo < variant.priceCents ? promo : variant.priceCents
+	};
+}
+function productPrice(promos, product) {
+	const promo = promos.get(`${product.id}/`)?.promoPriceCents ?? null;
+	return {
+		regular: product.priceCents,
+		price: promo !== null && promo < product.priceCents ? promo : product.priceCents
+	};
+}
+function groupOf(record) {
+	return {
+		id: record.id,
+		name: record.name,
+		rule: record.rule,
+		...record.minSelect > 0 ? { minSelect: record.minSelect } : {},
+		...record.maxSelect !== null ? { maxSelect: record.maxSelect } : {},
+		...record.freeCount !== null ? { freeCount: record.freeCount } : {},
+		...record.extraPriceCents > 0 ? { extraPriceCents: record.extraPriceCents } : {},
+		...record.inCompleto ? { inCompleto: true } : {},
+		...record.available ? {} : { available: false }
+	};
+}
+function choiceGroupOf(choice, records) {
+	const options = byPosition(records.choiceOptions.filter((option) => option.productId === choice.productId && option.choiceId === choice.id));
+	const photos = Object.fromEntries(options.filter((option) => option.photo).map((option) => [option.name, option.photo]));
+	const unavailable = options.filter((option) => !option.available).map((option) => option.name);
+	return {
+		id: choice.id,
+		label: choice.label,
+		options: options.map((option) => option.name),
+		...choice.allowOther ? { allowOther: true } : {},
+		...Object.keys(photos).length > 0 ? { photos } : {},
+		...choice.photoAlt !== null ? { photoAlt: choice.photoAlt } : {},
+		...unavailable.length > 0 ? { unavailable } : {}
+	};
+}
+/** Converte os registros do banco no cardápio da tela. Não altera os registros. */
+function recordsToCatalog(records, options = {}) {
+	const now = options.now ?? Date.now();
+	const shown = (record) => options.includeHidden === true || record.visible;
+	const promos = promotions(records.offers, now);
+	const categories = byPosition(records.categories.filter((category) => live(category) && shown(category)));
+	const categoryRank = new Map(categories.map((category, index) => [category.id, index]));
+	const products = byPosition(records.products.filter((product) => live(product) && shown(product) && categoryRank.has(product.categoryId))).sort((a, b) => (categoryRank.get(a.categoryId) ?? 0) - (categoryRank.get(b.categoryId) ?? 0));
+	const groupRecords = byPosition(records.groups);
+	const groupRank = new Map(groupRecords.map((group, index) => [group.id, index]));
+	const groups = Object.fromEntries(groupRecords.map((group) => [group.id, groupOf(group)]));
+	const toppings = byPosition(records.options.filter((option) => live(option) && groupRank.has(option.groupId))).sort((a, b) => (groupRank.get(a.groupId) ?? 0) - (groupRank.get(b.groupId) ?? 0)).map((option) => ({
+		id: option.id,
+		name: option.name,
+		group: option.groupId,
+		priceCents: option.priceCents,
+		...option.look !== null ? { look: option.look } : {},
+		...option.productId !== null ? { onlyIn: [option.productId] } : {},
+		...option.available ? {} : { available: false },
+		...option.image !== null ? { image: option.image } : {},
+		...option.noCompleto ? { noCompleto: true } : {}
+	}));
+	const variantsOf = (productId) => byPosition(records.variants.filter((variant) => variant.productId === productId));
+	const choicesOf = (productId) => byPosition(records.choices.filter((choice) => choice.productId === productId));
+	/** Menor preço (com e sem oferta) de um produto com tamanhos; sem tamanhos, o do produto. */
+	const fromPrice = (product) => {
+		const variants = variantsOf(product.id);
+		if (variants.length === 0) return productPrice(promos, product);
+		const priced = variants.map((variant) => variantPrice(promos, variant));
+		return {
+			regular: Math.min(...priced.map((entry) => entry.regular)),
+			price: Math.min(...priced.map((entry) => entry.price))
+		};
+	};
+	const montavel = (product) => {
+		const sizes = variantsOf(product.id).map((variant) => ({
+			id: variant.id,
+			name: variant.name,
+			container: variant.container ?? "copo",
+			priceCents: variantPrice(promos, variant).price,
+			freeToppings: variant.freeCount,
+			...variant.available ? {} : { available: false }
+		}));
+		const links = byPosition(records.productGroups.filter((link) => link.productId === product.id && groupRank.has(link.groupId)).map((link) => ({
+			...link,
+			id: link.groupId
+		})));
+		const limits = Object.fromEntries(links.filter((link) => link.maxSelect !== null).map((link) => [link.groupId, link.maxSelect]));
+		const [choice] = choicesOf(product.id);
+		const flavors = product.flavorsFrom ? flavorsFromToppings(toppings, product.flavorsFrom) : choice ? byPosition(records.choiceOptions.filter((option) => option.productId === product.id && option.choiceId === choice.id)).map((option) => ({
+			id: option.id,
+			name: option.name,
+			...option.available ? {} : { available: false }
+		})) : [];
+		const { details } = product;
+		return {
+			slug: product.id,
+			name: product.name,
+			sizes,
+			groups: links.map((link) => link.groupId),
+			flavors,
+			...details.flavorNotice ? { flavorNotice: details.flavorNotice } : {},
+			...details.flavorTerm ? { flavorTerm: details.flavorTerm } : {},
+			...details.flavorHint ? { flavorHint: details.flavorHint } : {},
+			...Object.keys(limits).length > 0 ? { groupLimits: limits } : {},
+			...product.completo ? { completo: true } : {},
+			...product.available ? {} : { available: false },
+			...product.flavorsFrom ? { flavorsFrom: product.flavorsFrom } : {}
+		};
+	};
+	const productMap = {};
+	const mainCategories = [];
+	const drawers = [];
+	const items = [];
+	const vitrine = categories.find((category) => category.layout === "vitrine");
+	for (const category of categories) if (category.layout === "grade") drawers.push({
+		id: category.id,
+		title: category.name,
+		navLabel: category.navLabel || category.name,
+		pillLabel: category.pillLabel || category.name,
+		subtitle: category.subtitle,
+		anchor: category.anchor || `secao-${category.id}`,
+		icon: category.icon,
+		keywords: category.keywords
+	});
+	for (const product of products) {
+		const category = categories[categoryRank.get(product.categoryId) ?? 0];
+		if (category.layout === "vitrine") {
+			if (category !== vitrine || product.kind !== "montavel") continue;
+			productMap[product.id] = montavel(product);
+			mainCategories.push({
+				slug: product.id,
+				name: product.name,
+				summary: product.details.summary ?? "",
+				tagline: product.details.tagline ?? "",
+				actionLabel: product.details.actionLabel ?? `Montar ${product.name}`,
+				badges: product.details.badges ?? [],
+				keywords: product.keywords,
+				...product.image ? { photo: product.image } : {}
+			});
+			continue;
+		}
+		const priced = fromPrice(product);
+		let action;
+		if (product.kind === "montavel") {
+			productMap[product.id] = montavel(product);
+			action = {
+				type: "customizer",
+				product: product.id,
+				label: product.details.actionLabel ?? "Montar"
+			};
+		} else if (product.kind === "variacoes") {
+			const variants = variantsOf(product.id);
+			const choices = [...variants.length === 0 ? [] : [{
+				id: "tamanho",
+				label: "Tamanho",
+				options: variants.map((variant) => variant.name),
+				prices: Object.fromEntries(variants.map((variant) => [variant.name, variantPrice(promos, variant).price])),
+				...variants.some((variant) => !variant.available) ? { unavailable: variants.filter((variant) => !variant.available).map((variant) => variant.name) } : {}
+			}], ...choicesOf(product.id).map((choice) => choiceGroupOf(choice, records))];
+			action = choices.length > 0 ? {
+				type: "flavor_modal",
+				choices
+			} : { type: "direct_confirm" };
+		} else action = { type: "direct_confirm" };
+		const original = product.compareAtCents ?? (priced.price < priced.regular ? priced.regular : null);
+		items.push({
+			id: product.id,
+			drawer: product.categoryId,
+			name: product.name,
+			description: product.description,
+			priceCents: priced.price,
+			...original !== null && original > priced.price ? { originalPriceCents: original } : {},
+			...product.badge ? { badge: product.badge } : {},
+			keywords: product.keywords,
+			image: product.image,
+			imageAlt: product.imageAlt,
+			action,
+			...product.available ? {} : { available: false }
+		});
+	}
+	const shownProducts = new Map(products.map((product) => [product.id, product]));
+	const offers = byPosition(records.offers).flatMap((offer) => {
+		const product = shownProducts.get(offer.productId);
+		if (!product || offerState(offer, now) !== "ativa") return [];
+		const variants = variantsOf(product.id);
+		const variant = offer.variantId === null ? void 0 : variants.find((candidate) => candidate.id === offer.variantId);
+		if (offer.variantId !== null && !variant) return [];
+		const priced = variant ? variantPrice(promos, variant) : fromPrice(product);
+		return [{
+			...offer,
+			regularCents: priced.regular,
+			priceCents: priced.price
+		}];
+	});
+	return {
+		revision: records.revision,
+		items,
+		toppings,
+		products: productMap,
+		categories: mainCategories,
+		drawers,
+		groupTitles: vitrine ? { monte: vitrine.name } : {},
+		groups,
+		offers
+	};
+}
 // src/features/catalog/catalogState.ts
 /**
-* O cardápio em uso, sem React (pedido de 2026-11-17): o do código com as mudanças do vendedor por
-* cima. O site usa por `catalogStore.ts` (que junta os ganchos do React); a função do pedido no
-* servidor usa direto, para conferir os preços com as mesmas regras.
+* O cardápio em uso, sem React. O site usa por `catalogStore.ts` (que junta os ganchos do React); a
+* função do pedido no servidor usa direto, para conferir os preços com as mesmas regras.
 *
-* Ao trocar as mudanças, os dados que todo o código importa (`EXTRA_ITEMS`, `TOPPINGS`, `PRODUCTS`,
-* `CATEGORIES`) são substituídos (ligações vivas de ES modules) e quem ouve é avisado.
+* Desde o cardápio dinâmico (2026-11-21), o cardápio vem dos **registros do banco**
+* (`setCatalogRecords`): no Supabase, `catalogo_publico()`; na demonstração, os registros do
+* aparelho. As **Configurações da loja** continuam vindo das mudanças (`catalog_changes`,
+* `settings/loja`). Sem registros (antes da primeira leitura, nos testes antigos e na função do
+* pedido até a Parte 3), vale o cardápio do código com as mudanças antigas por cima.
+*
+* Ao trocar, os dados que todo o código importa (`EXTRA_ITEMS`, `TOPPINGS`, `PRODUCTS`,
+* `CATEGORIES`, `DRAWERS`, `TOPPING_GROUPS`) são substituídos (ligações vivas de ES modules) e quem
+* ouve é avisado.
 */
 var BASE = {
 	items: BASE_EXTRA_ITEMS,
@@ -2588,6 +2963,7 @@ var BASE = {
 	groupTitles: {}
 };
 var changes = NO_CHANGES;
+var records = null;
 /** Fotos guardadas no aparelho (`idb:<id>`) e o endereço temporário (`blob:`) de cada uma. */
 var photoUrls = {};
 var version = 0;
@@ -2613,18 +2989,62 @@ function withPhotos(source) {
 		settings: source.settings
 	};
 }
+/** Fotos do aparelho (`idb:`) nos registros da demonstração: o endereço carregado, ou nenhuma. */
+function photoOf(image) {
+	if (!image.startsWith("idb:")) return image;
+	return photoUrls[image] ?? "";
+}
+function fromRecords(source) {
+	const data = recordsToCatalog(source, { now: Date.now() });
+	const hasLocal = (image) => image?.startsWith("idb:") === true;
+	return {
+		...data,
+		groups: data.groups,
+		items: data.items.map((item) => hasLocal(item.image) ? {
+			...item,
+			image: photoOf(item.image)
+		} : item),
+		toppings: data.toppings.map((topping) => {
+			if (!hasLocal(topping.image)) return topping;
+			const image = photoOf(topping.image);
+			const { image: _old, ...rest } = topping;
+			return image ? {
+				...rest,
+				image
+			} : rest;
+		}),
+		categories: data.categories.map((category) => {
+			if (!hasLocal(category.photo)) return category;
+			const photo = photoOf(category.photo);
+			const { photo: _old, ...rest } = category;
+			return photo ? {
+				...rest,
+				photo
+			} : rest;
+		})
+	};
+}
 function publish() {
-	const data = applyChanges(BASE, withPhotos(changes));
+	const data = records ? fromRecords(records) : {
+		...applyChanges(BASE, withPhotos(changes)),
+		groups: BASE_TOPPING_GROUPS,
+		offers: []
+	};
+	setToppingGroups(data.groups);
 	setExtraItems(data.items);
 	setToppings(data.toppings);
 	setProducts(data.products);
-	setCategories(data.categories);
+	data.categories;
 	setDrawers(data.drawers);
 	setMonteTitle(data.groupTitles.monte ?? BASE_MONTE_TITLE);
+	data.offers;
 	version += 1;
 	for (const listener of listeners) listener();
 }
-/** Aplica as mudanças em todo o site e avisa a tela. */
+/**
+* Troca as mudanças guardadas. Com registros do banco em uso, só as Configurações da loja valem;
+* sem eles, as mudanças antigas valem também para o cardápio (o caminho de antes).
+*/
 function setCatalogChanges(next) {
 	changes = next;
 	publish();
@@ -2808,7 +3228,7 @@ function parseCustomerDraft(raw) {
 }
 /** O carrinho mostra a lista de bairros (com o valor de cada um) só no modo de taxas com bairros. */
 function zoneList(delivery) {
-	return delivery.mode === "taxas" ? delivery.zones : [];
+	return delivery.mode === "taxas" ? delivery.zones.filter((zone) => zone.active !== false) : [];
 }
 /**
 * Frete do pedido. `null` enquanto não dá para saber: falta escolher a modalidade ou o bairro.
@@ -3025,7 +3445,8 @@ function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code }
 	const amount = `*${formatBRL(totalCents)}*${feeKnown ? "" : " + frete a combinar"}`;
 	const { fulfillment } = customer;
 	const delivery = fulfillment.kind === "entrega";
-	const lines = [`🍧 *NOVO PEDIDO — ${storeInfo.name.toLocaleUpperCase("pt-BR")}* 🍧`];
+	const storeName = getStoreSettings().identity.name;
+	const lines = [`🍧 *NOVO PEDIDO — ${storeName.toLocaleUpperCase("pt-BR")}* 🍧`];
 	if (code) lines.push(`🔖 *Pedido:* ${code}`);
 	lines.push(`📅 *Data/Hora:* ${dateTimeText(sentAt)}`);
 	if (antecipado) lines.push("⏰ *Pedido antecipado:* enviado com a loja fechada");
@@ -3033,7 +3454,7 @@ function buildOrderMessage({ cart, customer, payment, sentAt, antecipado, code }
 	if (customer.phone) lines.push(`• *Telefone:* ${customer.phone}`);
 	lines.push(...fulfillmentLines(fulfillment));
 	lines.push("", LINE, ...itemsBlockLines(cart));
-	lines.push(LINE, "🧾 *RESUMO FINANCEIRO*", `🛍️ *Subtotal dos itens:* ${formatBRL(subtotalCents)}`, feeLine(customer.fee), `💰 *TOTAL A PAGAR:* ${amount}`, "", LINE, "💳 *FORMA DE PAGAMENTO*", ...paymentLines(payment, amount, totalCents, feeKnown, delivery), "", `💜 _Obrigado pela preferência! ${storeInfo.name}_`);
+	lines.push(LINE, "🧾 *RESUMO FINANCEIRO*", `🛍️ *Subtotal dos itens:* ${formatBRL(subtotalCents)}`, feeLine(customer.fee), `💰 *TOTAL A PAGAR:* ${amount}`, "", LINE, "💳 *FORMA DE PAGAMENTO*", ...paymentLines(payment, amount, totalCents, feeKnown, delivery), "", `💜 _Obrigado pela preferência! ${storeName}_`);
 	return lines.join("\n");
 }
 // src/features/orders/orderRow.ts
@@ -3120,6 +3541,32 @@ var clock = new Intl.DateTimeFormat("en-US", {
 	hourCycle: "h23"
 });
 /** Hora local de Brasília no instante dado: minutos desde a meia-noite e segundos. */
+var weekdayClock = new Intl.DateTimeFormat("en-US", {
+	timeZone: "America/Sao_Paulo",
+	weekday: "short"
+});
+var WEEKDAYS = [
+	"Sun",
+	"Mon",
+	"Tue",
+	"Wed",
+	"Thu",
+	"Fri",
+	"Sat"
+];
+/** Dia da semana em Brasília: 0 é domingo. */
+function brasiliaWeekday(ms) {
+	return WEEKDAYS.indexOf(weekdayClock.format(ms));
+}
+/**
+* Os períodos de um dia da semana (cardápio dinâmico, 2026-11-21): os do dia, com o horário por
+* dia; sem ele, o horário de todos os dias.
+*/
+function periodsOn(weekday, hours, week) {
+	if (!week) return [hours];
+	const day = week[weekday];
+	return day?.open ? day.periods : [];
+}
 function brasiliaTime(ms) {
 	const parts = Object.fromEntries(clock.formatToParts(ms).map((part) => [part.type, part.value]));
 	return {
@@ -3140,28 +3587,41 @@ var hourLabel = (minutes) => {
 	return minute ? `${hour}h${String(minute).padStart(2, "0")}` : `${hour}h`;
 };
 /** Estado da loja pelo horário, no instante dado. */
-function storeStatusAt(ms, hours = STORE_HOURS) {
+function storeStatusAt(ms, hours = STORE_HOURS, week = null) {
 	const { minutes, seconds } = brasiliaTime(ms);
-	const { opensAt, closesAt } = hours;
+	const weekday = brasiliaWeekday(ms);
 	const startOfMinute = ms - seconds * 1e3 - ms % 1e3;
 	const inMinutes = (target) => startOfMinute + target * MS_PER_MINUTE;
-	if (minutes >= opensAt && minutes < closesAt) return {
+	const today = periodsOn(weekday, hours, week);
+	const current = today.find((period) => minutes >= period.opensAt && minutes < period.closesAt);
+	if (current) return {
 		open: true,
 		title: "ABERTO AGORA",
 		detail: OPEN_DETAIL,
-		changesAt: inMinutes(closesAt - minutes)
+		changesAt: inMinutes(current.closesAt - minutes)
 	};
-	if (minutes < opensAt) return {
+	const later = today.find((period) => period.opensAt > minutes);
+	if (later) return {
 		open: false,
 		title: "FECHADO AGORA",
-		detail: `Abrimos hoje às ${hourLabel(opensAt)}`,
-		changesAt: inMinutes(opensAt - minutes)
+		detail: `Abrimos hoje às ${hourLabel(later.opensAt)}`,
+		changesAt: inMinutes(later.opensAt - minutes)
 	};
+	for (let ahead = 1; ahead <= 7; ahead++) {
+		const [first] = periodsOn((weekday + ahead) % 7, hours, week);
+		if (!first) continue;
+		return {
+			open: false,
+			title: "FECHADO AGORA",
+			detail: `Abrimos ${ahead === 1 ? "amanhã" : WEEKDAY_NAMES[(weekday + ahead) % 7]} às ${hourLabel(first.opensAt)}`,
+			changesAt: inMinutes(ahead * MINUTES_PER_DAY - minutes + first.opensAt)
+		};
+	}
 	return {
 		open: false,
 		title: "FECHADO AGORA",
-		detail: `Abrimos amanhã às ${hourLabel(opensAt)}`,
-		changesAt: inMinutes(MINUTES_PER_DAY - minutes + opensAt)
+		detail: "Sem horário de abertura",
+		changesAt: inMinutes(7 * MINUTES_PER_DAY)
 	};
 }
 /** "hoje", "amanhã" ou "no dia 19/11": o dia de `at` visto do instante `now`. */
@@ -3190,7 +3650,7 @@ function closedStatus(now, reopensAt, changesAt, manual) {
 }
 /** Estado que o cliente vê: o interruptor do vendedor enquanto vale; depois, o horário. */
 function effectiveStatus(ms, settings) {
-	const { override, hours, deliveryTime } = settings;
+	const { override, hours, week, deliveryTime } = settings;
 	const openDetail = `Entrega: ${deliveryTime}`;
 	if (override && ms < override.until) {
 		if (override.state === "open") return {
@@ -3202,10 +3662,10 @@ function effectiveStatus(ms, settings) {
 			reopensAt: null,
 			reopenText: null
 		};
-		const after = storeStatusAt(override.until, hours);
+		const after = storeStatusAt(override.until, hours, week);
 		return closedStatus(ms, after.open ? override.until : after.changesAt, override.until, true);
 	}
-	const byHours = storeStatusAt(ms, hours);
+	const byHours = storeStatusAt(ms, hours, week);
 	if (byHours.open) return {
 		...byHours,
 		detail: openDetail,

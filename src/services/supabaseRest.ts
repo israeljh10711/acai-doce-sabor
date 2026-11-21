@@ -11,6 +11,20 @@ import type { AnyChange, ChangeKind } from './sellerCatalogStore.ts'
 
 export type SupabaseConfig = { url: string; key: string; sellerEmail: string }
 
+/** Erro ao gravar o cardápio, com o código e a mensagem do banco. */
+export class CatalogWriteError extends Error {
+  readonly status: number
+  readonly code: string
+  readonly detail: string
+  constructor(status: number, code: string, detail: string) {
+    super(`Supabase recusou a gravação (${status}${code ? ` ${code}` : ''})`)
+    this.name = 'CatalogWriteError'
+    this.status = status
+    this.code = code
+    this.detail = detail
+  }
+}
+
 export type RestDeps = {
   fetch: typeof fetch
   now(): number
@@ -110,6 +124,26 @@ export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
 
   const authed = async (extra: Record<string, string> = {}) => ({ apikey: config.key, Authorization: `Bearer ${await accessToken()}`, ...extra })
 
+  /**
+   * Gravação do cardápio (cardápio dinâmico, 2026-11-21): com o token do vendedor; o erro guarda
+   * o código e a mensagem do banco (as guardas falam português: "A categoria ainda tem produtos").
+   */
+  async function write(path: string, init: RequestInit): Promise<Response> {
+    const response = await deps.fetch(`${base}${path}`, { ...init, headers: await authed({ 'Content-Type': 'application/json', ...(init.headers as Record<string, string>) }) })
+    if (response.ok) return response
+    let body: { code?: unknown; message?: unknown } = {}
+    try {
+      body = (await response.json()) as typeof body
+    } catch {
+      body = {}
+    }
+    throw new CatalogWriteError(response.status, typeof body.code === 'string' ? body.code : '', typeof body.message === 'string' ? body.message : '')
+  }
+  const filterOf = (key: Readonly<Record<string, string>>) =>
+    Object.entries(key)
+      .map(([column, value]) => `${encodeURIComponent(column)}=eq.${encodeURIComponent(value)}`)
+      .join('&')
+
   return {
     /**
      * O cardápio do banco (`catalogo_publico()`, cardápio dinâmico de 2026-11-21). Com o vendedor
@@ -123,6 +157,33 @@ export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
         body: '{}',
       })
       return (await response.json()) as unknown
+    },
+
+    /** Chama uma função do banco (RPC) como vendedor e devolve a resposta. */
+    async rpc(name: string, args: Record<string, unknown>): Promise<unknown> {
+      const response = await write(`/rest/v1/rpc/${encodeURIComponent(name)}`, { method: 'POST', body: JSON.stringify(args) })
+      const text = await response.text()
+      return text ? (JSON.parse(text) as unknown) : null
+    },
+
+    /** Cria ou troca uma linha inteira (pela chave primária), como vendedor. */
+    async upsertRow(table: string, row: Record<string, unknown>, conflict: string): Promise<void> {
+      await write(`/rest/v1/${encodeURIComponent(table)}?on_conflict=${encodeURIComponent(conflict)}`, {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(row),
+      })
+    },
+
+    /** Muda campos de uma linha (pela chave), como vendedor. Nenhuma linha mudou: erro. */
+    async patchRow(table: string, key: Readonly<Record<string, string>>, fields: Record<string, unknown>): Promise<void> {
+      const response = await write(`/rest/v1/${encodeURIComponent(table)}?${filterOf(key)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(fields),
+      })
+      const rows = (await response.json()) as unknown
+      if (!Array.isArray(rows) || rows.length === 0) throw new CatalogWriteError(404, 'PGRST116', 'Nada mudou: o item não existe mais ou a sessão de vendedor acabou.')
     },
 
     /** As mudanças do cardápio (leitura pública). */

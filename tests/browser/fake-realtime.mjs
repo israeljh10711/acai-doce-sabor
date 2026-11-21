@@ -135,6 +135,8 @@ export function attachFakeRealtime(server, { isPublicKey, sellerToken, userOf = 
   }
   /** O RLS: orders só para o vendedor; order_events para o dono da sessão e para o vendedor. */
   const allowed = (sub, table, record) => {
+    // A revisão do cardápio (2026-11-21) é pública: todos recebem.
+    if (table === 'catalog_meta') return true
     if (sub.token === sellerToken) return true
     if (table !== 'order_events') return false
     const user = userOf(sub.token)
@@ -169,6 +171,10 @@ export function attachFakeRealtime(server, { isPublicKey, sellerToken, userOf = 
     publish,
     /** Inscrições ativas em orders com o token do vendedor. */
     sellerSubscriptions: () => stats.subscriptions.filter((sub) => sub.token === sellerToken).length,
+    /** Inscrições em orders (o painel de pedidos), sem a do cardápio. */
+    ordersSubscriptions: () => stats.subscriptions.filter((sub) => sub.filters.some((filter) => filter.table === 'orders')),
+    /** Inscrições na revisão do cardápio (catalog_meta). */
+    catalogSubscriptions: () => stats.subscriptions.filter((sub) => sub.filters.some((filter) => filter.table === 'catalog_meta')),
     /** Inscrições de clientes (sessão anônima) em order_events. */
     customerSubscriptions: () => stats.subscriptions.filter((sub) => sub.token && sub.token !== sellerToken && sub.filters.some((filter) => filter.table === 'order_events')),
     closeAll: () => {

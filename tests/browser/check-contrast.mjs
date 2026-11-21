@@ -5,7 +5,22 @@
 //   node tests/browser/check-contrast.mjs [endereçoBase]
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { openBrowser } from './lib.mjs'
+
+// Cardápio dinâmico (2026-11-21): o esgotado fica nos registros do cardápio no aparelho.
+const { baseCatalogRecords } = await import(pathToFileURL(join(process.cwd(), 'src', 'features', 'catalog', 'baseRecords.ts')).href)
+const { recordsToDatabase, LOCAL_CATALOG_KEY } = await import(pathToFileURL(join(process.cwd(), 'src', 'services', 'catalogRepository.ts')).href)
+/** Grava no aparelho o cardápio da semente com estes produtos e complementos esgotados. */
+const soldOut = ({ products = [], options = [] }) => {
+  const records = baseCatalogRecords()
+  const data = recordsToDatabase({
+    ...records,
+    products: records.products.map((product) => (products.includes(product.id) ? { ...product, available: false } : product)),
+    options: records.options.map((option) => (options.includes(option.id) ? { ...option, available: false } : option)),
+  })
+  return `localStorage.setItem(${JSON.stringify(LOCAL_CATALOG_KEY)}, ${JSON.stringify(JSON.stringify(data))});`
+}
 
 const baseUrl = process.argv[2] ?? 'http://127.0.0.1:5173'
 
@@ -161,30 +176,61 @@ const routes = [
   {
     path: '/carrinho',
     label: 'carrinho: entrega por bairro, loja fechada e item esgotado',
-    before: `localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'c1', itemId: 'jujuba', choices: [], quantity: 1 }, { kind: 'extra', id: 'c2', itemId: 'agua-mineral-500-ml', choices: [], quantity: 1 }] })); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ items: { jujuba: { available: false } }, settings: { loja: { override: { state: 'closed', until: Date.now() + 36e5 }, delivery: { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] } } } })); true`,
+    before: `localStorage.setItem('acai-doce-sabor:carrinho', JSON.stringify({ v: 2, items: [{ kind: 'extra', id: 'c1', itemId: 'jujuba', choices: [], quantity: 1 }, { kind: 'extra', id: 'c2', itemId: 'agua-mineral-500-ml', choices: [], quantity: 1 }] })); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ settings: { loja: { override: { state: 'closed', until: Date.now() + 36e5 }, delivery: { mode: 'taxas', zones: [{ id: 'centro', name: 'Centro', feeCents: 300 }] } } } })); ${soldOut({ products: ['jujuba'] })} true`,
     setup: `(async () => { document.querySelector('input[value="entrega"]').click(); await __wait(400); __clickText('button', 'Finalizar pedido'); await __wait(400); document.querySelector('[data-note-add]').click(); await __wait(300) })()`,
   },
   {
     path: '/monte-seu-pedido',
     label: 'modo vendedor: faixa, Disponível / Esgotado e Duplicar',
-    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ items: { jujuba: { available: false } } })); true`,
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); ${soldOut({ products: ['jujuba'] })} true`,
   },
   {
     path: '/monte-seu-pedido/acai-tradicional',
     label: 'modo vendedor: complementos com Disponível / Esgotado',
-    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); localStorage.setItem('acai_doce_sabor_seller_catalog_v1', JSON.stringify({ toppings: { granola: { available: false } } })); true`,
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); ${soldOut({ options: ['granola'] })} true`,
+  },
+  // Painel do vendedor (cardápio dinâmico, 2026-11-21).
+  {
+    path: '/vendedor',
+    label: 'painel do vendedor: catálogo',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
+    setup: `__wait(600)`,
   },
   {
-    path: '/',
-    label: 'modo vendedor: Entrega / Frete',
+    path: '/vendedor?aba=categorias',
+    label: 'painel do vendedor: categorias e editor',
     before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
-    setup: `(async () => { document.querySelector('[data-delivery-settings]').click(); await __wait(600); document.querySelector('dialog[open] input[value="taxas"]').click(); await __wait(400) })()`,
+    setup: `(async () => { await __wait(500); document.querySelector('[data-category="bebidas"] [data-edit-category]').click(); await __wait(700) })()`,
   },
   {
-    path: '/',
-    label: 'modo vendedor: Horários e Contato',
+    path: '/vendedor?aba=produtos',
+    label: 'painel do vendedor: produtos (oculto e esgotado)',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); ${soldOut({ products: ['jujuba'] })} true`,
+    setup: `__wait(700)`,
+  },
+  {
+    path: '/vendedor?aba=produtos',
+    label: 'painel do vendedor: editor de produto montável com erro',
     before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
-    setup: `(async () => { document.querySelector('[data-hours-contact]').click(); await __wait(600) })()`,
+    setup: `(async () => { await __wait(500); document.querySelector('[data-product="acai-oca"] [data-edit-product]').click(); await __wait(900); const input = document.querySelector('#produto-nome'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ''); input.dispatchEvent(new Event('input', { bubbles: true })); await __wait(200); document.querySelector('dialog[open] [data-save]').click(); await __wait(500) })()`,
+  },
+  {
+    path: '/vendedor?aba=complementos',
+    label: 'painel do vendedor: complementos',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); ${soldOut({ options: ['granola'] })} true`,
+    setup: `__wait(700)`,
+  },
+  {
+    path: '/vendedor?aba=ofertas',
+    label: 'painel do vendedor: ofertas e editor',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
+    setup: `(async () => { await __wait(500); document.querySelector('[data-offer] [data-toggle-offer]').click(); await __wait(500); document.querySelector('[data-edit-offer]').click(); await __wait(700) })()`,
+  },
+  {
+    path: '/vendedor?aba=loja',
+    label: 'painel do vendedor: Configurações da loja (taxa por bairro, horário por dia)',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
+    setup: `(async () => { await __wait(600); document.querySelector('input[name="loja-frete"][value="taxas"]').click(); await __wait(300); document.querySelector('[data-add-zone]').click(); await __wait(300); [...document.querySelectorAll('label')].find((l) => l.textContent.includes('Mesmo horário todos os dias')).querySelector('input').click(); await __wait(400) })()`,
   },
   {
     path: '/',

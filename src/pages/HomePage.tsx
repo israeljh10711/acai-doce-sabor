@@ -4,12 +4,12 @@ import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { Depth, TiltStage } from '../components/ui/TiltStage.tsx'
 import { ArrowRight, Camera, Chat, Clock, Crown, Pin } from '../components/ui/icons.tsx'
-import { LEGACY_ANCHORS, MONTE_TITLE } from '../features/catalog/catalogNav.ts'
+import { legacyAnchors, MONTE_TITLE } from '../features/catalog/catalogNav.ts'
 import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { useStoreSettings } from '../features/catalog/catalogStore.ts'
-import { hoursText } from '../features/store-hours/hours.ts'
+import { scheduleText } from '../features/store-hours/hours.ts'
 import { StoreClosedCard } from '../features/store-hours/StoreClosedCard.tsx'
 import { StoreStatusBadge } from '../features/store-hours/StoreStatusBadge.tsx'
 import { storeAddressText } from '../features/store/storeSettings.ts'
@@ -30,7 +30,7 @@ export function HomePage() {
   // O título "Monte do seu jeito" pode ser renomeado pelo vendedor com a página aberta.
   useCatalogVersion()
   usePageTitle()
-  useHashScroll(LEGACY_ANCHORS)
+  useHashScroll(legacyAnchors())
 
   return (
     <>
@@ -154,7 +154,8 @@ function HeroPhoto() {
 
 function StoreInfo() {
   // Horário e contato atuais (o vendedor muda em "Horários e Contato", 2026-11-17).
-  const { hours, contact } = useStoreSettings()
+  const settings = useStoreSettings()
+  const { contact } = settings
   const { instagramHandle, instagramUrl } = storeInfo
   return (
     <section aria-labelledby="loja-titulo" className="bg-acai-950 text-white">
@@ -168,7 +169,7 @@ function StoreInfo() {
               <Clock className="mt-0.5 size-5 shrink-0 text-gold-400" />
               <span>
                 <span className="block font-bold text-white">Funcionamento</span>
-                {hoursText(hours)}
+                {scheduleText(settings)}
               </span>
             </li>
             <li className="flex gap-3">

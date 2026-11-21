@@ -1,147 +1,40 @@
 /**
- * Ofertas das notificações flutuantes (pedido de 2026-11-15): só estes 12 produtos, escolhidos
- * pelo responsável por valor e apelo. Preços e valores no meio dos textos vêm do catálogo, então
- * a notificação nunca mostra um preço diferente do cardápio e do carrinho. Para um "preço
- * relâmpago", mude o preço do item no catálogo (`catalog/extras.ts`), com o preço antigo em
- * `originalPriceCents`: cartão, notificação, carrinho e mensagem mudam juntos.
+ * Ofertas das notificações flutuantes. Desde o cardápio dinâmico (2026-11-21) vêm do banco
+ * (`catalog_offers`): o vendedor escolhe produto, tamanho, textos, selo, ordem, datas e, se quiser,
+ * um preço promocional (que muda o preço do produto em todo o site e é conferido no servidor). A
+ * semente são as 12 do pedido de 2026-11-15 (`baseOffers.ts`).
+ *
+ * Preços e valores no meio dos textos vêm do cardápio, então a notificação nunca mostra um preço
+ * diferente do cardápio e do carrinho.
  */
 import { formatBRL } from '../../utils/money.ts'
 import type { CategorySlug } from '../catalog/categories.ts'
+import { CATEGORIES } from '../catalog/categories.ts'
+import { getCatalogRecords, getLiveOffers } from '../catalog/catalogState.ts'
 import { EXTRA_ITEMS, type ExtraItem, getExtraItem } from '../catalog/extras.ts'
 import { PRODUCTS } from '../catalog/menu.ts'
 import { catalogPhotoSrc, productPhoto, productPhotoSrc } from '../catalog/photos.ts'
+import type { LiveOffer } from '../catalog/recordsAdapter.ts'
 import { startingPriceCents } from '../catalog/showcase.ts'
+import { BASE_OFFER_RECORDS, offerText } from './baseOffers.ts'
 
-/** O que acontece ao tocar na notificação (os nomes são os do pedido). */
+/**
+ * O que o toque na oferta abre: o personalizador (o Pote 1 L e a Barca com nome próprio, de antes),
+ * a escolha de sabor, a confirmação direta ou um produto da vitrine (Oca e Batido com nome próprio).
+ */
 export type OfferActionType =
   | 'customizer_1l'
   | 'customizer_barca'
+  | 'customizer'
   | 'flavor_modal'
   | 'direct_confirm'
   | 'open_oca'
   | 'open_batido'
-
-type OfferTarget = { kind: 'extra'; itemId: string } | { kind: 'main'; slug: Extract<CategorySlug, 'acai-oca' | 'acai-batido'> }
-
-type Prices = { price: string; oldPrice: string | null }
-
-type OfferConfig = {
-  id: string
-  target: OfferTarget
-  /** Selo: o emoji é enfeite (não é lido pelo leitor de tela). */
-  badge: { emoji: string; text: string }
-  title: string
-  subtitle: (prices: Prices) => string
-  actionType: OfferActionType
-}
-
-const extra = (itemId: string): OfferTarget => ({ kind: 'extra', itemId })
-
-/** Os 12 produtos permitidos, na ordem do pedido. */
-const OFFERS: readonly OfferConfig[] = [
-  {
-    id: 'pote-de-acai-1-litro',
-    target: extra('pote-de-acai-1-litro'),
-    badge: { emoji: '🔥', text: 'Oferta mais pedida' },
-    title: 'Pote de Açaí 1 Litro Montado',
-    subtitle: ({ price, oldPrice }) => `Escolha até 7 adicionais grátis por apenas ${price} (de ${oldPrice})!`,
-    actionType: 'customizer_1l',
-  },
-  {
-    id: 'barca-de-acai',
-    target: extra('barca-de-acai'),
-    badge: { emoji: '⭐', text: 'Especial da casa' },
-    title: 'Barca de Açaí Completa',
-    subtitle: ({ price }) => `Barca super recheada + 1 cobertura à sua escolha por ${price}!`,
-    actionType: 'customizer_barca',
-  },
-  {
-    id: 'kit-completo-casquinha',
-    target: extra('kit-completo-casquinha'),
-    badge: { emoji: '🍦', text: 'Combo família' },
-    title: 'Kit Completo Casquinha',
-    subtitle: ({ price }) => `Pote de sorvete 2 Litros + 1 cobertura + 10 casquinhas por ${price}!`,
-    actionType: 'flavor_modal',
-  },
-  {
-    id: 'pote-de-acai-2-litros',
-    target: extra('pote-de-acai-2-litros'),
-    badge: { emoji: '🍨', text: 'Tamanho família' },
-    title: 'Açaí Pote de 2 Litros',
-    subtitle: () => '2 litros de açaí cremoso pronto para dividir com a galera!',
-    actionType: 'direct_confirm',
-  },
-  {
-    id: 'combo-1-litro',
-    target: extra('combo-1-litro'),
-    badge: { emoji: '⚡', text: 'Combo perfeito' },
-    title: 'Combo Sorvete 1L + 10 Casquinhas',
-    subtitle: ({ price }) => `Pote de 1 Litro + 10 casquinhas crocantes por apenas ${price}!`,
-    actionType: 'flavor_modal',
-  },
-  {
-    id: 'pote-de-sorvete-2-litros-especiais',
-    target: extra('pote-de-sorvete-2-litros-especiais'),
-    badge: { emoji: '🍧', text: 'Super cremoso' },
-    title: 'Pote de Sorvete 2 Litros',
-    // O texto do pedido de 2026-11-15: desde 2026-11-16 o pote de 2 litros tem o sabor Chocolate.
-    subtitle: ({ price }) => `Sabores especiais como Sensação, Napolitano e Chocolate por ${price}!`,
-    actionType: 'flavor_modal',
-  },
-  {
-    id: 'acai-oca',
-    target: { kind: 'main', slug: 'acai-oca' },
-    badge: { emoji: '👑', text: 'Carro-chefe da loja' },
-    title: 'Açaí Oca — O Mais Pedido',
-    subtitle: ({ price }) => `Monte no pote, copo ou isopor a partir de ${price} com adicionais grátis!`,
-    actionType: 'open_oca',
-  },
-  {
-    id: 'acai-batido',
-    target: { kind: 'main', slug: 'acai-batido' },
-    badge: { emoji: '🥤', text: 'Refrescante' },
-    title: 'Açaí Batido Cremoso',
-    subtitle: ({ price }) => `Com leite condensado, amendoim ou paçoca a partir de ${price}!`,
-    actionType: 'open_batido',
-  },
-  {
-    id: 'picole-gourmet',
-    target: extra('picole-gourmet'),
-    badge: { emoji: '🍫', text: 'Dica irresistível' },
-    title: 'Picolé Gourmet Cremoso',
-    subtitle: ({ price }) => `Sabores Nutella, Paçoca, Morango com Chocolate e Iogurte por ${price}!`,
-    actionType: 'flavor_modal',
-  },
-  {
-    id: 'picole-trufado',
-    target: extra('picole-trufado'),
-    badge: { emoji: '✨', text: 'Recheado' },
-    title: 'Picolé Trufado',
-    subtitle: ({ price }) => `Cremosidade e recheio de Mousse de Maracujá, Ninho com Nutella e mais por ${price}!`,
-    actionType: 'flavor_modal',
-  },
-  {
-    id: 'moreninha',
-    target: extra('moreninha'),
-    badge: { emoji: '🍦', text: 'Clássico gelado' },
-    title: 'Sorvete Moreninha',
-    // Como na descrição do item: a casquinha é banhada na cobertura crocante de chocolate.
-    subtitle: ({ price }) => `Casquinha com sorvete banhada na cobertura crocante de chocolate por ${price}!`,
-    actionType: 'direct_confirm',
-  },
-  {
-    id: 'cremosinho',
-    target: extra('cremosinho'),
-    badge: { emoji: '❄️', text: 'Geladinho' },
-    title: 'Cremosinho (Dindin)',
-    subtitle: ({ price }) => `Super cremoso nos sabores Ninho, Chocolate, Morango e Coco por apenas ${price}!`,
-    actionType: 'flavor_modal',
-  },
-]
+  | 'open_main'
 
 /**
- * Nunca entram nas notificações (pedido de 2026-11-15): bomboniere de baixo valor e água. Ficam
- * só nas gavetas e na busca.
+ * Nunca entraram nas notificações do pedido de 2026-11-15 (bomboniere de baixo valor e água). A
+ * semente não tem nenhum deles; desde 2026-11-21 quem decide é o vendedor, no painel de ofertas.
  */
 export const NEVER_IN_OFFERS: readonly string[] = [
   'fini-gelatinas',
@@ -176,72 +69,94 @@ export type OfferNotification = {
   oldPriceText: string | null
   photo: OfferPhoto
   actionType: OfferActionType
-  /** O item das gavetas (escolha de sabor, confirmação ou personalizador). */
+  /** Item das seções (abre a escolha, a confirmação ou o personalizador). */
   item: ExtraItem | null
-  /** A categoria principal (Açaí Oca, Açaí Batido). */
+  /** Produto da vitrine (abre o personalizador dele). */
   slug: CategorySlug | null
 }
 
-function resolve(config: OfferConfig): OfferNotification {
-  if (config.target.kind === 'main') {
-    const price = `A partir de ${formatBRL(startingPriceCents(config.target.slug))}`
+/** Foto do item: a do cardápio (`images/...`, em cópia de 480 px) ou a enviada pelo vendedor. */
+const itemPhoto = (image: string) => (image.startsWith('images/') ? catalogPhotoSrc(image, 480) : image)
+
+function mainAction(slug: string): OfferActionType {
+  return slug === 'acai-oca' ? 'open_oca' : slug === 'acai-batido' ? 'open_batido' : 'open_main'
+}
+
+function itemAction(item: ExtraItem): OfferActionType {
+  if (item.action.type !== 'customizer') return item.action.type
+  return item.action.product === 'pote-de-acai-1-litro' ? 'customizer_1l' : item.action.product === 'barca-de-acai' ? 'customizer_barca' : 'customizer'
+}
+
+function resolve(offer: LiveOffer): OfferNotification | null {
+  const badge = { emoji: offer.badgeEmoji, text: offer.badgeText }
+  const promo = offer.priceCents < offer.regularCents
+  const category = CATEGORIES.find((candidate) => candidate.slug === offer.productId)
+  if (category) {
+    if (PRODUCTS[category.slug]?.available === false) return null
+    const price = formatBRL(offer.priceCents)
+    const uploaded = category.photo
     return {
-      id: config.id,
-      badge: config.badge,
-      title: config.title,
-      subtitle: config.subtitle({ price: formatBRL(startingPriceCents(config.target.slug)), oldPrice: null }),
-      priceText: price,
-      oldPriceText: null,
-      photo: { src: productPhotoSrc(productPhoto(config.target.slug).name, 480), fit: 'contain' },
-      actionType: config.actionType,
+      id: offer.id,
+      badge,
+      title: offer.title,
+      subtitle: offerText(offer.subtitle, { price, oldPrice: promo ? formatBRL(offer.regularCents) : null }),
+      priceText: `A partir de ${price}`,
+      oldPriceText: promo ? formatBRL(offer.regularCents) : null,
+      photo: uploaded ? { src: uploaded, fit: 'cover' } : { src: productPhotoSrc(productPhoto(category.slug).name, 480), fit: 'contain' },
+      actionType: mainAction(category.slug),
       item: null,
-      slug: config.target.slug,
+      slug: category.slug,
     }
   }
-  const item = getExtraItem(config.target.itemId)
-  if (!item) throw new Error(`Oferta sem item no catálogo: ${config.target.itemId}`)
-  const price = formatBRL(item.priceCents)
-  const oldPrice = item.originalPriceCents ? formatBRL(item.originalPriceCents) : null
+  const item = getExtraItem(offer.productId)
+  if (!item || item.available === false) return null
+  const price = formatBRL(offer.priceCents)
+  const old = promo ? offer.regularCents : (item.originalPriceCents ?? null)
+  const oldPrice = old !== null && old > offer.priceCents ? formatBRL(old) : null
   return {
-    id: config.id,
-    badge: config.badge,
-    title: config.title,
-    subtitle: config.subtitle({ price, oldPrice }),
+    id: offer.id,
+    badge,
+    title: offer.title,
+    subtitle: offerText(offer.subtitle, { price, oldPrice }),
     priceText: price,
     oldPriceText: oldPrice,
-    photo: { src: catalogPhotoSrc(item.image, 480), fit: 'cover' },
-    actionType: config.actionType,
+    photo: { src: itemPhoto(item.image), fit: 'cover' },
+    actionType: itemAction(item),
     item,
     slug: null,
   }
 }
 
-/** As 12 ofertas, com os preços atuais do catálogo e sem nenhum item da lista proibida. */
-export const FEATURED_OFFER_NOTIFICATIONS: readonly OfferNotification[] = OFFERS.map(resolve).filter(
-  (offer) => !offer.item || !NEVER_IN_OFFERS.includes(offer.item.id),
-)
-
-/*
- * A oferta na tela é refeita com o cardápio atual (modo vendedor, 2026-11-16): preço novo chega ao
- * texto; item excluído ou esgotado deixa de aparecer.
+/**
+ * As ofertas valendo: as do banco ou, antes da primeira leitura (e nos testes antigos), as da
+ * semente com os preços do cardápio em uso.
  */
-let current: { key: readonly unknown[]; offers: ReadonlyMap<string, OfferNotification> } | null = null
-
-function currentOffers(): ReadonlyMap<string, OfferNotification> {
-  const key = [EXTRA_ITEMS, PRODUCTS]
-  if (!current || current.key.some((part, index) => part !== key[index])) {
-    const offers = OFFERS.flatMap((config) => {
-      if (config.target.kind === 'extra') {
-        const item = getExtraItem(config.target.itemId)
-        if (!item || item.available === false || NEVER_IN_OFFERS.includes(item.id)) return []
-      }
-      return [resolve(config)]
-    })
-    current = { key, offers: new Map(offers.map((offer) => [offer.id, offer])) }
-  }
-  return current.offers
+function liveOffers(): readonly LiveOffer[] {
+  if (getCatalogRecords()) return getLiveOffers()
+  return BASE_OFFER_RECORDS.flatMap((offer): LiveOffer[] => {
+    const category = CATEGORIES.find((candidate) => candidate.slug === offer.productId)
+    const cents = category ? startingPriceCents(category.slug) : getExtraItem(offer.productId)?.priceCents
+    return cents === undefined ? [] : [{ ...offer, regularCents: cents, priceCents: cents }]
+  })
 }
 
+let current: { key: readonly unknown[]; offers: readonly OfferNotification[]; byId: ReadonlyMap<string, OfferNotification> } | null = null
+
+function currentOffers() {
+  const key = [EXTRA_ITEMS, PRODUCTS, CATEGORIES, getLiveOffers(), getCatalogRecords()]
+  if (!current || current.key.some((part, index) => part !== key[index])) {
+    const offers = liveOffers().flatMap((offer) => resolve(offer) ?? [])
+    current = { key, offers, byId: new Map(offers.map((offer) => [offer.id, offer])) }
+  }
+  return current
+}
+
+/** As notificações valendo agora, na ordem do vendedor. */
+export function featuredOffers(): readonly OfferNotification[] {
+  return currentOffers().offers
+}
+
+/** A oferta pelo id, com os preços de agora; `undefined` se saiu (item esgotado, oferta acabou). */
 export function getOffer(id: string | null): OfferNotification | undefined {
-  return id ? currentOffers().get(id) : undefined
+  return id ? currentOffers().byId.get(id) : undefined
 }

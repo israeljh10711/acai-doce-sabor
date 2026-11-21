@@ -8,7 +8,7 @@ import { ProductVisual } from '../catalog/ItemVisual.tsx'
 import { isProductAvailable } from '../catalog/availability.ts'
 import { type Product, TOPPING_GROUPS, flavorTermOf } from '../catalog/menu.ts'
 import { productInfo } from '../catalog/productInfo.ts'
-import { freeByGroup } from '../catalog/selection.ts'
+import { freeByGroup, missingChoiceText } from '../catalog/selection.ts'
 import { AnimatedValue } from './AnimatedValue.tsx'
 import { ConfirmItemDialog } from './ConfirmItemDialog.tsx'
 import { productSummary } from './confirmSummary.ts'
@@ -26,7 +26,6 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
   const freeGroups = product.groups.filter((group) => TOPPING_GROUPS[group].rule !== 'paid')
   const term = flavorTermOf(product)
-  const missingText = { size: 'o tamanho', flavor: term.missing } as const
 
   return (
     <section
@@ -104,7 +103,7 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
             id="resumo-falta"
             className="mt-4 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-gold-400"
           >
-            Falta escolher {cfg.missing.map((choice) => missingText[choice]).join(' e ')}.
+            Falta escolher {cfg.missing.map((choice) => missingChoiceText(choice, term.missing)).join(' e ')}.
           </p>
         )}
 

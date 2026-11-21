@@ -6,7 +6,9 @@
 // - Loja Aberta / Fechada: selo do cabeçalho, aviso acolhedor com endereço e WhatsApp, pedido
 //   antecipado na comanda, envio bloqueado quando o vendedor escolhe bloquear, e "Abrir" de volta;
 // - Tempo (1 toque e digitado), Entrega / Frete (bairros, outro bairro, grátis, retirada) com o
-//   frete no total e no troco, Horários e Contato (rodapé e número do WhatsApp);
+//   frete no total e no troco, Horários e Contato (rodapé e número do WhatsApp). Desde o cardápio
+//   dinâmico (2026-11-21), Entrega / Frete e Horários e Contato ficam em "Configurações da loja", no
+//   painel do vendedor; "Duplicar" e os sabores, no editor de produto do painel;
 // - Duplicar (cadastro preenchido, item novo na seção), "+ Observação" e a comanda linha a linha;
 // - gerenciador de sabores: sabor do Batido esgotado em 1 toque, opção esgotada no Kit Completo,
 //   sabor novo no Milk-shake e Duplicar com as duas escolhas do Kit.
@@ -121,6 +123,31 @@ const sendOrder = async () => {
 }
 /** A comanda sem a linha de pedido antecipado (que depende da hora em que a conferência roda). */
 const withoutAntecipado = (lines) => lines.filter((line) => !line.startsWith('⏰'))
+/**
+ * Configurações da loja no painel (2026-11-21): abre a aba, faz a mudança, salva e volta para
+ * `back` com a mesma forma de pagamento escolhida.
+ */
+const storeAdmin = async (change, back = '/carrinho') => {
+  const method = await run(`document.querySelector('input[name="forma-de-pagamento"]:checked')?.value ?? null`)
+  await goto('/vendedor?aba=loja', { width: 1280, height: 800 })
+  if (!(await waitUntil(`__q('[data-admin-store]')`))) throw new Error('As Configurações da loja não abriram.')
+  await change()
+  await click(`__q('[data-save]')`, 400)
+  if (!(await waitUntil(`__q('[data-save-ok]')`))) throw new Error(`As configurações não foram salvas: ${await run(`__q('[data-save-error]')?.textContent ?? ''`)}`)
+  await goto(back, { width: 1280, height: 800 })
+  if (method) await click(`document.querySelector('input[name="forma-de-pagamento"][value="${method}"]')`, 300)
+}
+/** Abre o editor de produto pelo botão da loja e espera ele carregar. */
+const openEditor = async (button) => {
+  await click(button, 300)
+  if (!(await waitUntil(`__q('[data-product-editor]')`, 10000))) throw new Error('O editor de produto não abriu.')
+  await sleep(300)
+}
+const saveEditor = async () => {
+  await click(`__dialog().querySelector('[data-save]')`, 400)
+  await waitUntil(`!__dialog() || __dialog().querySelector('[data-save-ok], [data-save-error]')`)
+  await sleep(400)
+}
 const LINE = '━━━━━━━━━━━━━━━━━━━━'
 
 try {
@@ -144,7 +171,7 @@ try {
     await run(`[__item('jujuba').querySelector('[data-seller-stock]').dataset.sellerStock, !!__item('jujuba').querySelector('[data-sold-out]'), __item('jujuba').querySelector('button[disabled]')?.textContent.trim()]`),
     ['esgotado', true, 'Indisponível no momento: Jujuba'],
   )
-  check('esgotado gravado no aparelho', await run(`JSON.parse(localStorage.getItem('acai_doce_sabor_seller_catalog_v1')).items.jujuba`), { available: false })
+  check('esgotado gravado no aparelho (registros do cardápio)', await run(`JSON.parse(localStorage.getItem('acai_doce_sabor_catalogo_v2')).products.find((product) => product.id === 'jujuba').available`), false)
   await click(`__q('#secao-acai-tradicional [data-seller-stock]')`, 900)
   check(
     'Açaí Tradicional esgotado: tarja e "Indisponível no momento" no cartão',
@@ -219,17 +246,14 @@ try {
   check('comanda com a loja fechada: "Pedido antecipado" logo abaixo da data', [/^📅 \*Data\/Hora:\* \d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}$/.test(lines[1] ?? ''), lines[2]], [true, '⏰ *Pedido antecipado:* enviado com a loja fechada'])
 
   // Bloquear o envio com a loja fechada.
-  await click(`__q('[data-hours-contact]')`, 800)
-  await click(`__dialog().querySelector('input[value="bloquear"]')`, 200)
-  await submitDialog()
+  check('faixa: "Horários e Contato" leva às Configurações da loja', await run(`__q('[data-hours-contact]')?.getAttribute('href')`), '/vendedor?aba=loja#loja-horario')
+  await storeAdmin(() => click(`__q('input[name="loja-fechada"][value="bloquear"]')`, 200))
   check(
     'loja fechada e "Bloquear o envio": botão desligado com o motivo',
     await run(`[__send()?.textContent.trim(), __send()?.disabled, document.body.textContent.includes('não está recebendo pedidos agora')]`),
     ['Loja fechada: pedidos bloqueados', true, true],
   )
-  await click(`__q('[data-hours-contact]')`, 800)
-  await click(`__dialog().querySelector('input[value="antecipado"]')`, 200)
-  await submitDialog()
+  await storeAdmin(() => click(`__q('input[name="loja-fechada"][value="antecipado"]')`, 200))
 
   // Abrir de volta.
   await click(`__q('[data-store-switch]')`, 900)
@@ -283,14 +307,16 @@ try {
   check('Tempo digitado: "1 hora"', await run(`__badge().includes('Entrega: 1 hora')`), true)
 
   // --- 4. Entrega / Frete ---
-  await click(`__q('[data-delivery-settings]')`, 700)
-  await click(`__dialog().querySelector('input[value="taxas"]')`, 300)
-  await set(`__dialog().querySelector('[data-zone-name="0"]')`, 'Centro')
-  await set(`__dialog().querySelector('[data-zone-price="0"]')`, '3,00')
-  await click(`__dialog().querySelector('[data-add-zone]')`, 300)
-  await set(`__dialog().querySelector('[data-zone-name="1"]')`, 'Bairros afastados')
-  await set(`__dialog().querySelector('[data-zone-price="1"]')`, '5')
-  await submitDialog()
+  check('faixa: "Entrega / Frete" leva às Configurações da loja', await run(`__q('[data-delivery-settings]')?.getAttribute('href')`), '/vendedor?aba=loja#loja-entrega')
+  await storeAdmin(async () => {
+    await click(`__q('input[name="loja-frete"][value="taxas"]')`, 300)
+    await click(`__q('[data-add-zone]')`, 200)
+    await set(`__q('#bairro-0-nome')`, 'Centro')
+    await set(`__q('#bairro-0-taxa')`, '3,00')
+    await click(`__q('[data-add-zone]')`, 200)
+    await set(`__q('#bairro-1-nome')`, 'Bairros afastados')
+    await set(`__q('#bairro-1-taxa')`, '5')
+  })
   check(
     'frete por bairro gravado',
     await run(`JSON.parse(localStorage.getItem('acai_doce_sabor_seller_catalog_v1')).settings.loja.delivery.zones.map((zone) => [zone.name, zone.feeCents])`),
@@ -370,9 +396,7 @@ try {
   )
 
   // Entrega grátis.
-  await click(`__q('[data-delivery-settings]')`, 700)
-  await click(`__dialog().querySelector('input[value="gratis"]')`, 300)
-  await submitDialog()
+  await storeAdmin(() => click(`__q('input[name="loja-frete"][value="gratis"]')`, 300))
   check('entrega grátis: R$ 0,00 no resumo', await run(`__values()`), 'Subtotal R$ 3,00 Entrega Grátis (R$ 0,00) TOTAL R$ 3,00')
 
   // --- 5. Observação ---
@@ -392,11 +416,11 @@ try {
   )
 
   // --- 6. Horários e Contato ---
-  await click(`__q('[data-hours-contact]')`, 800)
-  await set(`__dialog().querySelector('[data-hours="abre"]')`, '14:00')
-  await set(`__dialog().querySelector('[data-hours="fecha"]')`, '00:00')
-  await set(`__dialog().querySelector('input[type="tel"]')`, '83988887777')
-  await submitDialog()
+  await storeAdmin(async () => {
+    await set(`__q('#loja-open')`, '14:00')
+    await set(`__q('#loja-close')`, '00:00')
+    await set(`__q('#loja-whatsapp')`, '83988887777')
+  })
   // A forma de pagamento não fica guardada ao recarregar a página (só os dados do cliente).
   await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`, 300)
   check(
@@ -408,24 +432,26 @@ try {
   await click(`__send()`, 700)
   await waitUntil(`__q('[data-support-whatsapp]')`)
   check('"Dúvidas? Falar no WhatsApp" do pedido usa o WhatsApp novo', await run(`__q('[data-support-whatsapp]')?.href.split('?')[0]`), 'https://wa.me/5583988887777')
-  await click(`__q('[data-hours-contact]')`, 800)
-  await set(`__dialog().querySelector('[data-hours="abre"]')`, '04:00')
-  await submitDialog(600)
-  check('abertura antes das 5h é recusada, com o motivo', await run(`__dialog()?.textContent.includes('A abertura precisa ser a partir das 05:00.')`), true)
-  await run(`__dialog().close(); true`)
-  await sleep(300)
+  await goto('/vendedor?aba=loja', desktop)
+  await waitUntil(`__q('[data-admin-store]')`)
+  await set(`__q('#loja-open')`, '04:00')
+  await click(`__q('[data-save]')`, 600)
+  check('abertura antes das 5h é recusada, com o motivo', await run(`__q('[data-save-error]')?.textContent`), 'A abertura precisa ser a partir das 05:00.')
+  check('nada foi gravado (continua 14h)', await run(`JSON.parse(localStorage.getItem('acai_doce_sabor_seller_catalog_v1')).settings.loja.hours.opensAt`), 14 * 60)
 
   // --- 7. Duplicar ---
   await goto('/monte-seu-pedido', desktop)
   check('"Duplicar" nos itens, mas não no Pote 1 L nem na Barca', await run(`[!!__item('picole-gourmet').querySelector('[data-seller-duplicate]'), !!__item('barca-de-acai').querySelector('[data-seller-duplicate]'), !!__item('pote-de-acai-1-litro').querySelector('[data-seller-duplicate]')]`), [true, false, false])
-  await click(`__item('picole-gourmet').querySelector('[data-seller-duplicate]')`, 1200)
+  await openEditor(`__item('picole-gourmet').querySelector('[data-seller-duplicate]')`)
   check(
-    'Duplicar: título, nome com "(Cópia)", preço, sabores e sem foto',
-    await run(`[__dialog().querySelector('h2').textContent, __dialog().querySelector('[id$="-nome"]').value, __dialog().querySelector('[id$="-preco"]').value, [...__dialog().querySelectorAll('[data-option-name]')].some((input) => input.value === 'Nutella'), !!__dialog().querySelector('button img[src]')]`),
-    ['Duplicar Item — Picolé Gourmet (Cópia)', 'Picolé Gourmet (Cópia)', '3,00', true, false],
+    'Duplicar: editor da cópia com nome "(cópia)", preço, os sabores e a foto do original, oculta até revisar',
+    await run(`[__dialog().querySelector('h2').textContent, __q('#produto-nome').value, __q('#produto-preco').value, [...__dialog().querySelectorAll('[data-choice-options] input[id^="opcao-"]')].some((input) => input.value === 'Nutella'), !!__dialog().querySelector('[data-photo-picker] img'), [...__dialog().querySelectorAll('label')].find((l) => l.textContent.includes('Visível na loja')).querySelector('input').checked]`),
+    ['Novo produto', 'Picolé Gourmet (cópia)', '3,00', true, true, false],
   )
-  await set(`__dialog().querySelector('[id$="-nome"]')`, 'Picolé Gourmet Especial')
-  await submitDialog(1400)
+  await set(`__q('#produto-nome')`, 'Picolé Gourmet Especial')
+  // A cópia nasce oculta: o vendedor liga "Visível na loja" quando revisar.
+  await click(`[...__dialog().querySelectorAll('label')].find((l) => l.textContent.includes('Visível na loja')).querySelector('input')`, 200)
+  await saveEditor()
   const copy = `[...document.querySelectorAll('[data-section="picoles-e-sorvetes"] [data-item]')].find((card) => card.textContent.includes('Picolé Gourmet Especial'))`
   check(
     'item duplicado na seção, com o preço e a escolha de sabor do original',
@@ -446,14 +472,16 @@ try {
   check('Batido: sabor de volta', await run(`${amendoim}.querySelector('input').disabled`), false)
 
   await goto('/monte-seu-pedido', desktop)
-  await click(`__item('kit-completo-casquinha').querySelector('[data-seller-edit]')`, 1200)
+  await openEditor(`__item('kit-completo-casquinha').querySelector('[data-seller-edit]')`)
   check(
-    'Kit Completo: as duas escolhas no gerenciador de sabores',
-    await run(`[...__dialog().querySelectorAll('[data-group-label]')].map((input) => input.value)`),
+    'Kit Completo: as duas escolhas no editor',
+    await run(`[...__dialog().querySelectorAll('[data-choice] input[id$="-nome"][id^="escolha-"]')].map((input) => input.value)`),
     ['Sabor do sorvete (2 litros)', 'Sabor da cobertura'],
   )
-  await click(`[...__dialog().querySelectorAll('[data-option-name^="1-"]')].find((input) => input.value === 'Caramelo').parentElement.querySelector('[data-option-stock]')`, 300)
-  await submitDialog(1400)
+  await click(`[...__dialog().querySelectorAll('[data-choice-options="1"] input[id^="opcao-1-"]')].find((input) => input.value === 'Caramelo').closest('li').querySelector('input[type=checkbox]')`, 300)
+  await saveEditor()
+  await run(`__dialog()?.close(); true`)
+  await sleep(400)
   await click(`__item('kit-completo-casquinha').querySelector('button:not([data-zoom]):not([data-seller-edit]):not([data-seller-stock]):not([data-seller-duplicate])')`, 900)
   check(
     'cliente: "Caramelo" esgotado aparece desligado na escolha da cobertura',
@@ -462,17 +490,17 @@ try {
   )
   await run(`__dialog().close(); true`)
   await sleep(400)
-  await click(`__item('kit-completo-casquinha').querySelector('[data-seller-duplicate]')`, 1200)
-  check('Duplicar o Kit: a cópia vem com as duas escolhas', await run(`__dialog().querySelectorAll('[data-group-label]').length`), 2)
+  await openEditor(`__item('kit-completo-casquinha').querySelector('[data-seller-duplicate]')`)
+  check('Duplicar o Kit: a cópia vem com as duas escolhas', await run(`__dialog().querySelectorAll('[data-choice]').length`), 2)
   await run(`__dialog().close(); true`)
   await sleep(400)
 
-  await click(`__q('#secao-milkshake [data-seller-edit]')`, 1200)
-  await click(`__dialog().querySelector('[data-add-option]')`, 300)
-  await set(`[...__dialog().querySelectorAll('[data-option-name]')].at(-1)`, 'Nutella')
-  await submitDialog(1400)
+  await openEditor(`__q('#secao-milkshake [data-seller-edit]')`)
+  await click(`__dialog().querySelector('[data-choice-options="0"] [data-add-option]')`, 300)
+  await set(`[...__dialog().querySelectorAll('[data-choice-options="0"] input[id^="opcao-0-"]')].at(-1)`, 'Nutella')
+  await saveEditor()
   await goto('/monte-seu-pedido/milk-shake', desktop)
-  check('Milk-shake: sabor novo "Nutella" no personalizador', await run(`__q('[data-flavor="novo-nutella"]')?.textContent.includes('Nutella')`), true)
+  check('Milk-shake: sabor novo "Nutella" no personalizador', await run(`__q('[data-flavor="nutella"]')?.textContent.includes('Nutella')`), true)
 
   // --- 9. Celular ---
   await goto('/carrinho', phone)

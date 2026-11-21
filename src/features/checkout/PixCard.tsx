@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Check, Copy } from '../../components/ui/icons.tsx'
-import { storeInfo } from '../../services/storeInfo.ts'
+import { useStoreSettings } from '../catalog/catalogStore.ts'
+import { PIX_TYPE_LABELS } from '../store/storeSettings.ts'
 import { copyText } from './copyText.ts'
 
 /** A orientação de sempre no carrinho. */
@@ -12,7 +13,10 @@ export const PIX_INSTRUCTION = 'Faça o Pix e guarde o comprovante. Se a loja pe
  * `children`: o valor a pagar, no topo (o acompanhamento mostra; o carrinho já tem o total ao lado).
  */
 export function PixCard({ children, instruction = PIX_INSTRUCTION }: { children?: ReactNode; instruction?: string }) {
-  const { key, type, holder } = storeInfo.pix
+  // A chave das Configurações da loja (2026-11-21).
+  const { pix } = useStoreSettings()
+  const { key, holder } = pix
+  const type = PIX_TYPE_LABELS[pix.type]
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const timer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(timer.current), [])

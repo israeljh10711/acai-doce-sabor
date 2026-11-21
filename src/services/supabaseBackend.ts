@@ -52,8 +52,9 @@ export function createSupabaseBackend(rest: SupabaseRest, store: Pick<Storage, '
     signOut: () => rest.signOut(),
     changePassword: (next) => rest.changePassword(next),
     isSignedIn: () => rest.isSignedIn(),
-    async exportBackup() {
-      return JSON.stringify({ app: 'acai-doce-sabor', v: 1, createdAt: new Date().toISOString(), changes: current, photos: {} })
+    async exportBackup(catalog) {
+      // O cardápio do banco vai junto para consulta (as fotos já são endereços do Storage).
+      return JSON.stringify({ app: 'acai-doce-sabor', v: 2, createdAt: new Date().toISOString(), changes: current, photos: {}, ...(catalog ? { catalog: catalog.data } : {}) })
     },
     async importBackup(json) {
       const backup = parseBackup(json)

@@ -5,8 +5,29 @@
  *   Supabase (para todos os clientes);
  * - sem elas, este aparelho.
  */
-import { getCatalogChanges, setCatalogChanges, setPhotoUrls } from '../catalog/catalogStore.ts'
-import { type CatalogBackend, browserLocalDeps, createLocalBackend } from '../../services/sellerCatalogStore.ts'
+import { createCatalogLive } from '../catalog/catalogLive.ts'
+import {
+  getCatalogChanges,
+  getCatalogRecords,
+  refreshCatalogClock,
+  setCatalogChanges,
+  setCatalogRecords,
+  setCatalogStatus,
+  setPhotoUrls,
+} from '../catalog/catalogStore.ts'
+import { realtimeEndpoint } from '../orders/supabaseOrdersSource.ts'
+import { baseCatalogRecords } from '../catalog/baseRecords.ts'
+import { type CatalogRecords, parseCatalogRecords } from '../catalog/records.ts'
+import { type CatalogWriter, createLocalWriter, createSupabaseWriter } from '../../services/catalogWriter.ts'
+import {
+  LOCAL_CATALOG_KEY,
+  recordsToDatabase,
+  type CatalogRepository,
+  type LocalCatalogRepository,
+  createLocalCatalogRepository,
+  createSupabaseCatalogRepository,
+} from '../../services/catalogRepository.ts'
+import { type BackupCatalog, type CatalogBackend, browserLocalDeps, createLocalBackend } from '../../services/sellerCatalogStore.ts'
 import { createSupabaseBackend } from '../../services/supabaseBackend.ts'
 import { type SupabaseRest, createSupabaseRest } from '../../services/supabaseRest.ts'
 
@@ -65,7 +86,14 @@ export async function cleanupPhotos(): Promise<void> {
   const current = getSellerBackend()
   if (!current.pruneUnusedPhotos) return
   try {
-    const removed = await current.pruneUnusedPhotos(Date.now())
+    // As fotos que os registros do cardápio usam (produtos, complementos e opções) ficam.
+    const records = getCatalogRecords()
+    const keep = new Set(
+      records
+        ? [...records.products.map((product) => product.image), ...records.options.map((option) => option.image ?? ""), ...records.choiceOptions.map((option) => option.photo ?? "")].filter((image) => image.startsWith("idb:"))
+        : [],
+    )
+    const removed = await current.pruneUnusedPhotos(Date.now(), keep)
     const known = removed.filter((ref) => photoUrls[ref])
     if (known.length === 0) return
     const next = { ...photoUrls }
@@ -82,34 +110,63 @@ export async function cleanupPhotos(): Promise<void> {
 
 /** Lê o cardápio de novo agora (Supabase), por exemplo depois de o servidor recusar um pedido. */
 export async function refreshCatalogNow(): Promise<void> {
-  const current = getSellerBackend()
-  if (current.kind === 'supabase') await refresh(current)
+  await refresh(getSellerBackend(), getCatalogRepository())
 }
 
-/** Lê de novo do Supabase e aplica, se mudou. Erro de rede: fica o que já está na tela. */
-async function refresh(current: CatalogBackend): Promise<void> {
+let repository: CatalogRepository | null = null
+
+/** De onde vem o cardápio: o Supabase (catalogo_publico) ou os registros deste aparelho. */
+export function getCatalogRepository(): CatalogRepository {
+  if (repository) return repository
+  const supabase = getSupabaseRest()
+  repository = supabase ? createSupabaseCatalogRepository(supabase) : createLocalCatalogRepository(safeLocalStorage())
+  return repository
+}
+
+function safeLocalStorage(): Storage | null {
   try {
-    const next = await current.load()
-    if (JSON.stringify(next) !== JSON.stringify(getCatalogChanges())) setCatalogChanges(next)
+    return window.localStorage
   } catch {
-    // Supabase fora do ar ou chave errada: o cardápio guardado continua valendo.
+    return null
   }
 }
+
+/** Mensagem do aviso quando o cardápio não carrega (o site não mostra o cardápio do código no lugar). */
+export const CATALOG_ERROR_TEXT = 'Não foi possível carregar o cardápio. Confira a internet e tente de novo.'
 
 /**
- * Antes de desenhar o site: aplica as mudanças guardadas (na hora). No aparelho, carrega depois as
- * fotos; no Supabase, lê a versão atual, de novo ao voltar para a aba e a cada minuto.
- * Sem armazenamento (aba anônima, bloqueio), fica o cardápio do código.
+ * Lê as configurações da loja (catalog_changes) e o cardápio (registros). Se o cardápio nunca
+ * carregou, o erro aparece na tela; se já carregou, o último continua valendo até a próxima leitura.
  */
-export function initCatalog(): void {
-  let current: CatalogBackend
-  try {
-    current = getSellerBackend()
-    setCatalogChanges(current.loadSync())
-  } catch {
+async function refresh(current: CatalogBackend, source: CatalogRepository, force = false): Promise<void> {
+  const [changes, records] = await Promise.allSettled([current.load(), source.load()])
+  if (changes.status === 'fulfilled' && JSON.stringify(changes.value) !== JSON.stringify(getCatalogChanges())) setCatalogChanges(changes.value)
+  if (records.status === 'fulfilled') {
+    const known = getCatalogRecords()
+    if (force || !known || known.revision !== records.value.revision || source.kind === 'local') setCatalogRecords(records.value)
+    else refreshCatalogClock()
     return
   }
-  if (current.kind === 'local') {
+  if (!getCatalogRecords()) setCatalogStatus({ state: 'error', message: CATALOG_ERROR_TEXT })
+}
+
+export function initCatalog(): void {
+  let current: CatalogBackend
+  let source: CatalogRepository
+  try {
+    current = getSellerBackend()
+    source = getCatalogRepository()
+    setCatalogChanges(current.loadSync())
+  } catch {
+    setCatalogStatus({ state: 'error', message: CATALOG_ERROR_TEXT })
+    return
+  }
+  if (source.kind === 'local') {
+    try {
+      setCatalogRecords((source as LocalCatalogRepository).loadSync())
+    } catch {
+      setCatalogStatus({ state: 'error', message: CATALOG_ERROR_TEXT })
+    }
     current
       .loadPhotoUrls()
       .then((urls) => {
@@ -119,11 +176,109 @@ export function initCatalog(): void {
       .catch(() => {})
     return
   }
-  void refresh(current)
+  setCatalogStatus({ state: 'loading' })
+  const live = createCatalogLive({
+    reload: () => refresh(current, source),
+    setTimeout: (callback, ms) => window.setTimeout(callback, ms),
+    clearTimeout: (handle) => window.clearTimeout(handle as number),
+  })
+  void refresh(current, source)
+  listenCatalog(() => live.poke())
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void refresh(current)
+    if (document.visibilityState === 'visible') live.poke()
   })
   window.setInterval(() => {
-    if (document.visibilityState === 'visible') void refresh(current)
+    if (document.visibilityState === 'visible') live.poke()
   }, REFRESH_MS)
+  // Ofertas que começam ou acabam: confere a hora a cada minuto, sem ir ao banco.
+  window.setInterval(() => refreshCatalogClock(), 60_000)
+}
+
+/** Realtime: a revisão do cardápio (catalog_meta) subiu. Sem sessão, entra como visitante. */
+function listenCatalog(onChange: () => void): void {
+  const config = supabaseConfig()
+  if (!config) return
+  import('../orders/realtimeConnect.ts')
+    .then(({ connectRealtime }) =>
+      connectRealtime({
+        endpoint: realtimeEndpoint(config.url),
+        apikey: config.key,
+        accessToken: async () => null,
+        table: 'catalog_meta',
+        channel: 'cardapio-ao-vivo',
+        onChange: () => onChange(),
+        onStatus: () => undefined,
+      }),
+    )
+    .catch(() => {
+      // Sem Realtime: a leitura de tempos em tempos continua.
+    })
+}
+
+let writer: CatalogWriter | null = null
+
+/** Quem grava o cardápio: o Supabase (como vendedor) ou os registros deste aparelho. */
+export function getCatalogWriter(): CatalogWriter {
+  if (writer) return writer
+  const supabase = getSupabaseRest()
+  writer = supabase
+    ? createSupabaseWriter(supabase)
+    : createLocalWriter({
+        load: () => getCatalogRecords() ?? baseCatalogRecords(),
+        save: (records) => {
+          // Guarda no aparelho antes de mostrar: se não couber, o erro aparece e nada muda na tela.
+          safeLocalStorage()?.setItem(LOCAL_CATALOG_KEY, JSON.stringify(recordsToDatabase(records)))
+          setCatalogRecords(records)
+        },
+        now: () => new Date().toISOString(),
+      })
+  return writer
+}
+
+/**
+ * Grava no cardápio e, no Supabase, lê de novo (o site e o painel passam a mostrar o que ficou no
+ * banco). O erro sobe para a tela mostrar ("Não foi possível salvar. Tente novamente.").
+ */
+export async function catalogWrite(action: (target: CatalogWriter) => Promise<void>): Promise<void> {
+  const target = getCatalogWriter()
+  await action(target)
+  if (target.kind === 'supabase') await refresh(getSellerBackend(), getCatalogRepository(), true)
+}
+
+/** O cardápio como o vendedor vê (com o oculto), lido agora. */
+export async function loadSellerRecords(): Promise<CatalogRecords> {
+  const source = getCatalogRepository()
+  const records = await source.load()
+  if (source.kind === 'supabase') {
+    const known = getCatalogRecords()
+    if (!known || known.revision !== records.revision) setCatalogRecords(records)
+  }
+  return records
+}
+
+/** O cardápio que vai no backup, com as fotos do aparelho que ele usa. */
+export function catalogForBackup(): BackupCatalog | undefined {
+  const records = getCatalogRecords()
+  if (!records) return undefined
+  const photos = new Set(
+    [...records.products.map((product) => product.image), ...records.options.map((option) => option.image ?? ''), ...records.choiceOptions.map((option) => option.photo ?? '')].filter((image) =>
+      image.startsWith('idb:'),
+    ),
+  )
+  return { data: recordsToDatabase(records), photos }
+}
+
+/**
+ * Volta o cardápio de um backup v2 (só no aparelho). No Supabase, o cardápio do banco não é trocado
+ * por um arquivo: o backup volta só as Configurações da loja, e o cardápio se muda pelo painel.
+ * Devolve se o cardápio voltou.
+ */
+export function restoreCatalogFromBackup(json: string): boolean {
+  if (getCatalogRepository().kind !== 'local') return false
+  const raw = (JSON.parse(json) as { catalog?: unknown }).catalog
+  if (raw === undefined) return false
+  const records = parseCatalogRecords(raw)
+  safeLocalStorage()?.setItem(LOCAL_CATALOG_KEY, JSON.stringify(recordsToDatabase(records)))
+  setCatalogRecords(records)
+  return true
 }

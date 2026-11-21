@@ -46,20 +46,30 @@ export function recordsToDatabase(records: CatalogRecords): Record<string, unkno
   }
 }
 
-export function createLocalCatalogRepository(store: Pick<Storage, 'getItem'> | null): CatalogRepository {
+export type LocalCatalogRepository = CatalogRepository & {
+  readonly kind: 'local'
+  /** O mesmo que `load`, na hora (o aparelho responde sem esperar). */
+  loadSync(): CatalogRecords
+}
+
+export function createLocalCatalogRepository(store: Pick<Storage, 'getItem'> | null): LocalCatalogRepository {
+  const loadSync = (): CatalogRecords => {
+    const read = () => {
+      try {
+        return store?.getItem(LOCAL_CATALOG_KEY) ?? null
+      } catch {
+        return null
+      }
+    }
+    const raw = read()
+    // Guardado no aparelho e estragado: erro (a tela mostra), em vez de apagar o que o vendedor fez.
+    return raw === null ? baseCatalogRecords() : parseCatalogRecords(JSON.parse(raw))
+  }
   return {
     kind: 'local',
+    loadSync,
     async load() {
-      const read = () => {
-        try {
-          return store?.getItem(LOCAL_CATALOG_KEY) ?? null
-        } catch {
-          return null
-        }
-      }
-      const raw = read()
-      // Guardado no aparelho e estragado: erro (a tela mostra), em vez de apagar o que o vendedor fez.
-      return raw === null ? baseCatalogRecords() : parseCatalogRecords(JSON.parse(raw))
+      return loadSync()
     },
   }
 }

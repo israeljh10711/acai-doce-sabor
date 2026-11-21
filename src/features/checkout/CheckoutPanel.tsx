@@ -38,6 +38,7 @@ import { forgetRemembered, initialCustomer, loadRemembered, saveRemembered } fro
 import {
   EMPTY_PAYMENT,
   PAYMENT_METHODS,
+  allowedMethods,
   type PaymentDraft,
   type PaymentMethod,
   changeDueCents,
@@ -168,7 +169,9 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
   const totalCents = subtotalCents + (fee ? feeCents(fee) : 0)
   const feePending = fee?.kind === 'combinar'
   const customerCheck = checkCustomer(customer, settings.delivery)
-  const paymentCheck = checkPayment(draft, totalCents)
+  // Forma que a loja desligou depois de escolhida (2026-11-21) conta como não escolhida.
+  const allowed = allowedMethods(settings.payments, settings.pix.enabled)
+  const paymentCheck = checkPayment(draft.method && !allowed.includes(draft.method) ? { ...draft, method: null } : draft, totalCents)
   const stockProblem = cart.items.some((item) => cartItemProblem(item) !== null)
   const closedBlocked = !status.open && settings.closedOrders === 'bloquear'
   const antecipado = !status.open && settings.closedOrders === 'antecipado'
@@ -523,7 +526,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
       >
         <legend className={sectionTitle}>Forma de pagamento</legend>
         <div className="mt-3 grid grid-cols-2 gap-2.5">
-          {PAYMENT_METHODS.map(({ id, label }) => {
+          {PAYMENT_METHODS.filter(({ id }) => allowed.includes(id)).map(({ id, label }) => {
             const Icon = METHOD_ICONS[id]
             return (
               <ChoiceCard

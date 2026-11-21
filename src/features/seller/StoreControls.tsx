@@ -28,7 +28,7 @@ export function StoreSwitch() {
     setState('saving')
     try {
       const current = storeStatusNow()
-      await saveStore(seller, { override: overrideFor(current.open ? 'close' : 'open', serverNow(), settings.hours) })
+      await saveStore(seller, { override: overrideFor(current.open ? 'close' : 'open', serverNow(), settings.hours, settings.week) })
       setState('idle')
     } catch {
       setState('failed')

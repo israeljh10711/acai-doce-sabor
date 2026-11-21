@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { NO_CHANGES } from '../features/catalog/catalogChanges.ts'
-import { CATALOG_KEY, type LocalDeps, createLocalBackend } from './sellerCatalogStore.ts'
+import { CATALOG_KEY, type LocalDeps, createLocalBackend, parseBackup } from './sellerCatalogStore.ts'
 
 /** Armazenamento e IndexedDB falsos, em memória. */
 function fakeDeps(): LocalDeps & { storage: Map<string, string>; blobs: Map<string, Blob> } {
@@ -91,7 +91,9 @@ describe('gravação no aparelho (modo vendedor sem Supabase)', () => {
     const ref = await backend.uploadPhoto(new Blob(['abc'], { type: 'image/webp' }))
     await backend.save('items', 'novo-picole', { created: true, drawer: 'picoles-e-sorvetes', name: 'Picolé trufado', priceCents: 300, image: ref })
     const json = await backend.exportBackup()
-    expect(JSON.parse(json)).toMatchObject({ app: 'acai-doce-sabor', v: 1 })
+    // v2 desde o cardápio dinâmico (2026-11-21); sem cardápio passado, sem o campo.
+    expect(JSON.parse(json)).toMatchObject({ app: 'acai-doce-sabor', v: 2 })
+    expect(JSON.parse(json)).not.toHaveProperty('catalog')
 
     const target = fakeDeps()
     const restored = await createLocalBackend(target).importBackup(json)
@@ -139,5 +141,21 @@ describe('fotos do aparelho que ninguém usa mais (pedido de 2026-11-17)', () =>
     await backend.save('toppings', 'granola', { image: `idb:${a}` })
     await backend.save('products', 'acai-oca', { image: `idb:${b}` })
     expect(await backend.pruneUnusedPhotos!(NOW)).toEqual([])
+  })
+})
+
+describe('backup com o cardápio (v2, 2026-11-21)', () => {
+  it('leva o cardápio e as fotos que ele usa; o arquivo v1 continua valendo', async () => {
+    const origin = fakeDeps()
+    const backend = createLocalBackend(origin)
+    const ref = await backend.uploadPhoto(new Blob(['xyz'], { type: 'image/webp' }))
+    const json = await backend.exportBackup({ data: { products: [{ id: 'coxinha', image: ref }] }, photos: new Set([ref]) })
+    const backup = parseBackup(json)
+    expect(backup.v).toBe(2)
+    expect(backup.catalog).toEqual({ products: [{ id: 'coxinha', image: ref }] })
+    expect(Object.keys(backup.photos)).toEqual([ref])
+    const v1 = JSON.stringify({ app: 'acai-doce-sabor', v: 1, createdAt: '', changes: {}, photos: {} })
+    expect(parseBackup(v1)).not.toHaveProperty('catalog')
+    expect(() => parseBackup(JSON.stringify({ app: 'acai-doce-sabor', v: 3 }))).toThrow('inválido')
   })
 })

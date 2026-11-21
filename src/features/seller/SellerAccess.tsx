@@ -1,6 +1,7 @@
 import { Suspense, lazy, useState } from 'react'
 import { Ban, Check, Copy, Lock, Pencil, Plus } from '../../components/ui/icons.tsx'
-import { getCatalogChanges } from '../catalog/catalogStore.ts'
+import { getCatalogRecords } from '../catalog/catalogStore.ts'
+import { catalogWrite } from './sellerBackend.ts'
 import type { ExtraItem } from '../catalog/extras.ts'
 import type { Flavor, Product } from '../catalog/menu.ts'
 import { type EditTarget, useSellerMode } from './sellerModeContext.ts'
@@ -113,8 +114,9 @@ export function SellerStockToggle({
       label={label}
       className={className}
       onToggle={async () => {
-        const saved = getCatalogChanges()[kind][id]
-        await seller.save(kind, id, { ...saved, available: !available })
+        // Cardápio do banco (2026-11-21): grava no produto ou no complemento.
+        const table = kind === 'toppings' ? 'catalog_options' : 'catalog_products'
+        await catalogWrite((writer) => writer.patch(table, { id }, { available: !available }))
       }}
     />
   )
@@ -135,12 +137,14 @@ export function SellerFlavorToggle({ product, flavor, className = '' }: { produc
       label={flavor.name}
       className={className}
       onToggle={async () => {
-        const saved = getCatalogChanges().products[product.slug]
-        const flavors = product.flavors.map((entry) => {
-          const soldOut = entry.id === flavor.id ? available : entry.available === false
-          return { id: entry.id, name: entry.name, ...(soldOut ? { available: false } : {}) }
-        })
-        await seller.save('products', product.slug, { ...saved, flavors })
+        // O sabor é uma opção da escolha do produto (a primeira; no código, "sabor").
+        const choice = getCatalogRecords()
+          ?.choices.filter((entry) => entry.productId === product.slug)
+          .sort((a, b) => a.position - b.position)[0]
+        if (!choice) throw new Error('Produto sem escolha de sabor')
+        await catalogWrite((writer) =>
+          writer.patch('catalog_choice_options', { product_id: product.slug, choice_id: choice.id, id: flavor.id }, { available: !available }),
+        )
       }}
     />
   )

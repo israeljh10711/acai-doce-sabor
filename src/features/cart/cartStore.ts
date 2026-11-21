@@ -5,6 +5,7 @@
  * normalmente até a página ser fechada.
  */
 import { useSyncExternalStore } from 'react'
+import { getCatalogRecords, subscribeCatalog } from '../catalog/catalogState.ts'
 import type { ProductSlug } from '../catalog/menu.ts'
 import type { Selection } from '../catalog/selection.ts'
 import {
@@ -56,6 +57,17 @@ function commit(next: Cart) {
   }
   emit()
 }
+
+// Cardápio do banco (2026-11-21): o carrinho lido antes de o cardápio chegar (o contador do
+// cabeçalho lê logo) é lido de novo quando ele chega, para os produtos criados pelo vendedor.
+let catalogSeen = getCatalogRecords() !== null
+subscribeCatalog(() => {
+  if (catalogSeen || getCatalogRecords() === null) return
+  catalogSeen = true
+  if (state === null) return
+  state = null
+  emit()
+})
 
 // Outra aba mudou o carrinho: acompanha.
 if (typeof window !== 'undefined') {

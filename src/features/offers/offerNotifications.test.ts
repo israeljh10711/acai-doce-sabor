@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EXTRA_ITEMS, choiceGroupsOf, getExtraItem } from '../catalog/extras.ts'
 import { formatBRL } from '../../utils/money.ts'
-import { FEATURED_OFFER_NOTIFICATIONS, NEVER_IN_OFFERS, getOffer } from './offerNotifications.ts'
+import { NEVER_IN_OFFERS, featuredOffers, getOffer } from './offerNotifications.ts'
 
 /** As 12 ofertas do pedido de 2026-11-15, na ordem: [id, selo, título, subtítulo, preço, preço antigo, ação]. */
 const PEDIDO = [
@@ -22,7 +22,7 @@ const PEDIDO = [
 describe('ofertas das notificações flutuantes', () => {
   it('são exatamente as 12 do pedido, na ordem, com selo, título, subtítulo, preço e ação', () => {
     expect(
-      FEATURED_OFFER_NOTIFICATIONS.map((offer) => [
+      featuredOffers().map((offer) => [
         offer.id,
         offer.badge.text,
         offer.title,
@@ -35,22 +35,22 @@ describe('ofertas das notificações flutuantes', () => {
   })
 
   it('cada selo tem o emoji do pedido, só de enfeite', () => {
-    expect(FEATURED_OFFER_NOTIFICATIONS.map((offer) => offer.badge.emoji)).toEqual(['🔥', '⭐', '🍦', '🍨', '⚡', '🍧', '👑', '🥤', '🍫', '✨', '🍦', '❄️'])
+    expect(featuredOffers().map((offer) => offer.badge.emoji)).toEqual(['🔥', '⭐', '🍦', '🍨', '⚡', '🍧', '👑', '🥤', '🍫', '✨', '🍦', '❄️'])
   })
 
   it('nenhum item proibido (bomboniere de baixo valor e água) entra', () => {
-    const ids = FEATURED_OFFER_NOTIFICATIONS.flatMap((offer) => (offer.item ? [offer.item.id] : []))
+    const ids = featuredOffers().flatMap((offer) => (offer.item ? [offer.item.id] : []))
     for (const id of NEVER_IN_OFFERS) expect(ids, id).not.toContain(id)
     for (const name of ['Fini Gelatinas', 'Pipoca Kigarot 45g', 'Pipoca Kigarot 75g', 'Halls', 'Trident', 'Jujuba', 'Água Mineral 500 ml']) {
-      expect(FEATURED_OFFER_NOTIFICATIONS.some((offer) => offer.item?.name === name || offer.title.includes(name)), name).toBe(false)
+      expect(featuredOffers().some((offer) => offer.item?.name === name || offer.title.includes(name)), name).toBe(false)
     }
     // A lista proibida aponta para itens que existem no cardápio (nenhum nome errado).
     for (const id of NEVER_IN_OFFERS) expect(getExtraItem(id), id).toBeDefined()
-    expect(FEATURED_OFFER_NOTIFICATIONS.some((offer) => offer.item?.drawer === 'doces-e-bomboniere' || offer.item?.drawer === 'bebidas')).toBe(false)
+    expect(featuredOffers().some((offer) => offer.item?.drawer === 'doces-e-bomboniere' || offer.item?.drawer === 'bebidas')).toBe(false)
   })
 
   it('os preços vêm do catálogo: mudar o cardápio muda a notificação', () => {
-    for (const offer of FEATURED_OFFER_NOTIFICATIONS) {
+    for (const offer of featuredOffers()) {
       if (!offer.item) continue
       expect(offer.priceText, offer.id).toBe(formatBRL(offer.item.priceCents))
       expect(offer.oldPriceText, offer.id).toBe(offer.item.originalPriceCents ? formatBRL(offer.item.originalPriceCents) : null)
@@ -59,7 +59,7 @@ describe('ofertas das notificações flutuantes', () => {
   })
 
   it('a ação de cada oferta bate com o tipo do item no cardápio', () => {
-    for (const offer of FEATURED_OFFER_NOTIFICATIONS) {
+    for (const offer of featuredOffers()) {
       if (offer.actionType === 'open_oca') expect(offer.slug).toBe('acai-oca')
       else if (offer.actionType === 'open_batido') expect(offer.slug).toBe('acai-batido')
       else if (offer.actionType === 'customizer_1l') expect(offer.item?.action).toMatchObject({ type: 'customizer', product: 'pote-de-acai-1-litro' })
@@ -82,7 +82,7 @@ describe('ofertas das notificações flutuantes', () => {
   })
 
   it('cada oferta mostra a foto do cardápio em miniatura (a dos produtos principais, inteira)', () => {
-    expect(FEATURED_OFFER_NOTIFICATIONS.map((offer) => [offer.id, offer.photo.src.split('/').pop(), offer.photo.fit])).toEqual([
+    expect(featuredOffers().map((offer) => [offer.id, offer.photo.src.split('/').pop(), offer.photo.fit])).toEqual([
       ['pote-de-acai-1-litro', 'pote-1-litro-acai-montado-480.webp', 'cover'],
       ['barca-de-acai', 'barca-de-acai-480.webp', 'cover'],
       ['kit-completo-casquinha', 'kit-completo-casquinha-duo-480.webp', 'cover'],
@@ -103,6 +103,6 @@ describe('ofertas das notificações flutuantes', () => {
     expect(getOffer('moreninha')?.title).toBe('Sorvete Moreninha')
     expect(getOffer('halls')).toBeUndefined()
     expect(getOffer(null)).toBeUndefined()
-    expect(EXTRA_ITEMS.length).toBeGreaterThan(FEATURED_OFFER_NOTIFICATIONS.length)
+    expect(EXTRA_ITEMS.length).toBeGreaterThan(featuredOffers().length)
   })
 })

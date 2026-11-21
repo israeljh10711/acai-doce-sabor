@@ -47,6 +47,12 @@ export const router = createBrowserRouter([
           Component: (await import('./pages/ConfiguratorPage.tsx')).ConfiguratorPage,
         }),
       },
+      {
+        // Painel do vendedor (cardápio dinâmico, 2026-11-21), carregado só quando aberto.
+        path: routePatterns.admin,
+        HydrateFallback: PageLoading,
+        lazy: async () => ({ Component: (await import('./pages/SellerAdminPage.tsx')).SellerAdminPage }),
+      },
       { path: '*', Component: NotFoundPage },
     ],
   },
