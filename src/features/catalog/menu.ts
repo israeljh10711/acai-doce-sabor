@@ -23,6 +23,8 @@ export type ProductSize = {
   priceCents: number
   /** Quantos adicionais gratuitos este tamanho inclui. */
   freeToppings: number
+  /** `false` quando o vendedor marcou o tamanho como esgotado (cardápio dinâmico, 2026-11-21). */
+  available?: boolean
 }
 
 export type ToppingGroupId = 'dry' | 'fruit' | 'syrup' | 'paid' | 'batido'
@@ -41,6 +43,21 @@ export type ToppingGroup = {
   id: ToppingGroupId
   name: string
   rule: ToppingRule
+  /*
+   * Ajustes do grupo vindos do banco (cardápio dinâmico, 2026-11-21). Sem o campo, o padrão:
+   * nenhum mínimo, sem máximo, todas as unidades grátis, fora do Completo, disponível.
+   */
+  /** Mínimo de unidades: com mais que zero, o grupo é obrigatório. */
+  minSelect?: number
+  /** Máximo de unidades no grupo (o produto pode ter um máximo próprio, `groupLimits`). */
+  maxSelect?: number
+  /** Unidades grátis no grupo; cada uma a mais custa `extraPriceCents`. */
+  freeCount?: number
+  extraPriceCents?: number
+  /** Entra no "Completo": um de cada sem custo (adicionais e frutas). */
+  inCompleto?: true
+  /** `false`: o grupo inteiro esgotado. */
+  available?: boolean
 }
 
 export type Topping = {
@@ -63,6 +80,8 @@ export type Topping = {
   available?: boolean
   /** Foto enviada pelo vendedor (endereço). Sem ela, a foto do ingrediente pelo id. */
   image?: string
+  /** Fica fora do "Completo" mesmo num grupo que entra nele (o leite condensado, 2026-11-16). */
+  noCompleto?: true
 }
 
 export type Flavor = {
@@ -133,14 +152,23 @@ export function flavorsFromToppings(toppings: readonly Topping[], group: Topping
  */
 export const MAX_PAID_UNITS = 10
 
-export const TOPPING_GROUPS: Readonly<Record<ToppingGroupId, ToppingGroup>> = {
-  dry: { id: 'dry', name: 'Adicionais', rule: 'limited' },
-  fruit: { id: 'fruit', name: 'Frutas', rule: 'included' },
+/** Os grupos como estão no código (a semente do banco). O Completo marca adicionais e frutas. */
+export const BASE_TOPPING_GROUPS: Readonly<Record<ToppingGroupId, ToppingGroup>> = {
+  dry: { id: 'dry', name: 'Adicionais', rule: 'limited', inCompleto: true },
+  fruit: { id: 'fruit', name: 'Frutas', rule: 'included', inCompleto: true },
   // Caldas e cremes especiais, separados dos adicionais (pedido de 2026-11-14): um de cada.
   syrup: { id: 'syrup', name: 'Caldas e cremes', rule: 'included' },
   paid: { id: 'paid', name: 'Adicionais pagos', rule: 'paid' },
   // Exclusivos do Açaí Batido, todos a R$ 3,00 (briefing de 2026-11-12).
   batido: { id: 'batido', name: 'Adicionais', rule: 'paid' },
+}
+
+/** Os grupos em uso (do banco, ou os do código). Ligação viva. */
+export let TOPPING_GROUPS: Readonly<Record<ToppingGroupId, ToppingGroup>> = BASE_TOPPING_GROUPS
+
+/** Troca os grupos (só `catalogState.ts` chama). */
+export function setToppingGroups(groups: Readonly<Record<ToppingGroupId, ToppingGroup>>): void {
+  TOPPING_GROUPS = groups
 }
 
 const free = (group: ToppingGroupId, id: string, name: string, extra: Partial<Topping> = {}): Topping => ({
@@ -175,7 +203,8 @@ export const BASE_TOPPINGS: readonly Topping[] = [
   free('dry', 'marshmallow', 'Marshmallow'),
   // Pedido de 2026-11-14: o leite condensado passa a ser adicional (conta no limite grátis)
   // e entra o Disquete (confete).
-  free('dry', 'leite-condensado', 'Leite condensado'),
+  // Fica fora do Completo (pedido de 2026-11-16).
+  free('dry', 'leite-condensado', 'Leite condensado', { noCompleto: true }),
   free('dry', 'disquete', 'Disquete (confete)'),
 
   free('fruit', 'kiwi', 'Kiwi'),

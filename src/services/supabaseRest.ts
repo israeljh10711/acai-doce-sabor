@@ -111,6 +111,20 @@ export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
   const authed = async (extra: Record<string, string> = {}) => ({ apikey: config.key, Authorization: `Bearer ${await accessToken()}`, ...extra })
 
   return {
+    /**
+     * O cardápio do banco (`catalogo_publico()`, cardápio dinâmico de 2026-11-21). Com o vendedor
+     * logado, vai com o token dele e vem também o oculto e o arquivado (o RLS decide).
+     */
+    async readCatalog(): Promise<unknown> {
+      const headers = readSession() ? await authed() : publicHeaders
+      const response = await request('/rest/v1/rpc/catalogo_publico', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      return (await response.json()) as unknown
+    },
+
     /** As mudanças do cardápio (leitura pública). */
     async readChanges(): Promise<ChangeRow[]> {
       const response = await request('/rest/v1/catalog_changes?select=kind,id,data', { headers: publicHeaders })

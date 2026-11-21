@@ -1137,16 +1137,19 @@ function flavorsFromToppings(toppings, group) {
 		...topping.available === false ? { available: false } : {}
 	}));
 }
+/** Os grupos em uso (do banco, ou os do código). Ligação viva. */
 var TOPPING_GROUPS = {
 	dry: {
 		id: "dry",
 		name: "Adicionais",
-		rule: "limited"
+		rule: "limited",
+		inCompleto: true
 	},
 	fruit: {
 		id: "fruit",
 		name: "Frutas",
-		rule: "included"
+		rule: "included",
+		inCompleto: true
 	},
 	syrup: {
 		id: "syrup",
@@ -1192,7 +1195,7 @@ var BASE_TOPPINGS = [
 	free("dry", "farinha-lactea", "Farinha láctea"),
 	free("dry", "sucrilhos", "Sucrilhos"),
 	free("dry", "marshmallow", "Marshmallow"),
-	free("dry", "leite-condensado", "Leite condensado"),
+	free("dry", "leite-condensado", "Leite condensado", { noCompleto: true }),
 	free("dry", "disquete", "Disquete (confete)"),
 	free("fruit", "kiwi", "Kiwi"),
 	free("fruit", "morango", "Morango"),
