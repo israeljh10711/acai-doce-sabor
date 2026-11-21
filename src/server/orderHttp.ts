@@ -32,6 +32,7 @@ function lazyDeps(getDeps: () => PedidoDeps): PedidoDeps {
   const get = () => (deps ??= getDeps())
   return {
     readChanges: () => get().readChanges(),
+    readCatalog: () => get().readCatalog(),
     findOrder: (attemptKey) => get().findOrder(attemptKey),
     nextNumber: () => get().nextNumber(),
     insertOrder: (row) => get().insertOrder(row),

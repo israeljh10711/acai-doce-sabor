@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { EMPTY_CART, addExtraItem, serializeCart, setQuantity } from '../features/cart/cart.ts'
 import { NO_CHANGES } from '../features/catalog/catalogChanges.ts'
-import { setCatalogChanges } from '../features/catalog/catalogState.ts'
+import { setCatalogChanges, setCatalogRecords } from '../features/catalog/catalogState.ts'
 import { type CustomerDraft, EMPTY_CUSTOMER } from '../features/checkout/delivery.ts'
 import type { PaymentDraft } from '../features/checkout/payment.ts'
 import type { ChangeRow } from '../services/supabaseRest.ts'
+import { catalogWith, editProduct } from './catalogFixtures.ts'
 import { type OrderDeps, type OrderRow, type StoredOrder, handleOrder, orderCode } from './orderServer.ts'
 
-afterEach(() => setCatalogChanges(NO_CHANGES))
+afterEach(() => {
+  setCatalogRecords(null)
+  setCatalogChanges(NO_CHANGES)
+})
 
 /** 17/11/2026 às 15:42 em Brasília: loja aberta pelo horário padrão (13h às 21h). */
 const OPEN = Date.parse('2026-11-17T15:42:00-03:00')
@@ -19,14 +23,19 @@ const sha256 = async (text: string) => {
 }
 
 /** Banco em memória, como a tabela `orders` com a chave de repetição única. */
-function fakeDeps({ rows = [] as ChangeRow[], now = OPEN } = {}) {
+function fakeDeps({ rows = [] as ChangeRow[], now = OPEN, catalog = catalogWith() as unknown } = {}) {
   const orders: (OrderRow & StoredOrder)[] = []
   let sequence = 0
-  const calls = { insert: 0, number: 0, read: 0 }
+  const calls = { insert: 0, number: 0, read: 0, catalog: 0 }
   const deps: OrderDeps = {
     readChanges: async () => {
       calls.read++
       return rows
+    },
+    // O cardápio do banco (catalogo_publico, 2026-11-21).
+    readCatalog: async () => {
+      calls.catalog++
+      return JSON.parse(JSON.stringify(catalog))
     },
     findOrder: async (key) => orders.find((order) => order.attempt_key === key) ?? null,
     nextNumber: async () => {
@@ -117,23 +126,37 @@ describe('função do pedido no servidor (opção A, pedido de 2026-11-17)', () 
 
   it('total diferente do que o servidor calcula: recusa com o total certo e não grava', async () => {
     const { deps, orders } = fakeDeps()
-    expect(await handleOrder(request({ expectedTotalCents: 100 }), deps)).toEqual({ ok: false, reason: 'total-mudou', totalCents: 500 })
-    // Preço mudado pelo vendedor no banco: o servidor usa o preço novo.
-    const priced = fakeDeps({ rows: [{ kind: 'items', id: 'jujuba', data: { priceCents: 150 } }] })
-    expect(await handleOrder(request(), priced.deps)).toEqual({ ok: false, reason: 'total-mudou', totalCents: 550 })
+    expect(await handleOrder(request({ expectedTotalCents: 100 }), deps)).toMatchObject({ ok: false, reason: 'total-mudou', totalCents: 500 })
+    // Preço mudado pelo vendedor no banco: o servidor usa o preço novo e diz o preço de cada item.
+    const priced = fakeDeps({ catalog: catalogWith(editProduct('jujuba', { priceCents: 150 })) })
+    expect(await handleOrder(request(), priced.deps)).toEqual({
+      ok: false,
+      reason: 'total-mudou',
+      totalCents: 550,
+      items: [
+        { name: 'Jujuba', quantity: 1, totalCents: 150 },
+        { name: 'Água Mineral 500 ml', quantity: 2, totalCents: 400 },
+      ],
+    })
     expect(await handleOrder(request({ expectedTotalCents: 550 }), priced.deps)).toMatchObject({ ok: true, totalCents: 550 })
     expect(orders).toHaveLength(0)
   })
 
   it('item esgotado no banco: recusa com o nome, sem gravar', async () => {
-    const { deps, orders } = fakeDeps({ rows: [{ kind: 'items', id: 'jujuba', data: { available: false } }] })
+    const { deps, orders } = fakeDeps({ catalog: catalogWith(editProduct('jujuba', { available: false })) })
     expect(await handleOrder(request(), deps)).toEqual({ ok: false, reason: 'esgotado', detail: 'Jujuba' })
     expect(orders).toHaveLength(0)
   })
 
   it('item que saiu do cardápio: recusa', async () => {
-    const { deps } = fakeDeps({ rows: [{ kind: 'items', id: 'jujuba', data: { deleted: true } }] })
-    expect(await handleOrder(request(), deps)).toEqual({ ok: false, reason: 'item-indisponivel' })
+    // Arquivado ou oculto pelo vendedor: o servidor recebe (chave de servidor), mas não deixa pedir.
+    for (const patch of [{ archivedAt: '2026-11-21T10:00:00Z' }, { visible: false }]) {
+      // O carrinho é montado com o cardápio de antes (o do cliente).
+      setCatalogRecords(null)
+      const sent = request()
+      const { deps } = fakeDeps({ catalog: catalogWith(editProduct('jujuba', patch)) })
+      expect(await handleOrder(sent, deps)).toEqual({ ok: false, reason: 'item-indisponivel' })
+    }
   })
 
   it('loja fechada: "bloquear" recusa; "antecipado" grava com o aviso na comanda', async () => {
@@ -224,7 +247,7 @@ describe('modalidades e GPS gravados (pedido de 2026-11-20)', () => {
       const { deps, orders } = fakeDeps({ rows: [ZONES] })
       const customer = { ...ENTREGA, kind, gps: GPS }
       // O total que o cliente viu na tela, sem frete: R$ 5,00. Com o frete do bairro (R$ 8,00), recusa.
-      expect(await handleOrder(request({ customer, expectedTotalCents: 800 }), deps)).toEqual({ ok: false, reason: 'total-mudou', totalCents: 500 })
+      expect(await handleOrder(request({ customer, expectedTotalCents: 800 }), deps)).toMatchObject({ ok: false, reason: 'total-mudou', totalCents: 500 })
       const result = await handleOrder(request({ customer, expectedTotalCents: 500 }), deps)
       expect(result).toMatchObject({ ok: true, totalCents: 500 })
       expect(orders[0]).toMatchObject({

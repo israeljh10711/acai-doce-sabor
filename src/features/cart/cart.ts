@@ -241,6 +241,10 @@ export function cartItemProblem(item: CartItem): CartItemProblem | null {
   if (!isProductAvailable(item.slug)) return { kind: 'item' }
   const product = PRODUCTS[item.slug]
   const names: string[] = []
+  // Tamanho esgotado ou que saiu (cardápio dinâmico, 2026-11-21).
+  const size = product.sizes.find((candidate) => candidate.id === item.selection.sizeId)
+  if (!size) return { kind: 'item' }
+  if (size.available === false) names.push(size.name)
   if (product.flavors.length > 0) {
     const flavor = product.flavors.find((candidate) => candidate.id === item.selection.flavorId)
     if (!flavor) return { kind: 'item' }
@@ -248,7 +252,8 @@ export function cartItemProblem(item: CartItem): CartItemProblem | null {
   }
   for (const id of Object.keys(item.selection.toppings)) {
     const topping = getTopping(id)
-    if (topping?.available === false) names.push(topping.name)
+    // O complemento ou o grupo inteiro esgotado (2026-11-21).
+    if (topping && (topping.available === false || TOPPING_GROUPS[topping.group]?.available === false)) names.push(topping.name)
   }
   return names.length > 0 ? { kind: 'toppings', names } : null
 }

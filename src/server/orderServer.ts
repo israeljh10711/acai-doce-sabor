@@ -12,16 +12,16 @@
  *
  * Funções puras com o banco por fora (`OrderDeps`): testadas sem Supabase.
  */
-import { cartItemProblem, cartTotalCents, parseCart } from '../features/cart/cart.ts'
-import { getStoreSettings, setCatalogChanges } from '../features/catalog/catalogState.ts'
+import { cartItemProblem, cartTotalCents, lineTotalCents, parseCart } from '../features/cart/cart.ts'
+import { getStoreSettings } from '../features/catalog/catalogState.ts'
 import { type CustomerDraft, checkCustomer, feeCents, parseCustomerDraft } from '../features/checkout/delivery.ts'
-import { EMPTY_PAYMENT, PAYMENT_METHODS, type PaymentDraft, checkPayment, paymentProblemText } from '../features/checkout/payment.ts'
+import { EMPTY_PAYMENT, PAYMENT_METHODS, type PaymentDraft, allowedMethods, checkPayment, paymentLabel, paymentProblemText } from '../features/checkout/payment.ts'
 import { buildOrderMessage } from '../features/orders/orderMessage.ts'
 import { type OrderRow, itemName, orderRowFields } from '../features/orders/orderRow.ts'
 import { effectiveStatus } from '../features/store-hours/hours.ts'
-import { changesFromRows } from '../services/supabaseBackend.ts'
 import type { ChangeRow } from '../services/supabaseRest.ts'
 import { toWhatsAppNumber } from '../utils/whatsapp.ts'
+import { changedSelection, loadServerCatalog } from './serverCatalog.ts'
 
 /** Tamanho máximo do carrinho recebido (texto), e de linhas nele. */
 export const MAX_CART_LENGTH = 200_000
@@ -46,6 +46,8 @@ export type StoredOrder = {
 export type OrderDeps = {
   /** As mudanças do vendedor (tabela `catalog_changes`). */
   readChanges(): Promise<ChangeRow[]>
+  /** O cardápio do banco: `catalogo_publico()` com a chave de servidor (2026-11-21). */
+  readCatalog(): Promise<unknown>
   findOrder(attemptKey: string): Promise<StoredOrder | null>
   /** O próximo número da sequência dos pedidos. */
   nextNumber(): Promise<number>
@@ -85,7 +87,14 @@ export type OrderResponse =
       message: string
       whatsapp: string
     }
-  | { ok: false; reason: RejectReason; detail?: string; totalCents?: number }
+  | {
+      ok: false
+      reason: RejectReason
+      detail?: string
+      totalCents?: number
+      /** Preço mudou (2026-11-21): cada item com o preço de agora, para o cliente conferir. */
+      items?: { name: string; quantity: number; totalCents: number }[]
+    }
 
 type Rejection = Extract<OrderResponse, { ok: false }>
 
@@ -161,6 +170,9 @@ function prepare(input: OrderInput, now: number): Prepared | Rejection {
     return problem.kind === 'item' ? [itemName(item)] : problem.names
   })
   if (soldOut.length > 0) return reject('esgotado', soldOut.join(', '))
+  // Escolha que não vale mais como foi enviada (limite do grupo, complemento fora do produto).
+  const changed = changedSelection(input.cart, cart)
+  if (changed) return reject('item-indisponivel', changed)
 
   const settings = getStoreSettings()
   const status = effectiveStatus(now, settings)
@@ -174,7 +186,13 @@ function prepare(input: OrderInput, now: number): Prepared | Rejection {
   const totalCents = subtotalCents + feeCents(customer.fee)
   const paymentCheck = checkPayment(input.payment, totalCents)
   if (!paymentCheck.ok) return reject('pagamento-invalido', paymentProblemText(paymentCheck.problem, totalCents))
-  if (totalCents !== input.expectedTotalCents) return { ok: false, reason: 'total-mudou', totalCents }
+  // Forma de pagamento desligada nas Configurações da loja (2026-11-21).
+  if (!allowedMethods(settings.payments, settings.pix.enabled).includes(paymentCheck.payment.method)) {
+    return reject('pagamento-invalido', `A loja não está aceitando ${paymentLabel(paymentCheck.payment.method)} agora. Escolha outra forma de pagamento.`)
+  }
+  if (totalCents !== input.expectedTotalCents) {
+    return { ok: false, reason: 'total-mudou', totalCents, items: cart.items.map((item) => ({ name: itemName(item), quantity: item.quantity, totalCents: lineTotalCents(item) })) }
+  }
 
   const { payment } = paymentCheck
   const antecipado = !status.open
@@ -220,9 +238,9 @@ export async function handleOrder(raw: unknown, deps: OrderDeps, customerId: str
     return accepted(existing, true)
   }
 
-  const rows = await deps.readChanges()
-  // Daqui até a comanda ficar pronta, nada de await: o cardápio é um estado do módulo.
-  setCatalogChanges(changesFromRows(rows))
+  // O cardápio e as configurações do banco (2026-11-21). Daqui até a comanda ficar pronta, nada de
+  // await: o cardápio é um estado do módulo.
+  await loadServerCatalog(deps)
   const prepared = prepare(input, deps.now())
   if (!prepared.ok) return prepared
 

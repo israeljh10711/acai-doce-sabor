@@ -63,3 +63,14 @@ Parte 1 → Parte 2 → Parte 3, com testes, build e commit ao fim de cada parte
    - teste do pacote desatualizado;
    - testes e documentação;
    - commit.
+
+## Situação (2026-11-21)
+
+- Parte 1: feita (commit `6890646`).
+- Parte 2: feita (commit `38dce01`).
+- Parte 3: feita (este commit).
+- Escolhas tomadas na execução:
+  - a cópia de "Duplicar produto" nasce oculta;
+  - a escolha que mudou é recusada pelo servidor (não é cortada);
+  - `orders` não ganhou coluna de revisão (o pedido já grava os itens com nome e preço do momento).
+- Nada foi aplicado no Supabase de verdade.

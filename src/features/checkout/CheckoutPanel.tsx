@@ -93,7 +93,10 @@ function rejectionText(result: Extract<SubmitResult, { kind: 'rejected' }>): str
     case 'loja-fechada':
       return `A loja fechou e não está recebendo pedidos agora${result.detail ? `. Volte ${result.detail}` : ''}.`
     case 'item-indisponivel':
-      return 'Um item do carrinho não está mais no cardápio. Remova o item marcado e finalize de novo.'
+      // Com o nome (2026-11-21): a escolha do item mudou no cardápio (ex.: o máximo de um grupo).
+      return result.detail
+        ? `O item "${result.detail}" mudou no cardápio. Confira as escolhas dele no carrinho e finalize de novo.`
+        : 'Um item do carrinho não está mais no cardápio. Remova o item marcado e finalize de novo.'
     case 'dados-invalidos':
       return `Confira seus dados: ${result.detail ?? ''}`
     case 'pagamento-invalido':

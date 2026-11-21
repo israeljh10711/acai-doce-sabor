@@ -17,7 +17,7 @@ const ORDER_COLUMNS =
 export function createOrderStore(
   { url, key }: OrderStoreConfig,
   fetchImpl: typeof fetch,
-): Pick<OrderDeps, 'readChanges' | 'findOrder' | 'nextNumber' | 'insertOrder'> & CustomerDeps {
+): Pick<OrderDeps, 'readChanges' | 'readCatalog' | 'findOrder' | 'nextNumber' | 'insertOrder'> & CustomerDeps {
   const base = url.replace(/\/+$/, '')
   // Chave nova (sb_secret_...) vai só no apikey; a antiga (um JWT) também como Bearer.
   const headers = (extra: Record<string, string> = {}): Record<string, string> => ({
@@ -41,6 +41,10 @@ export function createOrderStore(
     async readChanges() {
       const rows = await request('/rest/v1/catalog_changes?select=kind,id,data', { headers: headers() })
       return Array.isArray(rows) ? (rows as ChangeRow[]) : []
+    },
+    /** O cardápio inteiro do banco (2026-11-21), com a chave de servidor (vem o oculto e o arquivado). */
+    async readCatalog() {
+      return request('/rest/v1/rpc/catalogo_publico', { method: 'POST', headers: headers(), body: '{}' })
     },
     async findOrder(attemptKey) {
       const rows = await request(`/rest/v1/orders?select=${STORED_COLUMNS}&attempt_key=eq.${encodeURIComponent(attemptKey)}&limit=1`, { headers: headers() })

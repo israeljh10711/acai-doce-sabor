@@ -29,6 +29,7 @@ Se você já rodou este arquivo antes de 2026-11-17, rode de novo: ele passou a 
 5. Em **New query**, copie todo o arquivo `supabase/migrations/20261120120000_modalidades_gps.sql`, cole e clique em **Run**. Ele acrescenta "Comer no Local" e o GPS da entrega aos pedidos (veja "Modalidades e GPS nos pedidos", abaixo). Tem de ser depois dos três primeiros e **antes** de colar a função nova (passo 6).
 6. Em **New query**, copie todo o arquivo `supabase/migrations/20261120180000_painel_ao_vivo.sql`, cole e clique em **Run**. Ele liga o Realtime da tabela `orders` e acrescenta as situações "pronto para retirada" e "pronto para consumo" (veja "Painel de pedidos ao vivo", abaixo). Tem de ser depois do passo 5.
 7. Em **New query**, copie todo o arquivo `supabase/migrations/20261120200000_acompanhamento_cliente.sql`, cole e clique em **Run**. Ele cria o acompanhamento do cliente e a adição de itens (veja "Pedido 100% no site", abaixo). Tem de ser depois do passo 6 e **antes** de colar a função nova e de publicar o site novo.
+8. Em **New query**, copie todo o arquivo `supabase/migrations/20261121120000_catalogo_dinamico.sql` (umas 1.100 linhas), cole e clique em **Run**. Ele cria o cardápio no banco, com a semente (veja "Cardápio dinâmico", abaixo). Tem de ser depois do passo 7 e **antes** de colar a função nova e de publicar o site novo. Rodar de novo não apaga nada nem sobrescreve o que o vendedor mudou.
 
 ### Já tinha tudo funcionando antes de 2026-11-20?
 
@@ -47,7 +48,14 @@ Para o **pedido 100% no site** (acompanhamento e adição de itens, também de 2
 
 Para o **Pacote 1** (2026-11-21): nenhum SQL. Para o telefone obrigatório no frete a combinar valer também no servidor, rode `npm run build:pedido` e cole de novo a função `pedido` (veja "Pacote 1", abaixo).
 
+Para o **cardápio dinâmico** (2026-11-21), siga esta ordem:
+1. rode o `20261121120000_catalogo_dinamico.sql` (passo 2.8);
+2. rode `npm run build:pedido` e cole de novo o arquivo `supabase/functions/pedido/index.ts` na função `pedido`;
+3. publique o site novo.
+
 Fora dessa ordem:
+- **Função nova sem o SQL 2.8:** todo pedido responde "Não foi possível confirmar o pedido agora", e nada é gravado.
+- **Site novo sem o SQL 2.8:** a loja mostra "Cardápio indisponível agora".
 - **Site novo com a função antiga:** os pedidos "Comer no Local" são recusados ("Confira seus dados"). Os outros são gravados, mas sem acompanhamento ao vivo.
 - **Função nova sem o SQL:** a gravação falha. O cliente vê "Não foi possível confirmar o pedido agora" e "Tentar de novo", e nada é gravado pela metade.
 - **Site novo sem o SQL 2.7:** o painel do vendedor mostra o erro "column orders.additions does not exist".
@@ -108,12 +116,14 @@ A função `pedido` confere os preços e as regras no servidor, grava o pedido l
 
 A função usa a chave de servidor que o próprio Supabase guarda no ambiente dela. Você não cola chave nenhuma nela.
 
-**Quando o cardápio do código mudar** (um produto, um preço ou um tamanho mudados direto no código), a função precisa da versão nova:
+Desde 2026-11-21, a função lê o cardápio do banco a cada pedido: o que o vendedor muda no painel vale na hora, sem colar nada.
+
+**Quando as regras do código mudarem** (o teste `tests/pedidoBundle.test.ts` avisa), a função precisa da versão nova:
 1. rode `npm run build:pedido`;
 2. abra a função `pedido` no painel e cole de novo o arquivo `supabase/functions/pedido/index.ts`;
 3. clique em **Deploy updates**.
 
-O que o vendedor muda pelo modo vendedor não precisa disso: a função lê o banco a cada pedido.
+O que o vendedor muda pelo painel ou pelo modo vendedor não precisa disso: a função lê o banco a cada pedido.
 
 ## Modalidades e GPS nos pedidos (2026-11-20)
 
@@ -380,11 +390,231 @@ Nenhuma mudança no banco: sem SQL, sem coluna nova e sem mudança de RLS.
 
 A única mudança na função é o telefone obrigatório no frete a combinar. Para essa regra valer também no servidor, rode `npm run build:pedido` e cole de novo `supabase/functions/pedido/index.ts`. Sem colar, o site já exige o telefone, mas um aparelho com o site antigo ainda passaria sem ele.
 
+## Cardápio dinâmico: o cardápio inteiro no banco (2026-11-21)
+
+Desde 2026-11-21, o cardápio inteiro mora no Supabase e o vendedor muda tudo pelo **painel do vendedor** (`/vendedor`). O cardápio que estava no código virou só a semente do banco e o cardápio do modo de demonstração.
+
+### 1. O que mudou
+
+- **Para o cliente:** a loja lê o cardápio do banco. Enquanto carrega, aparece "Carregando o cardápio…". Se o Supabase não responder, aparece "Cardápio indisponível agora" com **Tentar de novo**, e nunca o cardápio antigo do código (que poderia ter preços velhos).
+- **Para o vendedor:**
+  - o painel tem as abas **Pedidos**, **Catálogo**, **Categorias**, **Produtos**, **Complementos**, **Ofertas** e **Configurações da loja**;
+  - na própria loja, "Editar", "+ Adicionar", "Duplicar", "Renomear" e "Disponível / Esgotado" abrem os mesmos editores e gravam no banco;
+  - "Entrega / Frete" e "Horários e Contato", na faixa do vendedor, levam às Configurações da loja.
+- **Para a função `pedido`:** ela lê o cardápio do banco a cada pedido e confere tudo (veja o item 19).
+
+### 2. Ordem para ligar
+
+1. Rode o `20261121120000_catalogo_dinamico.sql` (passo 2.8).
+2. Rode `npm run build:pedido` e cole de novo a função `pedido` (passo 6).
+3. Publique o site novo.
+
+Fora dessa ordem:
+- **Função nova sem o SQL:** todo pedido responde "Não foi possível confirmar o pedido agora" (a função não acha o `catalogo_publico`). Nada é gravado.
+- **Site novo sem o SQL:** a loja mostra "Cardápio indisponível agora".
+- **Site novo com a função antiga:** o que o vendedor muda no painel (preço, esgotado, oferta) não vale no servidor. O carrinho pode mostrar sempre "Os preços mudaram". Cole a função nova.
+
+### 3. Tabelas
+
+| Tabela | O que guarda |
+|---|---|
+| `catalog_categories` | Categorias: a vitrine "Monte do seu jeito" (`layout = 'vitrine'`, só uma) e as seções em grade. |
+| `catalog_products` | Produtos, com o tipo (`kind`), preço, preço antigo, selo, foto, palavras de busca, Completo, visível, disponível e arquivado. |
+| `catalog_variants` | Tamanhos de cada produto: preço, adicionais grátis, recipiente e disponível. |
+| `catalog_choices` e `catalog_choice_options` | Escolhas obrigatórias ("Sabor", "Sabor da cobertura") e as opções de cada uma. |
+| `catalog_groups` | Grupos de complementos e as regras (veja o item 15). |
+| `catalog_options` | Complementos (granola, kiwi, cremes...). Um complemento pode ser só de um produto (`product_id`). |
+| `catalog_product_groups` | Os grupos que cada produto montável aceita, a ordem e o máximo só daquele produto (a barca: 2 frutas). |
+| `catalog_offers` | Ofertas do aviso flutuante, com preço promocional opcional. |
+| `catalog_meta` | A revisão do cardápio (sobe a cada mudança) e quando a semente rodou. |
+| `catalog_import_log` | O que foi convertido das mudanças antigas (`catalog_changes`). |
+
+### 4. Ids e ordem
+
+- Os ids são estáveis e só têm letras minúsculas, números e hífen (`acai-oca`, `copo-500-ml`).
+- O produto novo ganha o id pelo nome (`Açaí Zero` → `acai-zero`). Os ids da semente são os mesmos do código, então carrinhos e pedidos antigos continuam valendo.
+- A ordem é a coluna `position`: "↑ Subir" e "↓ Descer" no painel. No empate, vale o id.
+
+### 5. Regras do banco
+
+- Preços em centavos inteiros, de 0 a R$ 10.000,00. Nome obrigatório (até 120 letras).
+- Dois tamanhos ou duas opções com o mesmo nome no mesmo produto são recusados.
+- Na vitrine só entram produtos montáveis.
+- "Completo" e "sabores tirados de um grupo" são só de produto montável.
+- Produto montável precisa de pelo menos um tamanho.
+- Nada apaga em cascata. Apagar uma categoria com produtos, ou um grupo em uso, é recusado.
+- Arquivar uma categoria com produtos é recusado com "A categoria ainda tem produtos. Mova ou arquive os produtos antes."
+- Tirar um tamanho que está numa oferta é recusado.
+- Foto: só caminho do site (`images/...`) ou endereço `https://`, nunca SVG.
+
+### 6. Quem lê e quem grava (RLS)
+
+- **Visitante e cliente:** leem só o público:
+  - categorias visíveis e não arquivadas;
+  - produtos visíveis, não arquivados e de categoria visível;
+  - os tamanhos, escolhas e grupos desses produtos;
+  - os complementos não arquivados;
+  - as ofertas ativas que ainda não acabaram.
+- **Vendedor (`is_seller()`):** lê tudo (também o oculto e o arquivado) e grava.
+- **Função `pedido` (chave de servidor):** lê tudo e confere item a item (item 19).
+- `catalog_import_log`: só o vendedor lê.
+
+### 7. Permissões (GRANT)
+
+O projeto não dá permissão sozinho (aviso de 2026-11-20), então o SQL dá:
+- `select` para `anon` e `authenticated` (o RLS filtra);
+- `insert`, `update` e `delete` para `authenticated` (o RLS só deixa o vendedor);
+- tudo para `service_role`.
+
+### 8. Funções do banco
+
+- **`catalogo_publico()`:** o cardápio inteiro num JSON, na ordem. Respeita o RLS de quem chama. O site chama com a chave pública (ou com o token do vendedor); a função `pedido`, com a chave de servidor.
+- **`catalogo_salvar_produto(produto)`:** grava o produto inteiro numa transação só: o produto, os tamanhos, as escolhas com as opções e os grupos. Se alguma parte falha, nada fica gravado pela metade. Só o vendedor consegue.
+- **`catalogo_ordenar(lista, ids)`:** a ordem de categorias, produtos, grupos, complementos ou ofertas. Só o vendedor consegue.
+
+### 9. Revisão e tempo real
+
+- Cada mudança no cardápio ou nas Configurações da loja sobe a revisão em `catalog_meta`.
+- O site ouve `catalog_meta` pelo Realtime e lê o cardápio de novo. Vários avisos seguidos viram uma leitura só (espera de 0,4 s), e nunca há duas leituras ao mesmo tempo.
+- Sem o Realtime, o site confere a cada minuto e ao voltar para a aba.
+- `catalog_meta` precisa estar em **Database > Publications > supabase_realtime** (o SQL acrescenta).
+
+### 10. Fotos (Storage)
+
+- Bucket `catalogo`, público para leitura.
+- Só JPEG, PNG e WebP, até 2 MB, na pasta `fotos/`, com nomes únicos (hora e sorteio). SVG é recusado no site e no banco.
+- Só o vendedor envia, troca ou apaga.
+- O painel reduz a foto no aparelho (até 800 px, WebP) antes de enviar e mostra "Preparando a foto…" e "Enviando a foto…".
+
+### 11. Semente
+
+- O SQL traz o cardápio do código (6 categorias, 48 produtos, 26 tamanhos, 25 escolhas, 144 opções, 5 grupos, 32 complementos e 12 ofertas).
+- Ela roda **uma vez só** (marca `catalog_meta.seeded_at`) e usa `on conflict do nothing`. Rodar o SQL de novo nunca traz de volta o que o vendedor apagou nem sobrescreve o que ele mudou.
+- Quem mexer no cardápio do código e quiser a semente nova: `node scripts/catalogo/gerar-semente.ts`. O teste `seedSql.test.ts` avisa quando a migração ficou diferente do código.
+- A semente nova só vale para um banco novo: num banco já semeado, ela não roda.
+
+### 12. Mudanças antigas (`catalog_changes`)
+
+- O SQL converte uma vez as mudanças antigas de itens, produtos, complementos e seções. Os campos convertidos são:
+  - nome, descrição, preço e preço riscado;
+  - foto e disponível;
+  - excluído (vira arquivado);
+  - seção e preço de cada tamanho.
+- O que não dá para converter fica **pendente** em `catalog_import_log`, com a mudança inteira, para o vendedor refazer no painel:
+  - listas de tamanhos, sabores e escolhas trocadas por inteiro;
+  - itens novos;
+  - dados ilegíveis.
+- `catalog_changes` **não é apagada**.
+- No projeto real, `catalog_changes` tinha 0 linhas de cardápio em 2026-11-21, então não há nada a converter.
+
+### 13. Configurações da loja
+
+Continuam em `catalog_changes` (tipo `settings`, id `loja`) e agora têm também:
+- **identidade:** nome, subtítulo, slogan, telefone e Instagram. O nome aparece no cabeçalho, no rodapé e na comanda;
+- **Pix:** ligado, tipo (CPF, CNPJ, e-mail, celular ou chave aleatória), chave e titular. Uma chave fora do formato do tipo é recusada;
+- **formas de pagamento:** Pix, Dinheiro e Cartão, com pelo menos uma ligada;
+- **bairros** com liga/desliga (o desligado sai da lista do cliente, sem perder a taxa), além de grátis, a combinar e "Outro bairro";
+- **horário por dia da semana**, com até 3 períodos por dia (almoço e noite), ou o mesmo horário todos os dias;
+- **fechamento temporário:** "Fechar agora (até a próxima abertura)", "Abrir agora" e "Voltar ao horário".
+
+### 14. Tipos de produto
+
+- **Produto montável:** o personalizador, com tamanhos, sabor (lista própria ou os complementos grátis de um grupo, como as coberturas da barca), grupos de complementos e o Completo. Na vitrine, vira um cartão de "Monte do seu jeito"; numa seção, um item com "Montar".
+- **Produto com sabores ou variações:** o cliente escolhe tamanho (com o preço de cada um) e/ou opções. A escolha pode aceitar "Outro sabor".
+- **Produto direto:** vai direto para o carrinho.
+- **"Duplicar produto":** cria outro id com tudo copiado. A cópia nasce **oculta**, para o vendedor revisar antes de mostrar.
+
+### 15. Grupos de complementos e o preço
+
+Cada grupo tem:
+- a regra:
+  - `limited`: conta no limite grátis do tamanho;
+  - `included`: um de cada;
+  - `paid`: cobrado por unidade, até 10 de cada;
+- o mínimo (maior que zero: escolha obrigatória);
+- o máximo (o produto pode ter um máximo próprio);
+- as unidades grátis e o preço de cada unidade a mais;
+- se entra no Completo;
+- disponível (desligado: todos os complementos do grupo ficam esgotados).
+
+O preço de um produto montado, no site e no servidor (a mesma conta):
+
+> preço do tamanho + Σ (preço do complemento × quantidade) + Σ por grupo (unidades além das grátis × preço extra)
+
+Tudo em centavos inteiros. O preço que o cliente manda nunca vale: o servidor refaz a conta.
+
+### 16. Completo
+
+O botão "Completo" marca 1 de cada complemento sem custo dos grupos marcados "Entra no Completo" (na semente: adicionais e frutas). Ficam de fora:
+- os esgotados;
+- os complementos com preço;
+- os complementos marcados "Fica fora do Completo" (na semente, o leite condensado).
+
+### 17. Ofertas
+
+- **Situação:** ativa, pausada ou arquivada, mais as datas de início e de fim. No painel, uma oferta ativa fora das datas aparece como "Agendada" ou "Encerrada".
+- **Aviso flutuante:** só as ofertas ativas, dentro das datas, de produtos visíveis e disponíveis.
+- **Preço promocional (opcional):** troca o preço do produto todo ou só de um tamanho, em todo o site, no carrinho e no servidor. O preço de antes aparece riscado. Um "preço promocional" maior que o normal não vale.
+- **Ordem que decide:** se duas ofertas mudam o preço do mesmo produto, vale a de cima no painel (no empate, o menor id).
+- **Hora usada:** o servidor confere as datas com a hora dele. O cliente não consegue usar uma oferta encerrada.
+- **Frase:** `{preco}` e `{preco_antigo}` viram os preços na hora.
+
+### 18. Painel do vendedor (`/vendedor`)
+
+- Só com o Modo Vendedor ligado. Sem ele, a página pede a senha.
+- **Catálogo:** o resumo e os atalhos.
+- **Categorias:** nome, subtítulo, ícone, visível, ordem e arquivar.
+- **Produtos:** busca, filtro por categoria e situação, ordem, "Marcar esgotado", "Ocultar", "Duplicar produto" e o editor completo.
+- **Complementos:** os grupos com as regras e "Usado em: ...", e os complementos de cada grupo.
+- **Ofertas:** a lista com a situação, "Pausar"/"Ativar", ordem e o editor com a prévia.
+- **Configurações da loja:** o item 13.
+- Ao salvar: "Salvar alterações", "Há alterações não salvas.", "Alterações salvas com sucesso" e "Não foi possível salvar. Tente novamente." (ou o motivo do banco, em português).
+
+### 19. O que a função `pedido` confere
+
+A cada pedido e a cada acréscimo, a função lê, em paralelo, as configurações (`catalog_changes`) e o cardápio (`catalogo_publico()`). São duas consultas por pedido, nunca uma por item. Depois ela confere:
+- **o item:** existe, está visível, a categoria está visível e não está arquivado. Senão: "item-indisponivel";
+- **o tamanho, o sabor, as opções e os complementos:** pertencem ao produto e estão disponíveis (também o grupo). Senão: "esgotado", com o nome;
+- **o mínimo, o máximo e um de cada:** escolha que não vale mais como foi enviada (ex.: o vendedor baixou o máximo de frutas) é recusada com o nome do item, em vez de ser cortada em silêncio;
+- **os preços:** do banco, com as ofertas pela hora do servidor. Total diferente: "total-mudou", com o total certo e o preço de cada item (`items`), e o carrinho lê o cardápio de novo;
+- **a forma de pagamento:** desligada nas Configurações é recusada, mesmo que o cliente mande;
+- **o bairro:** desligado é recusado;
+- **a loja fechada** com "não aceitar pedidos": recusada.
+
+Se o cardápio não carrega ou vem fora do formato, a função responde erro (500) e nada é gravado. Ela nunca usa um cardápio velho.
+
+**Cópias:**
+- o pedido grava os itens com o nome e o preço do momento (`orders.items` e a comanda). Mudar o cardápio depois não muda pedidos antigos;
+- no acréscimo, só os itens novos usam o preço de agora;
+- a gravação do pedido é um `insert` só (com a chave de repetição), e o acréscimo usa a função SQL `adicionar_itens_pedido`, numa transação.
+
+### 20. Modo de demonstração e backup
+
+- **Sem o Supabase:** o cardápio fica no aparelho (`acai_doce_sabor_catalogo_v2`), começando pela semente, com as mesmas regras do banco. As fotos ficam no aparelho.
+- **Backup v2** ("Backup / Restaurar"): leva as configurações, o cardápio e as fotos que ele usa.
+- **Restaurar:** no aparelho, volta o cardápio. No Supabase, volta só as configurações (o cardápio do banco se muda pelo painel).
+
+### 21. Testes e conferências
+
+- `npm test`, com o principal:
+  - a ida e volta exata do cardápio;
+  - a semente igual à migração;
+  - as regras de grupo;
+  - as ofertas;
+  - a gravação local e no Supabase;
+  - as Configurações da loja;
+  - o horário por dia;
+  - a função `pedido` com cardápios criados pelo vendedor;
+  - o arquivo da função em dia (`tests/pedidoBundle.test.ts`).
+- `npm run check:catalogo-vendedor`: o painel inteiro no navegador.
+- `check:vendedor`, `check:operacao`, `check:pedido`, `check:pedido-funcao` e as outras.
+- O teste da migração (Postgres na memória, PGlite) roda todas as migrações e confere a semente, o RLS, as restrições, as funções, a revisão, o Realtime, as fotos e a conversão.
+
 ## 7. Conferir
 
 1. Abra o cardápio, clique em **Senha para vendedor** e entre com a senha do passo 3.3.
 2. A faixa do topo deve dizer "Salvo na nuvem: vale para todos os clientes".
-3. Mude o preço de um item e abra o site em outro aparelho: o preço novo aparece. Em quem já está com a página aberta, aparece em até 1 minuto ou ao voltar para a aba.
+3. Abra o **🗂️ Cardápio** (painel `/vendedor`), mude o preço de um produto e toque em **Salvar alterações**. Abra o site em outro aparelho: o preço novo aparece. Em quem já está com a página aberta, aparece em segundos (Realtime), ou em até 1 minuto, ou ao voltar para a aba.
 4. Toque em **Loja Aberta** para fechar a loja: no outro aparelho, o topo passa a mostrar "Loja fechada no momento". Toque de novo para abrir.
 5. Faça um pedido de teste no site e toque em **Finalizar pedido**:
    - o site vai para "Acompanhar pedido", com "✅ Pedido recebido com sucesso!" e o código ADS-0001;
@@ -402,7 +632,11 @@ A única mudança na função é o telefone obrigatório no frete a combinar. Pa
 ## Se algo der errado
 
 - **Senha certa não entra:** confira se o e-mail do `.env.local` é igual ao da conta e se a linha do passo 3.5 foi rodada.
-- **Supabase fora do ar ou chave errada:** o site continua funcionando com o último cardápio que ele conseguiu ler.
+- **Supabase fora do ar ou chave errada:** a loja mostra "Cardápio indisponível agora" com **Tentar de novo** (desde 2026-11-21 ela não usa o cardápio do código no lugar). Quem já estava com a página aberta continua com o último cardápio lido até a próxima leitura.
+- **"Cardápio indisponível agora" logo depois de publicar o site novo:** falta rodar o `20261121120000_catalogo_dinamico.sql` (passo 2.8).
+- **O vendedor salva e aparece "Sua sessão de vendedor acabou":** saia e entre de novo no Modo Vendedor.
+- **"A categoria ainda tem produtos" ao arquivar:** mova os produtos para outra categoria ou arquive-os antes.
+- **Mudanças antigas que não apareceram no painel:** veja `catalog_import_log` (linhas "pendente") e refaça no painel.
 - **No carrinho aparece "Não foi possível confirmar o pedido agora":**
   - confira se a função se chama `pedido`;
   - confira se a verificação de JWT dela está desligada (passo 6.5);
@@ -413,5 +647,5 @@ A única mudança na função é o telefone obrigatório no frete a combinar. Pa
 - **O painel do vendedor mostra "column orders.additions does not exist":** falta rodar o `20261120200000_acompanhamento_cliente.sql` (passo 2.7).
 - **A tela do cliente não muda sozinha ("Sem conexão ao vivo"):** confira se `order_events` aparece em **Database > Publications > supabase_realtime**. Enquanto isso, a tela confere a cada 20 segundos.
 - **"Comer no Local" recusado com "Confira seus dados", ou "Não foi possível confirmar" só depois de 2026-11-20:** falta um passo de "Já tinha tudo funcionando antes de 2026-11-20?" (passo 2): o SQL das modalidades ou a função nova.
-- **No carrinho aparece sempre "Os preços mudaram":** a função colada está com um cardápio mais antigo que o site. Faça os passos de "Quando o cardápio do código mudar" (passo 6).
+- **No carrinho aparece sempre "Os preços mudaram":** a função colada está mais antiga que o site (ainda sem o cardápio do banco). Faça os passos de "Quando as regras do código mudarem" (passo 6).
 - **Mudanças feitas antes do Supabase, guardadas no aparelho:** no modo vendedor desse aparelho, use **Backup / Restaurar > Baixar backup**. Depois de ligar o Supabase, use **Restaurar backup** com o mesmo arquivo. As fotos também sobem.

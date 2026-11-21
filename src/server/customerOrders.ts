@@ -10,7 +10,7 @@
  * (transação com o pedido travado: dono, situação, repetição e troco conferidos lá também).
  */
 import { cartItemProblem, cartTotalCents, parseCart, serializeCart } from '../features/cart/cart.ts'
-import { getStoreSettings, setCatalogChanges } from '../features/catalog/catalogState.ts'
+import { getStoreSettings } from '../features/catalog/catalogState.ts'
 import { parseReais } from '../features/checkout/payment.ts'
 import { itemsBlockLines } from '../features/orders/orderMessage.ts'
 import { itemName, itemSnapshots } from '../features/orders/orderRow.ts'
@@ -19,8 +19,8 @@ import type { OrderStatus } from '../features/orders/ordersPanel.ts'
 
 export type { EventRecord, OrderRecord } from '../features/tracking/orderView.ts'
 import { effectiveStatus } from '../features/store-hours/hours.ts'
-import { changesFromRows } from '../services/supabaseBackend.ts'
 import { ATTEMPT_ID, MAX_CART_LENGTH, MAX_LINES, type OrderDeps, type RejectReason, cartLines, parsePayment } from './orderServer.ts'
+import { changedSelection, loadServerCatalog } from './serverCatalog.ts'
 
 export type AddItemsArgs = {
   orderId: string
@@ -102,9 +102,9 @@ export async function addItems(raw: unknown, deps: PedidoDeps, customerId: strin
   }
   if (!ADDABLE_STATUSES.includes(order.status as OrderStatus)) return reject('situacao', order.status)
 
-  const rows = await deps.readChanges()
-  // Daqui até o lote ficar pronto, nada de await: o cardápio é um estado do módulo.
-  setCatalogChanges(changesFromRows(rows))
+  // O cardápio do banco (2026-11-21): os itens novos com os preços de agora; os do pedido ficam como
+  // foram gravados. Daqui até o lote ficar pronto, nada de await: o cardápio é um estado do módulo.
+  await loadServerCatalog(deps)
   const lines = cartLines(cart)
   if (lines > MAX_LINES) return reject('pedido-invalido')
   const parsed = parseCart(cart)
@@ -116,6 +116,8 @@ export async function addItems(raw: unknown, deps: PedidoDeps, customerId: strin
     return problem.kind === 'item' ? [itemName(item)] : problem.names
   })
   if (soldOut.length > 0) return reject('esgotado', soldOut.join(', '))
+  const changed = changedSelection(cart, parsed)
+  if (changed) return reject('item-indisponivel', changed)
   const settings = getStoreSettings()
   const status = effectiveStatus(deps.now(), settings)
   if (!status.open && settings.closedOrders === 'bloquear') return reject('loja-fechada', status.reopenText ?? undefined)

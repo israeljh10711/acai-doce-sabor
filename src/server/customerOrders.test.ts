@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { EMPTY_CART, addExtraItem, serializeCart, setQuantity } from '../features/cart/cart.ts'
 import { NO_CHANGES } from '../features/catalog/catalogChanges.ts'
-import { setCatalogChanges } from '../features/catalog/catalogState.ts'
+import { setCatalogChanges, setCatalogRecords } from '../features/catalog/catalogState.ts'
 import { type CustomerDraft, EMPTY_CUSTOMER } from '../features/checkout/delivery.ts'
 import type { ChangeRow } from '../services/supabaseRest.ts'
 import type { AddItemsArgs, EventRecord, OrderRecord, PedidoDeps } from './customerOrders.ts'
 import { handleRequest } from './orderRequest.ts'
 import type { OrderRow } from './orderServer.ts'
+import { catalogWith, editProduct } from './catalogFixtures.ts'
 
-afterEach(() => setCatalogChanges(NO_CHANGES))
+afterEach(() => {
+  setCatalogRecords(null)
+  setCatalogChanges(NO_CHANGES)
+})
 
 const OPEN = Date.parse('2026-11-20T15:42:00-03:00')
 const sha256 = async (text: string) => {
@@ -17,7 +21,7 @@ const sha256 = async (text: string) => {
 }
 
 /** Banco em memória: orders, order_events e a função SQL de acréscimo (com as mesmas regras). */
-function fakeDeps({ rows = [] as ChangeRow[], now = OPEN } = {}) {
+function fakeDeps({ rows = [] as ChangeRow[], now = OPEN, catalog = catalogWith() as unknown } = {}) {
   const orders: (OrderRow & OrderRecord)[] = []
   const events: (EventRecord & { order_id: string })[] = []
   const tokens: Record<string, string> = { 'token-ana': 'ana', 'token-bia': 'bia' }
@@ -25,6 +29,7 @@ function fakeDeps({ rows = [] as ChangeRow[], now = OPEN } = {}) {
   let sequence = 0
   const deps: PedidoDeps = {
     readChanges: async () => rows,
+    readCatalog: async () => JSON.parse(JSON.stringify(catalog)),
     findOrder: async (key) => orders.find((order) => order.attempt_key === key) ?? null,
     nextNumber: async () => ++sequence,
     insertOrder: async (row) => {
@@ -179,8 +184,18 @@ describe('adicionar: itens a mais no mesmo pedido (2026-11-20)', () => {
     expect(calls.addItems[0].attemptKey).toMatch(/^[0-9a-f]{64}$/)
   })
 
+  it('cardápio do banco mudou depois do pedido: só os itens novos usam o preço novo (2026-11-21)', async () => {
+    const { deps, orders } = fakeDeps()
+    await create(deps, 'token-ana')
+    const later = { ...deps, readCatalog: async () => catalogWith(editProduct('jujuba', { priceCents: 150 })) }
+    expect(await add(later, 'token-ana', { expectedSubtotalCents: 450 })).toMatchObject({ ok: true, totalCents: 950, subtotalCents: 950 })
+    // Os itens gravados no pedido continuam com o preço de quando foram pedidos.
+    expect(orders[0].items).toContainEqual({ name: 'Jujuba', quantity: 1, unit_cents: 100, total_cents: 100 })
+    expect((orders[0].additions as { items: unknown[] }[])[0].items).toEqual([{ name: 'Jujuba', quantity: 3, unit_cents: 150, total_cents: 450 }])
+  })
+
   it('preço mudou no cardápio: recusa com o valor certo, sem gravar', async () => {
-    const { deps, calls } = fakeDeps({ rows: [{ kind: 'items', id: 'jujuba', data: { priceCents: 150 } }] })
+    const { deps, calls } = fakeDeps({ catalog: catalogWith(editProduct('jujuba', { priceCents: 150 })) })
     await create(deps, 'token-ana', { expectedTotalCents: 550 })
     expect(await add(deps, 'token-ana')).toEqual({ ok: false, reason: 'total-mudou', totalCents: 450 })
     expect(calls.addItems).toHaveLength(0)
@@ -226,7 +241,7 @@ describe('adicionar: itens a mais no mesmo pedido (2026-11-20)', () => {
   it('item esgotado no acréscimo: recusado com o nome', async () => {
     const { deps } = fakeDeps()
     await create(deps, 'token-ana')
-    const soldOut = { ...deps, readChanges: async () => [{ kind: 'items' as const, id: 'jujuba', data: { available: false } }] }
+    const soldOut = { ...deps, readCatalog: async () => catalogWith(editProduct('jujuba', { available: false })) }
     expect(await add(soldOut, 'token-ana')).toEqual({ ok: false, reason: 'esgotado', detail: 'Jujuba' })
   })
 

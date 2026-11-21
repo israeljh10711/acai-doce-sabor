@@ -103,3 +103,19 @@ describe('consultas do acompanhamento (pedido 100% no site, 2026-11-20)', () => 
     })
   })
 })
+
+describe('cardápio do banco na função (2026-11-21)', () => {
+  it('lê catalogo_publico() por POST com a chave de servidor (só no apikey), sem nada na URL', async () => {
+    const { fetchImpl, calls } = fakeFetch([{ body: { revision: 3, products: [] } }])
+    const store = createOrderStore({ url: 'https://abc.supabase.co/', key: 'sb_secret_x' }, fetchImpl)
+    expect(await store.readCatalog()).toEqual({ revision: 3, products: [] })
+    expect(calls[0]).toMatchObject({ url: 'https://abc.supabase.co/rest/v1/rpc/catalogo_publico', method: 'POST', body: '{}' })
+    expect(calls[0].headers.apikey).toBe('sb_secret_x')
+    expect(calls[0].headers.Authorization).toBeUndefined()
+  })
+
+  it('erro do banco sobe (a função responde 500, nunca usa um cardápio velho)', async () => {
+    const { fetchImpl } = fakeFetch([{ status: 404, body: { message: 'função não existe' } }])
+    await expect(createOrderStore({ url: 'https://abc.supabase.co', key: 'k' }, fetchImpl).readCatalog()).rejects.toThrow('404')
+  })
+})

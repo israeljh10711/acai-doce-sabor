@@ -28,7 +28,10 @@ function addProblemText(result: Exclude<AddResult, { ok: true }>): string {
     case 'esgotado':
       return `Esgotou: ${result.detail ?? 'um item do carrinho'}. Remova ou edite o item marcado.`
     case 'item-indisponivel':
-      return 'Um item do carrinho não está mais no cardápio. Remova o item marcado.'
+      // Com o nome (2026-11-21): a escolha do item mudou no cardápio (ex.: o máximo de um grupo).
+      return result.detail
+        ? `O item "${result.detail}" mudou no cardápio. Confira as escolhas dele e confirme de novo.`
+        : 'Um item do carrinho não está mais no cardápio. Remova o item marcado.'
     case 'loja-fechada':
       return 'A loja fechou e não está recebendo pedidos agora.'
     case 'carrinho-vazio':

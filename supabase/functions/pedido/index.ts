@@ -1733,6 +1733,9 @@ function cartItemProblem(item) {
 	if (!isProductAvailable(item.slug)) return { kind: "item" };
 	const product = PRODUCTS[item.slug];
 	const names = [];
+	const size = product.sizes.find((candidate) => candidate.id === item.selection.sizeId);
+	if (!size) return { kind: "item" };
+	if (size.available === false) names.push(size.name);
 	if (product.flavors.length > 0) {
 		const flavor = product.flavors.find((candidate) => candidate.id === item.selection.flavorId);
 		if (!flavor) return { kind: "item" };
@@ -1740,7 +1743,7 @@ function cartItemProblem(item) {
 	}
 	for (const id of Object.keys(item.selection.toppings)) {
 		const topping = getTopping(id);
-		if (topping?.available === false) names.push(topping.name);
+		if (topping && (topping.available === false || TOPPING_GROUPS[topping.group]?.available === false)) names.push(topping.name);
 	}
 	return names.length > 0 ? {
 		kind: "toppings",
@@ -2044,7 +2047,7 @@ var DEFAULT_STORE_SETTINGS = {
 		cartao: true
 	}
 };
-var isRecord$5 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord$6 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 /** Texto sem espaços sobrando, com até `max` caracteres; vazio ou longo demais não vale. */
 function cleanText(value, max) {
 	if (typeof value !== "string") return void 0;
@@ -2052,7 +2055,7 @@ function cleanText(value, max) {
 	return text && text.length <= max ? text : void 0;
 }
 function parseHours(raw) {
-	if (!isRecord$5(raw)) return void 0;
+	if (!isRecord$6(raw)) return void 0;
 	const { opensAt, closesAt } = raw;
 	if (!Number.isInteger(opensAt) || !Number.isInteger(closesAt)) return void 0;
 	const open = opensAt;
@@ -2064,7 +2067,7 @@ function parseHours(raw) {
 }
 function parseOverride(raw) {
 	if (raw === null) return null;
-	if (!isRecord$5(raw) || raw.state !== "open" && raw.state !== "closed") return void 0;
+	if (!isRecord$6(raw) || raw.state !== "open" && raw.state !== "closed") return void 0;
 	const until = raw.until;
 	return typeof until === "number" && Number.isFinite(until) && until > 0 ? {
 		state: raw.state,
@@ -2076,7 +2079,7 @@ function parseZones(raw) {
 	const seen = /* @__PURE__ */ new Set();
 	const zones = [];
 	for (const entry of raw) {
-		if (!isRecord$5(entry)) continue;
+		if (!isRecord$6(entry)) continue;
 		const id = cleanText(entry.id, 40);
 		const name = cleanText(entry.name, 40);
 		const fee = entry.feeCents;
@@ -2093,14 +2096,14 @@ function parseZones(raw) {
 	return zones;
 }
 function parseDelivery(raw) {
-	if (!isRecord$5(raw) || raw.mode !== "gratis" && raw.mode !== "taxas" && raw.mode !== "combinar") return void 0;
+	if (!isRecord$6(raw) || raw.mode !== "gratis" && raw.mode !== "taxas" && raw.mode !== "combinar") return void 0;
 	return {
 		mode: raw.mode,
 		zones: parseZones(raw.zones)
 	};
 }
 function parseContact(raw) {
-	if (!isRecord$5(raw)) return void 0;
+	if (!isRecord$6(raw)) return void 0;
 	const contact = {};
 	const whatsapp = typeof raw.whatsapp === "string" ? formatBrazilPhone(raw.whatsapp) : null;
 	if (whatsapp) contact.whatsapp = whatsapp;
@@ -2116,7 +2119,7 @@ function parseWeek(raw) {
 	if (!Array.isArray(raw) || raw.length !== 7) return void 0;
 	const week = [];
 	for (const day of raw) {
-		if (!isRecord$5(day) || typeof day.open !== "boolean" || !Array.isArray(day.periods) || day.periods.length > 3) return void 0;
+		if (!isRecord$6(day) || typeof day.open !== "boolean" || !Array.isArray(day.periods) || day.periods.length > 3) return void 0;
 		const periods = [];
 		for (const period of day.periods) {
 			const hours = parseHours(period);
@@ -2132,7 +2135,7 @@ function parseWeek(raw) {
 	return week;
 }
 function parseIdentity(raw) {
-	if (!isRecord$5(raw)) return void 0;
+	if (!isRecord$6(raw)) return void 0;
 	const identity = {};
 	const name = cleanText(raw.name, 60);
 	if (name) identity.name = name;
@@ -2165,7 +2168,7 @@ function pixKeyProblem(type, key) {
 	return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key.trim()) ? null : "A chave aleatória tem 32 letras e números, com hífens.";
 }
 function parsePix(raw) {
-	if (!isRecord$5(raw) || typeof raw.enabled !== "boolean" || !PIX_TYPES.includes(raw.type)) return void 0;
+	if (!isRecord$6(raw) || typeof raw.enabled !== "boolean" || !PIX_TYPES.includes(raw.type)) return void 0;
 	const key = typeof raw.key === "string" ? raw.key.trim() : "";
 	const holder = cleanText(raw.holder, 80) ?? "";
 	const type = raw.type;
@@ -2178,7 +2181,7 @@ function parsePix(raw) {
 	};
 }
 function parsePayments(raw) {
-	if (!isRecord$5(raw) || typeof raw.pix !== "boolean" || typeof raw.dinheiro !== "boolean" || typeof raw.cartao !== "boolean") return void 0;
+	if (!isRecord$6(raw) || typeof raw.pix !== "boolean" || typeof raw.dinheiro !== "boolean" || typeof raw.cartao !== "boolean") return void 0;
 	if (!raw.pix && !raw.dinheiro && !raw.cartao) return void 0;
 	return {
 		pix: raw.pix,
@@ -2188,7 +2191,7 @@ function parsePayments(raw) {
 }
 /** A mudança guardada (aparelho ou Supabase), só com os campos válidos. */
 function parseStoreSettingsChange(raw) {
-	if (!isRecord$5(raw)) return {};
+	if (!isRecord$6(raw)) return {};
 	const change = {};
 	const hours = parseHours(raw.hours);
 	if (hours) change.hours = hours;
@@ -2546,7 +2549,7 @@ var CATEGORY_SLUGS = /* @__PURE__ */ new Set([
 	"acai-batido",
 	"milk-shake"
 ]);
-var isRecord$4 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord$5 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 var isCents = (value) => Number.isInteger(value) && value >= 0 && value <= 1e7;
 var text = (value, max) => typeof value === "string" ? value.trim().slice(0, max) : void 0;
 function parseItem(raw) {
@@ -2564,7 +2567,7 @@ function parseItem(raw) {
 		return value ? [value] : [];
 	});
 	if (Array.isArray(raw.sizes)) change.sizes = raw.sizes.flatMap((entry) => {
-		if (!isRecord$4(entry)) return [];
+		if (!isRecord$5(entry)) return [];
 		const sizeName = text(entry.name, 40);
 		return sizeName && isCents(entry.priceCents) ? [{
 			name: sizeName,
@@ -2586,13 +2589,13 @@ function parseProduct(raw) {
 	if (description !== void 0) change.description = description;
 	const image = text(raw.image, 2e3);
 	if (image) change.image = image;
-	if (isRecord$4(raw.sizePrices)) {
+	if (isRecord$5(raw.sizePrices)) {
 		const prices = Object.fromEntries(Object.entries(raw.sizePrices).filter(([, price]) => isCents(price)));
 		if (Object.keys(prices).length > 0) change.sizePrices = prices;
 	}
 	if (Array.isArray(raw.sizes)) {
 		const sizes = raw.sizes.flatMap((entry) => {
-			if (!isRecord$4(entry)) return [];
+			if (!isRecord$5(entry)) return [];
 			const sizeName = text(entry.name, 40);
 			if (!sizeName || !isCents(entry.priceCents)) return [];
 			const free = Number.isInteger(entry.freeToppings) ? Math.min(20, Math.max(0, entry.freeToppings)) : 0;
@@ -2621,7 +2624,7 @@ function parseOptions(raw, withId) {
 	const seen = /* @__PURE__ */ new Set();
 	const options = [];
 	for (const entry of raw) {
-		if (!isRecord$4(entry)) continue;
+		if (!isRecord$5(entry)) continue;
 		const name = text(entry.name, 60);
 		const key = name ? foldText(name).toLowerCase() : "";
 		if (!name || seen.has(key)) continue;
@@ -2640,7 +2643,7 @@ function parseOptions(raw, withId) {
 function parseGroups(raw) {
 	const groups = [];
 	for (const entry of raw) {
-		if (!isRecord$4(entry) || !Array.isArray(entry.options)) continue;
+		if (!isRecord$5(entry) || !Array.isArray(entry.options)) continue;
 		const label = text(entry.label, 40);
 		const options = parseOptions(entry.options, false);
 		if (!label || options.length === 0) continue;
@@ -2676,10 +2679,10 @@ function parseTopping(raw) {
 	return change;
 }
 function parseSection(raw, parse, accept = () => true) {
-	if (!isRecord$4(raw)) return {};
+	if (!isRecord$5(raw)) return {};
 	const result = {};
 	for (const [id, entry] of Object.entries(raw)) {
-		if (!id || id.length > 80 || !accept(id) || !isRecord$4(entry)) continue;
+		if (!id || id.length > 80 || !accept(id) || !isRecord$5(entry)) continue;
 		const change = parse(entry);
 		if (Object.keys(change).length > 0) result[id] = change;
 	}
@@ -2689,7 +2692,7 @@ function parseSection(raw, parse, accept = () => true) {
 var STORE_SETTINGS_ID = "loja";
 /** As mudanças guardadas no aparelho ou lidas do Supabase, só com campos válidos. */
 function parseChanges(raw) {
-	if (!isRecord$4(raw)) return NO_CHANGES;
+	if (!isRecord$5(raw)) return NO_CHANGES;
 	return {
 		items: parseSection(raw.items, parseItem),
 		products: parseSection(raw.products, parseProduct, (slug) => CATEGORY_SLUGS.has(slug)),
@@ -2707,6 +2710,213 @@ function setMonteTitle(title) {
 	MONTE_TITLE = title;
 }
 // src/features/catalog/records.ts
+var PRODUCT_KINDS = [
+	"montavel",
+	"variacoes",
+	"direto"
+];
+var GROUP_RULES = [
+	"limited",
+	"included",
+	"paid"
+];
+var OFFER_STATUSES = [
+	"ativa",
+	"pausada",
+	"arquivada"
+];
+var CatalogRecordsError = class extends Error {
+	constructor(message) {
+		super(message);
+		this.name = "CatalogRecordsError";
+	}
+};
+var fail = (where, field) => {
+	throw new CatalogRecordsError(`Cardápio do banco com dado inválido: ${where}.${field}`);
+};
+var str = (row, field, where) => {
+	const value = row[field];
+	return typeof value === "string" ? value : fail(where, field);
+};
+var optStr = (row, field, where) => {
+	const value = row[field];
+	if (value === null || value === void 0) return null;
+	return typeof value === "string" ? value : fail(where, field);
+};
+var int = (row, field, where) => {
+	const value = row[field];
+	return Number.isSafeInteger(value) && value >= 0 ? value : fail(where, field);
+};
+var optInt = (row, field, where) => {
+	const value = row[field];
+	if (value === null || value === void 0) return null;
+	return Number.isSafeInteger(value) && value >= 0 ? value : fail(where, field);
+};
+var bool = (row, field, where) => {
+	const value = row[field];
+	return typeof value === "boolean" ? value : fail(where, field);
+};
+var strings = (row, field, where) => {
+	const value = row[field] ?? [];
+	return Array.isArray(value) && value.every((entry) => typeof entry === "string") ? [...value] : fail(where, field);
+};
+var oneOf = (row, field, where, allowed) => {
+	const value = row[field];
+	return typeof value === "string" && allowed.includes(value) ? value : fail(where, field);
+};
+var rows = (source, field) => {
+	const value = source[field] ?? [];
+	if (!Array.isArray(value) || !value.every((entry) => entry && typeof entry === "object")) fail("catalogo", field);
+	return value;
+};
+function details(row, where) {
+	const raw = row.details ?? {};
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fail(where, "details");
+	const source = raw;
+	const out = {};
+	for (const field of [
+		"summary",
+		"tagline",
+		"actionLabel",
+		"flavorHint",
+		"flavorNotice"
+	]) {
+		const value = source[field];
+		if (value === void 0 || value === null) continue;
+		if (typeof value !== "string") fail(where, `details.${field}`);
+		out[field] = value;
+	}
+	if (source.badges !== void 0 && source.badges !== null) out.badges = strings(source, "badges", `${where}.details`);
+	const term = source.flavorTerm;
+	if (term !== void 0 && term !== null) {
+		if (typeof term !== "object" || Array.isArray(term)) fail(where, "details.flavorTerm");
+		const entry = term;
+		out.flavorTerm = {
+			label: str(entry, "label", `${where}.flavorTerm`),
+			missing: str(entry, "missing", `${where}.flavorTerm`)
+		};
+	}
+	return out;
+}
+/**
+* Lê o que `catalogo_publico()` devolve (nomes em snake_case) e confere cada campo. Dado fora do
+* formato lança `CatalogRecordsError`: o site mostra o erro em vez de um cardápio pela metade.
+*/
+function parseCatalogRecords(raw) {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new CatalogRecordsError("Cardápio do banco vazio ou fora do formato");
+	const source = raw;
+	const revision = source.revision ?? 0;
+	if (!Number.isSafeInteger(revision)) fail("catalogo", "revision");
+	return {
+		revision,
+		categories: rows(source, "categories").map((row) => ({
+			id: str(row, "id", "categoria"),
+			name: str(row, "name", "categoria"),
+			subtitle: str(row, "subtitle", "categoria"),
+			icon: str(row, "icon", "categoria"),
+			layout: oneOf(row, "layout", "categoria", ["vitrine", "grade"]),
+			navLabel: str(row, "nav_label", "categoria"),
+			pillLabel: str(row, "pill_label", "categoria"),
+			anchor: str(row, "anchor", "categoria"),
+			keywords: strings(row, "keywords", "categoria"),
+			position: int(row, "position", "categoria"),
+			visible: bool(row, "visible", "categoria"),
+			archivedAt: optStr(row, "archived_at", "categoria")
+		})),
+		products: rows(source, "products").map((row) => ({
+			id: str(row, "id", "produto"),
+			categoryId: str(row, "category_id", "produto"),
+			kind: oneOf(row, "kind", "produto", PRODUCT_KINDS),
+			name: str(row, "name", "produto"),
+			description: str(row, "description", "produto"),
+			image: str(row, "image", "produto"),
+			imageAlt: str(row, "image_alt", "produto"),
+			priceCents: int(row, "price_cents", "produto"),
+			compareAtCents: optInt(row, "compare_at_cents", "produto"),
+			badge: optStr(row, "badge", "produto"),
+			keywords: strings(row, "keywords", "produto"),
+			completo: bool(row, "completo", "produto"),
+			flavorsFrom: optStr(row, "flavors_from", "produto"),
+			details: details(row, "produto"),
+			position: int(row, "position", "produto"),
+			visible: bool(row, "visible", "produto"),
+			available: bool(row, "available", "produto"),
+			archivedAt: optStr(row, "archived_at", "produto")
+		})),
+		variants: rows(source, "variants").map((row) => ({
+			productId: str(row, "product_id", "tamanho"),
+			id: str(row, "id", "tamanho"),
+			name: str(row, "name", "tamanho"),
+			container: optStr(row, "container", "tamanho"),
+			priceCents: int(row, "price_cents", "tamanho"),
+			freeCount: int(row, "free_count", "tamanho"),
+			available: bool(row, "available", "tamanho"),
+			position: int(row, "position", "tamanho")
+		})),
+		choices: rows(source, "choices").map((row) => ({
+			productId: str(row, "product_id", "escolha"),
+			id: str(row, "id", "escolha"),
+			label: str(row, "label", "escolha"),
+			allowOther: bool(row, "allow_other", "escolha"),
+			photoAlt: optStr(row, "photo_alt", "escolha"),
+			position: int(row, "position", "escolha")
+		})),
+		choiceOptions: rows(source, "choice_options").map((row) => ({
+			productId: str(row, "product_id", "opcao"),
+			choiceId: str(row, "choice_id", "opcao"),
+			id: str(row, "id", "opcao"),
+			name: str(row, "name", "opcao"),
+			photo: optStr(row, "photo", "opcao"),
+			available: bool(row, "available", "opcao"),
+			position: int(row, "position", "opcao")
+		})),
+		groups: rows(source, "groups").map((row) => ({
+			id: str(row, "id", "grupo"),
+			name: str(row, "name", "grupo"),
+			rule: oneOf(row, "rule", "grupo", GROUP_RULES),
+			minSelect: int(row, "min_select", "grupo"),
+			maxSelect: optInt(row, "max_select", "grupo"),
+			freeCount: optInt(row, "free_count", "grupo"),
+			extraPriceCents: int(row, "extra_price_cents", "grupo"),
+			inCompleto: bool(row, "in_completo", "grupo"),
+			available: bool(row, "available", "grupo"),
+			position: int(row, "position", "grupo")
+		})),
+		options: rows(source, "options").map((row) => ({
+			id: str(row, "id", "complemento"),
+			groupId: str(row, "group_id", "complemento"),
+			name: str(row, "name", "complemento"),
+			priceCents: int(row, "price_cents", "complemento"),
+			image: optStr(row, "image", "complemento"),
+			look: optStr(row, "look", "complemento"),
+			productId: optStr(row, "product_id", "complemento"),
+			noCompleto: bool(row, "no_completo", "complemento"),
+			available: bool(row, "available", "complemento"),
+			position: int(row, "position", "complemento"),
+			archivedAt: optStr(row, "archived_at", "complemento")
+		})),
+		productGroups: rows(source, "product_groups").map((row) => ({
+			productId: str(row, "product_id", "grupo_do_produto"),
+			groupId: str(row, "group_id", "grupo_do_produto"),
+			position: int(row, "position", "grupo_do_produto"),
+			maxSelect: optInt(row, "max_select", "grupo_do_produto")
+		})),
+		offers: rows(source, "offers").map((row) => ({
+			id: str(row, "id", "oferta"),
+			productId: str(row, "product_id", "oferta"),
+			variantId: optStr(row, "variant_id", "oferta"),
+			title: str(row, "title", "oferta"),
+			subtitle: str(row, "subtitle", "oferta"),
+			badgeEmoji: str(row, "badge_emoji", "oferta"),
+			badgeText: str(row, "badge_text", "oferta"),
+			promoPriceCents: optInt(row, "promo_price_cents", "oferta"),
+			position: int(row, "position", "oferta"),
+			status: oneOf(row, "status", "oferta", OFFER_STATUSES),
+			startsAt: optStr(row, "starts_at", "oferta"),
+			endsAt: optStr(row, "ends_at", "oferta")
+		}))
+	};
+}
 /** Em ordem: pela posição e, no empate, pelo id (a mesma ordem do banco). */
 function byPosition(list) {
 	return [...list].sort((a, b) => a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -2964,6 +3174,8 @@ var BASE = {
 };
 var changes = NO_CHANGES;
 var records = null;
+/** Hora fixa das ofertas (a função do pedido usa a hora dela); `null`: a hora de agora. */
+var clock$1 = null;
 /** Fotos guardadas no aparelho (`idb:<id>`) e o endereço temporário (`blob:`) de cada uma. */
 var photoUrls = {};
 var version = 0;
@@ -2995,7 +3207,7 @@ function photoOf(image) {
 	return photoUrls[image] ?? "";
 }
 function fromRecords(source) {
-	const data = recordsToCatalog(source, { now: Date.now() });
+	const data = recordsToCatalog(source, { now: clock$1 ?? Date.now() });
 	const hasLocal = (image) => image?.startsWith("idb:") === true;
 	return {
 		...data,
@@ -3042,11 +3254,13 @@ function publish() {
 	for (const listener of listeners) listener();
 }
 /**
-* Troca as mudanças guardadas. Com registros do banco em uso, só as Configurações da loja valem;
-* sem eles, as mudanças antigas valem também para o cardápio (o caminho de antes).
+* O cardápio da função do pedido (2026-11-21): as configurações (catalog_changes), os registros do
+* banco e a hora do servidor, aplicados juntos (uma publicação só).
 */
-function setCatalogChanges(next) {
-	changes = next;
+function setCatalogSnapshot(nextChanges, nextRecords, now) {
+	changes = nextChanges;
+	records = nextRecords;
+	clock$1 = now;
 	publish();
 }
 var settingsCache = null;
@@ -3085,6 +3299,16 @@ var PAYMENT_METHODS = [
 		label: "Dinheiro"
 	}
 ];
+/**
+* As formas que a loja aceita agora (Configurações da loja, 2026-11-21): o Pix só com a chave
+* ligada; crédito e débito com "Cartão"; o dinheiro com "Dinheiro".
+*/
+function allowedMethods(payments, pixEnabled) {
+	return PAYMENT_METHODS.map((method) => method.id).filter((id) => id === "pix" ? payments.pix && pixEnabled : id === "dinheiro" ? payments.dinheiro : payments.cartao);
+}
+function paymentLabel(method) {
+	return PAYMENT_METHODS.find((candidate) => candidate.id === method)?.label ?? method;
+}
 var EMPTY_PAYMENT = {
 	method: null,
 	changeFor: "",
@@ -3686,9 +3910,9 @@ new RegExp(`^(?:[0-9]\\uFE0F\\u20E3|\\u{1F51F})+ \\*(\\d+)x (.+?)\\*(?: \\((.+)\
 /** Só nestas situações o cliente ainda pode acrescentar itens (conferido também no banco). */
 var ADDABLE_STATUSES = ["novo", "preparando"];
 var RETENTION_MS = 2592e6;
-var isRecord$3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+var isRecord$4 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 function viewItems(raw) {
-	return Array.isArray(raw) ? raw.flatMap((entry) => isRecord$3(entry) && typeof entry.name === "string" ? [{
+	return Array.isArray(raw) ? raw.flatMap((entry) => isRecord$4(entry) && typeof entry.name === "string" ? [{
 		name: entry.name,
 		quantity: entry.quantity,
 		totalCents: entry.total_cents,
@@ -3697,7 +3921,7 @@ function viewItems(raw) {
 }
 /** A visão reduzida do pedido para o próprio cliente. */
 function customerView(order, events) {
-	const address = isRecord$3(order.address) ? order.address : null;
+	const address = isRecord$4(order.address) ? order.address : null;
 	return {
 		id: order.id,
 		code: order.code,
@@ -3713,7 +3937,7 @@ function customerView(order, events) {
 		} : null,
 		itemsBlock: orderItemsBlock(order.message),
 		items: viewItems(order.items),
-		additions: (Array.isArray(order.additions) ? order.additions : []).flatMap((entry) => isRecord$3(entry) ? [{
+		additions: (Array.isArray(order.additions) ? order.additions : []).flatMap((entry) => isRecord$4(entry) ? [{
 			createdAt: String(entry.created_at ?? ""),
 			subtotalCents: typeof entry.subtotal_cents === "number" ? entry.subtotal_cents : 0,
 			itemsBlock: typeof entry.itemsBlock === "string" ? entry.itemsBlock : "",
@@ -3760,6 +3984,52 @@ function changesFromRows(rows) {
 	};
 	for (const row of rows) if (KINDS.includes(row.kind) && typeof row.id === "string") raw[row.kind][row.id] = row.data;
 	return parseChanges(raw);
+}
+// src/server/serverCatalog.ts
+/**
+* Aplica o cardápio do banco no estado do módulo. Depois desta chamada, até a conferência acabar,
+* nada de `await` (o cardápio é um estado do módulo, dividido entre pedidos ao mesmo tempo).
+*/
+async function loadServerCatalog(deps) {
+	const [rows, raw] = await Promise.all([deps.readChanges(), deps.readCatalog()]);
+	const records = parseCatalogRecords(raw);
+	setCatalogSnapshot(changesFromRows(rows), records, deps.now());
+	return records.revision;
+}
+var isRecord$3 = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+/** Complementos com quantidade, sem os zerados (para comparar a escolha enviada com a refeita). */
+function toppingMap(raw) {
+	const map = /* @__PURE__ */ new Map();
+	if (!Array.isArray(raw)) return map;
+	for (const pair of raw) if (Array.isArray(pair) && typeof pair[0] === "string" && typeof pair[1] === "number" && pair[1] > 0) map.set(pair[0], pair[1]);
+	return map;
+}
+/**
+* O primeiro item montado cuja escolha não vale mais como foi enviada (ex.: o vendedor baixou o
+* máximo de um grupo ou tirou o complemento do produto). O carrinho refeito pelas regras do banco
+* descartaria o excesso em silêncio; o servidor recusa e o cliente confere o item. `null`: tudo igual.
+*/
+function changedSelection(rawCart, cart) {
+	let data;
+	try {
+		data = JSON.parse(rawCart);
+	} catch {
+		return null;
+	}
+	if (!isRecord$3(data) || !Array.isArray(data.items)) return null;
+	const byId = new Map(cart.items.map((item) => [item.id, item]));
+	for (const entry of data.items) {
+		if (!isRecord$3(entry) || entry.kind === "extra") continue;
+		const item = byId.get(String(entry.id));
+		if (!item || item.kind !== "product") continue;
+		const sent = toppingMap(entry.toppings);
+		const kept = new Map(Object.entries(item.selection.toppings).filter(([, quantity]) => quantity > 0));
+		const sameToppings = sent.size === kept.size && [...sent].every(([id, quantity]) => kept.get(id) === quantity);
+		const sameSize = (entry.sizeId ?? null) === item.selection.sizeId;
+		const sameFlavor = (entry.flavorId ?? null) === item.selection.flavorId;
+		if (!sameToppings || !sameSize || !sameFlavor) return itemName(item);
+	}
+	return null;
 }
 /** Marca do código na comanda, trocada pelo código de verdade depois de sair o número. */
 var CODE_MARK = "{{CODIGO_DO_PEDIDO}}";
@@ -3829,6 +4099,8 @@ function prepare(input, now) {
 		return problem.kind === "item" ? [itemName(item)] : problem.names;
 	});
 	if (soldOut.length > 0) return reject$1("esgotado", soldOut.join(", "));
+	const changed = changedSelection(input.cart, cart);
+	if (changed) return reject$1("item-indisponivel", changed);
 	const settings = getStoreSettings();
 	const status = effectiveStatus(now, settings);
 	if (!status.open && settings.closedOrders === "bloquear") return reject$1("loja-fechada", status.reopenText ?? void 0);
@@ -3838,10 +4110,16 @@ function prepare(input, now) {
 	const totalCents = cartTotalCents(cart) + feeCents(customer.fee);
 	const paymentCheck = checkPayment(input.payment, totalCents);
 	if (!paymentCheck.ok) return reject$1("pagamento-invalido", paymentProblemText(paymentCheck.problem, totalCents));
+	if (!allowedMethods(settings.payments, settings.pix.enabled).includes(paymentCheck.payment.method)) return reject$1("pagamento-invalido", `A loja não está aceitando ${paymentLabel(paymentCheck.payment.method)} agora. Escolha outra forma de pagamento.`);
 	if (totalCents !== input.expectedTotalCents) return {
 		ok: false,
 		reason: "total-mudou",
-		totalCents
+		totalCents,
+		items: cart.items.map((item) => ({
+			name: itemName(item),
+			quantity: item.quantity,
+			totalCents: lineTotalCents(item)
+		}))
 	};
 	const { payment } = paymentCheck;
 	const antecipado = !status.open;
@@ -3901,7 +4179,7 @@ async function handleOrder(raw, deps, customerId = null) {
 		if (existing.customer_user_id && customerId && existing.customer_user_id !== customerId) return reject$1("pedido-invalido");
 		return accepted(existing, true);
 	}
-	setCatalogChanges(changesFromRows(await deps.readChanges()));
+	await loadServerCatalog(deps);
 	const prepared = prepare(input, deps.now());
 	if (!prepared.ok) return prepared;
 	const number = await deps.nextNumber();
@@ -3994,7 +4272,7 @@ async function addItems(raw, deps, customerId) {
 		repeated: true
 	};
 	if (!ADDABLE_STATUSES.includes(order.status)) return reject("situacao", order.status);
-	setCatalogChanges(changesFromRows(await deps.readChanges()));
+	await loadServerCatalog(deps);
 	const lines = cartLines(cart);
 	if (lines > 60) return reject("pedido-invalido");
 	const parsed = parseCart(cart);
@@ -4006,6 +4284,8 @@ async function addItems(raw, deps, customerId) {
 		return problem.kind === "item" ? [itemName(item)] : problem.names;
 	});
 	if (soldOut.length > 0) return reject("esgotado", soldOut.join(", "));
+	const changed = changedSelection(cart, parsed);
+	if (changed) return reject("item-indisponivel", changed);
 	const settings = getStoreSettings();
 	const status = effectiveStatus(deps.now(), settings);
 	if (!status.open && settings.closedOrders === "bloquear") return reject("loja-fechada", status.reopenText ?? void 0);
@@ -4107,6 +4387,7 @@ function lazyDeps(getDeps) {
 	const get = () => deps ??= getDeps();
 	return {
 		readChanges: () => get().readChanges(),
+		readCatalog: () => get().readCatalog(),
 		findOrder: (attemptKey) => get().findOrder(attemptKey),
 		nextNumber: () => get().nextNumber(),
 		insertOrder: (row) => get().insertOrder(row),
@@ -4196,6 +4477,14 @@ function createOrderStore({ url, key }, fetchImpl) {
 		async readChanges() {
 			const rows = await request("/rest/v1/catalog_changes?select=kind,id,data", { headers: headers() });
 			return Array.isArray(rows) ? rows : [];
+		},
+		/** O cardápio inteiro do banco (2026-11-21), com a chave de servidor (vem o oculto e o arquivado). */
+		async readCatalog() {
+			return request("/rest/v1/rpc/catalogo_publico", {
+				method: "POST",
+				headers: headers(),
+				body: "{}"
+			});
 		},
 		async findOrder(attemptKey) {
 			const rows = await request(`/rest/v1/orders?select=${STORED_COLUMNS}&attempt_key=eq.${encodeURIComponent(attemptKey)}&limit=1`, { headers: headers() });

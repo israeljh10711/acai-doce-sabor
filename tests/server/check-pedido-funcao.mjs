@@ -10,7 +10,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { build } from 'vite'
-import { PUBLIC_KEY, SERVER_KEY, startFakeSupabase } from '../browser/fake-supabase.mjs'
+import { PUBLIC_KEY, SERVER_KEY, seedCatalog, startFakeSupabase } from '../browser/fake-supabase.mjs'
 
 const failures = []
 let checks = 0
@@ -94,17 +94,20 @@ try {
 
   // Pedido novo (outra pessoa) com o total errado. O mesmo pedido já gravado volta com o código dele.
   const wrongTotal = await call(order({ expectedTotalCents: 100, customer: { ...customer, name: 'Total Errado' } }))
-  check('total diferente: recusa com o total certo, sem gravar', [wrongTotal.body, fake.db.orders.length], [{ ok: false, reason: 'total-mudou', totalCents: 500 }, 1])
+  check('total diferente: recusa com o total certo, sem gravar', [wrongTotal.body, fake.db.orders.length], [{ ok: false, reason: 'total-mudou', totalCents: 500, items: [{ name: 'Jujuba', quantity: 1, totalCents: 100 }, { name: 'Água Mineral 500 ml', quantity: 2, totalCents: 400 }] }, 1])
   const sameAgain = await call(order({ expectedTotalCents: 100 }))
   check('pedido já gravado, mandado de novo com outro total: volta o gravado', [sameAgain.body?.code, sameAgain.body?.repeated], ['ADS-0001', true])
 
   const cash = await call(order({ payment: { method: 'dinheiro', changeFor: '', exact: true } }))
   check('pedido mudado (outro pagamento): ADS-0002', [cash.body?.code, fake.db.orders.length], ['ADS-0002', 2])
 
-  fake.db.changes.push({ kind: 'items', id: 'jujuba', data: { available: false } })
+  // Esgotado pelo vendedor no painel: o cardápio do banco (catalogo_publico, 2026-11-21).
+  const soldOutCatalog = seedCatalog()
+  soldOutCatalog.products = soldOutCatalog.products.map((product) => (product.id === 'jujuba' ? { ...product, available: false } : product))
+  fake.setCatalog(soldOutCatalog)
   const soldOut = await call(order({ payment: { method: 'credito', changeFor: '', exact: false } }))
   check('item esgotado no banco: recusa com o nome', soldOut.body, { ok: false, reason: 'esgotado', detail: 'Jujuba' })
-  fake.db.changes.pop()
+  fake.setCatalog(seedCatalog())
 
   fake.db.changes.splice(0, fake.db.changes.length, {
     kind: 'settings',

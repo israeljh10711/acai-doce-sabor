@@ -18,7 +18,14 @@
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'vite'
-import { PUBLIC_KEY, startFakeSupabase } from './fake-supabase.mjs'
+import { PUBLIC_KEY, seedCatalog, startFakeSupabase } from './fake-supabase.mjs'
+
+/** O cardápio do banco com produtos mudados (como o vendedor no painel, 2026-11-21). */
+const catalogWith = (changes) => {
+  const catalog = seedCatalog()
+  catalog.products = catalog.products.map((product) => (changes[product.id] ? { ...product, ...changes[product.id] } : product))
+  return catalog
+}
 import { openBrowser, sleep } from './lib.mjs'
 
 const PORT = 5175
@@ -206,7 +213,8 @@ try {
   // --- Preço mudado no banco (o site ainda mostra o antigo) ---
   await openCart(desktop)
   await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`)
-  fake.db.changes.push({ kind: 'items', id: 'jujuba', data: { priceCents: 150 } })
+  // O vendedor muda o preço no painel (o cardápio do banco, 2026-11-21).
+  fake.setCatalog(catalogWith({ jujuba: { price_cents: 150 } }))
   await finalize()
   check(
     '"Os preços mudaram": o total certo, nada gravado, e o site continua no carrinho',
@@ -249,12 +257,13 @@ try {
   // --- Esgotado e loja fechada no banco ---
   await openCart(desktop)
   await click(`__q('input[name="forma-de-pagamento"][value="pix"]')`)
-  fake.db.changes.push({ kind: 'items', id: 'agua-mineral-500-ml', data: { available: false } })
+  fake.setCatalog(catalogWith({ jujuba: { price_cents: 150 }, 'agua-mineral-500-ml': { available: false } }))
   await finalize()
   check('esgotado no banco: "Esgotou: Água Mineral 500 ml"', await waitFor(`__q('[data-order-rejected]')?.textContent.includes('Esgotou: Água Mineral 500 ml')`), true)
   check('o carrinho relê e marca a água como esgotada', await waitFor(`__q('[data-cart-problem]')?.textContent.includes('Esgotado')`), true)
-  fake.db.changes.pop()
+  fake.setCatalog(catalogWith({ jujuba: { price_cents: 150 } }))
 
+  fake.setCatalog(seedCatalog())
   fake.db.changes.splice(0, fake.db.changes.length, { kind: 'settings', id: 'loja', data: { closedOrders: 'bloquear', override: { state: 'closed', until: Date.now() + 3_600_000 } } })
   await openCart(desktop)
   // O site leu "fechada" ao abrir: o botão já vem bloqueado, e nada vai para o servidor.

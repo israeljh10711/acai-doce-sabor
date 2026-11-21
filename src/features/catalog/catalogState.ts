@@ -37,6 +37,8 @@ let changes: CatalogChanges = NO_CHANGES
 let records: CatalogRecords | null = null
 let status: CatalogStatus = { state: 'ready' }
 let offers: readonly LiveOffer[] = []
+/** Hora fixa das ofertas (a função do pedido usa a hora dela); `null`: a hora de agora. */
+let clock: number | null = null
 /** Fotos guardadas no aparelho (`idb:<id>`) e o endereço temporário (`blob:`) de cada uma. */
 let photoUrls: Readonly<Record<string, string>> = {}
 let version = 0
@@ -74,7 +76,7 @@ function photoOf(image: string): string {
 }
 
 function fromRecords(source: CatalogRecords): CatalogData & { groups: typeof BASE_TOPPING_GROUPS; offers: readonly LiveOffer[] } {
-  const data = recordsToCatalog(source, { now: Date.now() })
+  const data = recordsToCatalog(source, { now: clock ?? Date.now() })
   const hasLocal = (image: string | undefined) => image?.startsWith('idb:') === true
   return {
     ...data,
@@ -134,6 +136,18 @@ export function getCatalogRecords(): CatalogRecords | null {
 export function setCatalogRecords(next: CatalogRecords | null): void {
   records = next
   if (next) status = { state: 'ready' }
+  publish()
+}
+
+/**
+ * O cardápio da função do pedido (2026-11-21): as configurações (catalog_changes), os registros do
+ * banco e a hora do servidor, aplicados juntos (uma publicação só).
+ */
+export function setCatalogSnapshot(nextChanges: CatalogChanges, nextRecords: CatalogRecords, now: number): void {
+  changes = nextChanges
+  records = nextRecords
+  clock = now
+  status = { state: 'ready' }
   publish()
 }
 
