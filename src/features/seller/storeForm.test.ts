@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readContact, readHours, readZones, timeInput } from './storeForm.ts'
+import { parseStoreSettingsChange } from '../store/storeSettings.ts'
+import { readContact, readHours, readZones, timeInput, withSavedZoneIds } from './storeForm.ts'
 
 describe('formulários da loja no modo vendedor (pedido de 2026-11-17)', () => {
   it('horário digitado: "13:30" em minutos; fechar às 00:00 é a meia-noite', () => {
@@ -49,5 +50,41 @@ describe('formulários da loja no modo vendedor (pedido de 2026-11-17)', () => {
         uf: 'Use a sigla do estado, com 2 letras (ex.: PB).',
       },
     })
+  })
+})
+
+describe('bairro com nome comprido (achado da auditoria E2E, 2026-11-21)', () => {
+  it('o id cabe no limite das configurações e o bairro não some ao salvar', () => {
+    const read = readZones([{ name: 'E2E-ACAI-TEST-Bairro Desligado', price: '6,00' }, { name: 'Bairro com nome bem comprido da cidade', price: '3,00' }], () => 'abcd')
+    if (!read.ok) throw new Error(read.problem)
+    for (const zone of read.zones) expect(zone.id.length).toBeLessThanOrEqual(40)
+    const parsed = parseStoreSettingsChange({ delivery: { mode: 'taxas', zones: read.zones } })
+    expect(parsed.delivery?.zones.map((zone) => zone.name)).toEqual(['E2E-ACAI-TEST-Bairro Desligado', 'Bairro com nome bem comprido da cidade'])
+  })
+})
+
+describe('bairro novo mantém o id depois de salvar (achado da auditoria E2E, 2026-11-21)', () => {
+  const rows = [
+    { name: 'Centro', price: '3,00' },
+    { name: '', price: '' },
+    { id: 'bairro-velho-ab12', name: 'Velho', price: '2,00' },
+  ]
+  it('sem o id gravado, o salvar seguinte dava outro id ao mesmo bairro (o problema)', () => {
+    const first = readZones(rows, () => 'aaaa')
+    const second = readZones(rows, () => 'bbbb')
+    if (!first.ok || !second.ok) throw new Error('bairros inválidos')
+    expect(second.zones[0].id).not.toBe(first.zones[0].id)
+  })
+  it('com o id gravado nas linhas, salvar de novo (o horário, o Pix...) mantém os mesmos ids', () => {
+    const first = readZones(rows, () => 'aaaa')
+    if (!first.ok) throw new Error('bairros inválidos')
+    const after = withSavedZoneIds(rows, first.zones)
+    const second = readZones(after, () => 'bbbb')
+    if (!second.ok) throw new Error('bairros inválidos')
+    expect(second.zones.map((zone) => zone.id)).toEqual(first.zones.map((zone) => zone.id))
+    expect(after[0].id).toBe('bairro-centro-aaaa')
+    // A linha vazia continua vazia e sem id; o bairro que já tinha id fica com o dele.
+    expect(after[1]).toEqual({ name: '', price: '' })
+    expect(after[2].id).toBe('bairro-velho-ab12')
   })
 })

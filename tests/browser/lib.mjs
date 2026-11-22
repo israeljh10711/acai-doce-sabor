@@ -11,6 +11,12 @@ const EDGE =
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+const REAL_SUPABASE_TEXT =
+  'PARADO: este site usa o Supabase de verdade (.env.local). Rode a conferência num site sem o Supabase (as variáveis vazias valem mais que o .env.local), por exemplo: VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_SELLER_EMAIL= npx vite --port 5178 --strictPort, e passe http://127.0.0.1:5178 para a conferência.'
+const REAL_SUPABASE_HOST = /^https:\/\/[a-z0-9-]+\.supabase\.co\//
+/** O site conferido falou com um Supabase de verdade (a conferência para e não grava nada). */
+let realSupabase = false
+
 /**
  * @param {string} profileDir pasta de perfil descartável do navegador
  * @param {number} port porta de depuração
@@ -69,6 +75,11 @@ export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
 
   socket.onmessage = (message) => {
     const data = JSON.parse(message.data)
+    // Um pedido a um Supabase de verdade, visto assim que começa (antes de a resposta chegar).
+    if (data.method === 'Network.requestWillBeSent') {
+      if (REAL_SUPABASE_HOST.test(data.params?.request?.url ?? '')) realSupabase = true
+      return
+    }
     if (data.id) {
       const waiter = pending.get(data.id)
       pending.delete(data.id)
@@ -101,6 +112,7 @@ export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
   await send('Page.enable')
   await send('Runtime.enable')
   await send('Log.enable')
+  await send('Network.enable')
 
   /**
    * Abre um endereço em um tamanho de tela e espera as fontes e a animação de entrada.
@@ -119,6 +131,7 @@ export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
         { name: 'prefers-reduced-motion', value: reducedMotion ? 'reduce' : 'no-preference' },
       ],
     })
+    if (realSupabase) throw new Error(REAL_SUPABASE_TEXT)
     events.length = 0
     await send('Page.navigate', { url })
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -127,6 +140,15 @@ export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
     }
     await evaluate('document.fonts.ready.then(() => true)')
     await sleep(1200)
+    // As conferências daqui gravam (pedidos, produtos, esgotado...) e só podem rodar no site sem o
+    // Supabase de verdade. Em 2026-11-22, duas rodaram por engano no site da porta 5173 (com o
+    // .env.local) e mudaram a loja real. Se a página falou com um *.supabase.co, a aba vai para
+    // uma página em branco antes de qualquer passo, e toda navegação seguinte é recusada.
+    if (realSupabase) {
+      await send('Page.navigate', { url: 'about:blank' })
+      console.error(REAL_SUPABASE_TEXT)
+      throw new Error(REAL_SUPABASE_TEXT)
+    }
   }
 
   /**

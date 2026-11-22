@@ -37,6 +37,7 @@ export function readHours(open: string, close: string): { ok: true; hours: Store
 export type ZoneRow = { id?: string; name: string; price: string }
 
 const ZONE_PROBLEM = 'Confira os bairros: cada um com nome e valor (ex.: 3,00).'
+const blankZone = (row: ZoneRow) => !row.name.trim() && !row.price.trim()
 
 /** A lista de bairros como o carrinho usa; linha toda vazia é ignorada. */
 export function readZones(
@@ -47,17 +48,34 @@ export function readZones(
   const names = new Set<string>()
   for (const row of rows) {
     const name = row.name.trim().replace(/\s+/g, ' ')
-    if (!name && !row.price.trim()) continue
+    if (blankZone(row)) continue
     const feeCents = parsePriceInput(row.price)
     if (!name || name.length > 40 || feeCents === null) return { ok: false, problem: ZONE_PROBLEM }
     const key = foldText(name).toLowerCase()
     if (names.has(key)) return { ok: false, problem: 'Há bairros com o mesmo nome.' }
     names.add(key)
-    const slug = key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30)
+    // "bairro-" + até 28 + "-" + 4 = no máximo 40, o limite da leitura das configurações. Com 30, um
+    // nome comprido passava de 40 e o bairro sumia ao salvar (achado da auditoria E2E, 2026-11-21).
+    const slug = key.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28).replace(/-$/, '')
     zones.push({ id: row.id || `bairro-${slug || 'zona'}-${suffix()}`, name, feeCents })
   }
   if (zones.length > MAX_ZONES) return { ok: false, problem: `Use no máximo ${MAX_ZONES} bairros.` }
   return { ok: true, zones }
+}
+
+/**
+ * Depois de salvar, cada linha do formulário fica com o `id` gravado (achado da auditoria E2E,
+ * 2026-11-21). Sem isso, o bairro novo continuava "sem id" e cada salvar seguinte (o horário, o
+ * Pix...) dava a ele um id novo: o bairro escolhido pelo cliente no carrinho deixava de valer. As
+ * linhas vazias, que `readZones` ignora, ficam como estão.
+ */
+export function withSavedZoneIds<T extends ZoneRow>(rows: readonly T[], saved: readonly DeliveryZone[]): T[] {
+  let next = 0
+  return rows.map((row) => {
+    if (blankZone(row)) return row
+    const zone = saved[next++]
+    return zone ? { ...row, id: zone.id } : row
+  })
 }
 
 export type ContactField = keyof StoreContact

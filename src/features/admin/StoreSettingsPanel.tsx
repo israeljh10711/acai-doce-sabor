@@ -20,7 +20,7 @@ import {
   parseStoreSettingsChange,
   pixKeyProblem,
 } from '../store/storeSettings.ts'
-import { readContact, readHours, readZones, timeInput } from '../seller/storeForm.ts'
+import { readContact, readHours, readZones, timeInput, withSavedZoneIds } from '../seller/storeForm.ts'
 import { saveStore } from '../seller/storeSave.ts'
 import { useSellerMode } from '../seller/sellerModeContext.ts'
 import { formatPriceInput } from '../seller/sellerForm.ts'
@@ -126,8 +126,13 @@ function readForm(form: Form): Read {
     week: form.sameEveryDay ? null : week,
     ...(hours.ok ? { hours: hours.hours } : {}),
   }
-  // A leitura do banco decide o que vale: o que ela recusaria não é salvo.
-  return { ok: true, change: { ...change, ...parseStoreSettingsChange(change) } }
+  // A leitura do banco decide o que vale: o que ela recusaria não é salvo. Se ela tiraria algum
+  // bairro, avisa em vez de salvar sem ele (achado da auditoria E2E, 2026-11-21).
+  const parsed = parseStoreSettingsChange(change)
+  if ((parsed.delivery?.zones.length ?? 0) !== (change.delivery?.zones.length ?? 0)) {
+    return { ok: false, problems: { zones: 'Não foi possível salvar algum bairro. Confira os nomes e os valores.' } }
+  }
+  return { ok: true, change: { ...change, ...parsed } }
 }
 
 /** Configurações da loja: identidade, Pix, formas de pagamento, entrega e horário. */
@@ -141,6 +146,16 @@ export function StoreSettingsPanel() {
   const [save, setSave] = useState<SaveState>({ state: 'idle' })
   const [switching, setSwitching] = useState(false)
   const dirty = JSON.stringify(form) !== JSON.stringify(base)
+  // Chegaram configurações mais novas (leitura do banco) e o vendedor ainda não mexeu: o formulário
+  // passa a mostrar as novas, para o salvar não gravar uma cópia velha por cima (2026-11-21).
+  const [seen, setSeen] = useState(initial)
+  if (seen !== initial) {
+    setSeen(initial)
+    if (!dirty) {
+      setForm(initial)
+      setBase(initial)
+    }
+  }
   const set = (patch: Partial<Form>) => {
     setForm((current) => ({ ...current, ...patch }))
     if (save.state !== 'saving') setSave({ state: 'idle' })
@@ -160,7 +175,10 @@ export function StoreSettingsPanel() {
     setSave({ state: 'saving' })
     try {
       await saveStore(seller, read.change)
-      setBase(form)
+      // Os bairros novos ficam com o id gravado: o próximo salvar mantém o mesmo bairro (2026-11-21).
+      const savedForm = { ...form, zones: withSavedZoneIds(form.zones, read.change.delivery?.zones ?? []) }
+      setForm((current) => (current === form ? savedForm : current))
+      setBase(savedForm)
       setSave({ state: 'saved' })
     } catch {
       setSave({ state: 'error', message: SAVE_ERROR_TEXT })

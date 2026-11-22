@@ -13,6 +13,16 @@ export type CatalogLiveDeps = {
   debounceMs?: number
 }
 
+/**
+ * O cardápio lido do banco vale só se não for mais velho que o que a tela já tem (2026-11-21): uma
+ * leitura atrasada, com revisão menor, nunca volta por cima de uma mais nova. `force` (depois de uma
+ * gravação deste aparelho) aceita a mesma revisão.
+ */
+export function acceptRecords(known: number | null, next: number, force = false): boolean {
+  if (known === null) return true
+  return force ? next >= known : next > known
+}
+
 export function createCatalogLive(deps: CatalogLiveDeps) {
   const wait = deps.debounceMs ?? 400
   let timer: unknown = null

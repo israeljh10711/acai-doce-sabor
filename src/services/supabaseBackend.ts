@@ -37,11 +37,24 @@ export function createSupabaseBackend(rest: SupabaseRest, store: Pick<Storage, '
     return changes
   }
 
+  /**
+   * Gravações deste aparelho (2026-11-21): uma leitura que começou antes de uma gravação e chega
+   * depois dela traz a foto de antes; ela é descartada, para não voltar a cópia velha (memória e
+   * aparelho) por cima da nova.
+   */
+  let writes = 0
+  const load = async () => {
+    const startedAt = writes
+    const rows = await rest.readChanges()
+    return writes === startedAt ? remember(changesFromRows(rows)) : current
+  }
+
   return {
     kind: 'supabase',
     loadSync: () => current,
-    load: async () => remember(changesFromRows(await rest.readChanges())),
+    load,
     async save(kind, id, change) {
+      writes++
       if (change === null) await rest.remove(kind, id)
       else await rest.upsert(kind, id, change)
       return remember(withChange(current, kind, id, change))
@@ -53,6 +66,8 @@ export function createSupabaseBackend(rest: SupabaseRest, store: Pick<Storage, '
     changePassword: (next) => rest.changePassword(next),
     isSignedIn: () => rest.isSignedIn(),
     async exportBackup(catalog) {
+      // Lê o banco agora: o arquivo sai igual ao banco, nunca com a cópia velha do aparelho (2026-11-21).
+      await load()
       // O cardápio do banco vai junto para consulta (as fotos já são endereços do Storage).
       return JSON.stringify({ app: 'acai-doce-sabor', v: 2, createdAt: new Date().toISOString(), changes: current, photos: {}, ...(catalog ? { catalog: catalog.data } : {}) })
     },

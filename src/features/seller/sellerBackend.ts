@@ -5,7 +5,7 @@
  *   Supabase (para todos os clientes);
  * - sem elas, este aparelho.
  */
-import { createCatalogLive } from '../catalog/catalogLive.ts'
+import { acceptRecords, createCatalogLive } from '../catalog/catalogLive.ts'
 import {
   getCatalogChanges,
   getCatalogRecords,
@@ -143,7 +143,7 @@ async function refresh(current: CatalogBackend, source: CatalogRepository, force
   if (changes.status === 'fulfilled' && JSON.stringify(changes.value) !== JSON.stringify(getCatalogChanges())) setCatalogChanges(changes.value)
   if (records.status === 'fulfilled') {
     const known = getCatalogRecords()
-    if (force || !known || known.revision !== records.value.revision || source.kind === 'local') setCatalogRecords(records.value)
+    if (source.kind === 'local' || acceptRecords(known?.revision ?? null, records.value.revision, force)) setCatalogRecords(records.value)
     else refreshCatalogClock()
     return
   }

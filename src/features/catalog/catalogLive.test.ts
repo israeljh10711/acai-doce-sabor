@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createCatalogLive } from './catalogLive.ts'
+import { acceptRecords, createCatalogLive } from './catalogLive.ts'
 
 function fakeClock() {
   let now = 0
@@ -88,5 +88,17 @@ describe('cardápio ao vivo', () => {
     live.stop()
     await clock.elapse(1000)
     expect(reads).toBe(0)
+  })
+})
+
+describe('leitura atrasada do cardápio (auditoria E2E, 2026-11-21)', () => {
+  it('nunca volta para uma revisão mais velha', () => {
+    expect(acceptRecords(null, 3)).toBe(true)
+    expect(acceptRecords(5, 6)).toBe(true)
+    expect(acceptRecords(5, 5)).toBe(false)
+    expect(acceptRecords(5, 4)).toBe(false)
+    // Depois de uma gravação deste aparelho: a mesma revisão vale; uma mais velha, não.
+    expect(acceptRecords(5, 5, true)).toBe(true)
+    expect(acceptRecords(5, 4, true)).toBe(false)
   })
 })
