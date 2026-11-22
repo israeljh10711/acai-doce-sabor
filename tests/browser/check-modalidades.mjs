@@ -233,9 +233,9 @@ try {
   )
   await choose('local')
   check(
-    'comer no local: cartão próprio (dourado), sem endereço',
+    'comer no local: cartão próprio (lilás), sem endereço',
     await run(`[!!__field('street'), __q('[data-store-place="local"]')?.innerText.split('\\n').filter(Boolean), getComputedStyle(__q('[data-store-place="local"]')).backgroundColor]`),
-    [false, ['🍨 Consumo no Local — Vamos deixar tudo pronto!', 'Assim que você finalizar o pedido, já começamos a preparar para você só chegar e aproveitar.', '📍 Rua Francisco Tota, 12 — Teixeira, PB', '🗺️ Ver localização da sorveteria no Google Maps'], 'rgb(254, 249, 195)'],
+    [false, ['🍨 Consumo no Local — Vamos deixar tudo pronto!', 'Assim que você finalizar o pedido, já começamos a preparar para você só chegar e aproveitar.', '📍 Rua Francisco Tota, 12 — Teixeira, PB', '🗺️ Ver localização da sorveteria no Google Maps'], 'rgb(246, 230, 247)'],
   )
   check('comer no local: frete grátis', await run(`__values()`), 'Subtotal R$ 3,00 Consumo no local Grátis (R$ 0,00) TOTAL R$ 3,00')
   await shot('1280-comer-no-local')

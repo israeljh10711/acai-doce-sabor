@@ -118,7 +118,7 @@ const routes = [
   { path: '/monte-seu-pedido', label: 'as 5 seções abertas', setup: `__openDrawers()` },
   {
     path: '/monte-seu-pedido',
-    label: 'seção marcada na navegação e o contorno dourado',
+    label: 'seção marcada na navegação e o contorno orquídea',
     setup: `(async () => { const link = [...document.querySelectorAll('a[data-nav="secao-bebidas"], a[data-target="secao-bebidas"]')].find((a) => a.getBoundingClientRect().width > 0); link.click(); await __wait(700); return true })()`,
   },
   {

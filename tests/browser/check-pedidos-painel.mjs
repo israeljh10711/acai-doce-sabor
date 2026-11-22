@@ -244,9 +244,9 @@ try {
     ],
   )
   check(
-    'Comer no Local em dourado e roxo',
+    'Comer no Local em orquídea e berinjela',
     await run(`(() => { const s = getComputedStyle(__card(${q(codes.local)}).querySelector('[data-modality]')); return [s.backgroundColor, s.color] })()`),
-    ['rgb(250, 204, 21)', 'rgb(42, 8, 29)'],
+    ['rgb(203, 113, 208)', 'rgb(34, 10, 36)'],
   )
   check('pedido antigo aparece (Retirar, situação antiga "Pronto", lista gravada)', await run(`[__text(__card('ADS-0099').querySelector('[data-modality]')), __card('ADS-0099').querySelector('[data-status-pill]').textContent, __text(__card('ADS-0099').querySelector('[data-order-items]'))]`), ['🛍️ Retirar', 'Pronto', '1x Jujuba — R$ 1,00'])
   check(

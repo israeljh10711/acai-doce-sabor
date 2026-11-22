@@ -2,7 +2,7 @@
 // computador (1280 px), na página Cardápio e no início:
 // - barra lateral fixa (computador): as 9 seções em 2 grupos, com dicas e contagens; a seção à
 //   vista marcada ao rolar; o clique rola até a seção (e abre a recolhida), leva o foco e acende o
-//   contorno dourado por 1,2 s; "Ver Ofertas & Combos" leva aos combos;
+//   contorno orquídea por 1,2 s; "Ver Ofertas & Combos" leva aos combos;
 // - barra fixa do celular: "Categorias", a busca e os 9 botões com contagem; o título da seção para
 //   logo abaixo da barra; o menu deslizante (foco dentro, Esc, toque fora, escolha que fecha e rola);
 // - faixa de destaques: os 5 itens com foto e "Pedir" nos três caminhos;
