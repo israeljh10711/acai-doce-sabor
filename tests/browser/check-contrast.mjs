@@ -290,6 +290,7 @@ const measure = `(() => {
 
   const results = []
   let skippedDisabled = 0
+  let skippedDecorative = 0
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
   const seen = new Set()
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -304,6 +305,13 @@ const measure = `(() => {
     // A WCAG dispensa de contraste os controles inativos (desabilitados).
     if (element.closest('button:disabled, input:disabled, fieldset:disabled, [aria-disabled="true"]')) {
       skippedDisabled++
+      continue
+    }
+    // A WCAG (1.4.3, "texto incidental") também dispensa o texto que é pura decoração. Só vale o
+    // marcado de propósito: escondido dos leitores de tela E com data-decorative (2026-11-22: a
+    // palavra "Açaí" gigante e quase transparente do rodapé). Contado à parte no total.
+    if (element.closest('[aria-hidden="true"][data-decorative]')) {
+      skippedDecorative++
       continue
     }
     if (box.width <= 1 || box.height <= 1) continue // texto só para leitor de tela
@@ -325,7 +333,7 @@ const measure = `(() => {
       size: Math.round(size),
     })
   }
-  return JSON.stringify({ results, skippedDisabled })
+  return JSON.stringify({ results, skippedDisabled, skippedDecorative })
 })()`
 
 const browser = await openBrowser(
@@ -335,6 +343,7 @@ const browser = await openBrowser(
 let failures = 0
 let measured = 0
 let skipped = 0
+let decorative = 0
 let lowest = { ratio: Infinity }
 
 try {
@@ -355,8 +364,9 @@ try {
         await browser.evaluate(prepare)
         await browser.evaluate(setup)
       }
-      const { results: items, skippedDisabled } = JSON.parse(await browser.evaluate(measure))
+      const { results: items, skippedDisabled, skippedDecorative } = JSON.parse(await browser.evaluate(measure))
       skipped += skippedDisabled
+      decorative += skippedDecorative
       const bad = items.filter((item) => item.ratio < item.needed)
       const min = items.reduce((a, b) => (b.ratio < a.ratio ? b : a))
 
@@ -380,7 +390,7 @@ try {
 }
 
 console.log(
-  `TOTAL: ${measured} textos medidos, ${failures} abaixo do AA (${skipped} em controles desabilitados, dispensados pela WCAG)`,
+  `TOTAL: ${measured} textos medidos, ${failures} abaixo do AA (${skipped} em controles desabilitados e ${decorative} decorativos marcados, dispensados pela WCAG)`,
 )
 if (measured) {
   console.log(

@@ -30,6 +30,7 @@ export function SiteFooter() {
           fica inteira, sem passar da tela). */}
       <span
         aria-hidden="true"
+        data-decorative=""
         translate="no"
         className="pointer-events-none absolute right-0 bottom-[-0.22em] font-display text-[clamp(7rem,26vw,19rem)] leading-none font-extrabold tracking-tight text-white/[0.06] select-none"
       >
