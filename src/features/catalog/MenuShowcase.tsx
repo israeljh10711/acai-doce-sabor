@@ -1,4 +1,5 @@
 import { m } from 'motion/react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { ArrowRight, Crown, Flame } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
@@ -114,11 +115,16 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
           {category.name}
         </Heading>
         <p className="max-w-md text-lg leading-relaxed text-white/85">{category.tagline}</p>
-        <dl className="grid max-w-md grid-cols-3 gap-3 text-center">
-          <Fact label="A partir de" value={formatBRL(startingPriceCents(category.slug))} />
-          <Fact label="Tamanhos" value={String(product.sizes.length)} />
-          <Fact label="Recipientes" value={String(kinds)} />
-        </dl>
+        {/* Celular estreito (menos de 22rem para as caixinhas): o preço numa linha inteira e as
+            outras duas lado a lado; com espaço, as três numa linha (2026-11-22: "R$ 10,00" vazava).
+            A medida vem do invólucro: uma lista não consegue consultar a própria largura. */}
+        <div className="@container max-w-md">
+          <dl className="grid grid-cols-2 gap-3 text-center @[22rem]:grid-cols-3">
+            <Fact label="A partir de" value={formatBRL(startingPriceCents(category.slug))} className="col-span-2 @[22rem]:col-span-1" />
+            <Fact label="Tamanhos" value={String(product.sizes.length)} />
+            <Fact label="Recipientes" value={String(kinds)} />
+          </dl>
+        </div>
         {available ? (
           <Link
             to={paths.configurator(category.slug)}
@@ -140,11 +146,21 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
   )
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+/**
+ * Uma caixinha do destaque. O valor nunca quebra a linha: a letra é a de sempre (1,25rem) e só
+ * diminui quando o texto não cabe na largura da caixinha (`cqi`), pela quantidade de letras (cada
+ * uma ocupa até 0,62 da altura da letra na Montserrat Black, com números de largura igual).
+ */
+function Fact({ label, value, className = '' }: { label: string; value: string; className?: string }) {
   return (
-    <div className="rounded-2xl bg-white/8 px-2 py-3 ring-1 ring-white/15">
+    <div className={`@container rounded-2xl bg-white/8 px-2 py-3 ring-1 ring-white/15 ${className}`}>
       <dt className="text-[0.7rem] font-bold tracking-wide text-white/75 uppercase">{label}</dt>
-      <dd className="nums mt-0.5 font-display text-xl font-black whitespace-nowrap text-gold-400">{value}</dd>
+      <dd
+        style={{ '--chars': value.length } as CSSProperties}
+        className="nums mt-0.5 font-display text-xl font-black whitespace-nowrap text-gold-400 [font-size:min(1.25rem,calc(100cqi/(var(--chars)*0.62)))]"
+      >
+        {value}
+      </dd>
     </div>
   )
 }

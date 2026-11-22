@@ -50,6 +50,10 @@ export function FlavorStep({
   const headingId = `${product.slug}-sabor`
   const noticeId = `${headingId}-aviso`
   const longNames = product.flavors.some((flavor) => flavor.name.length > 22)
+  // Com a foto ao lado do nome, duas por linha só a partir de 360 px: no celular de 320 px, a foto
+  // empurrava o nome para fora do cartão (2026-11-22: "Banana caramelada" na Barca).
+  const withPhotos = product.flavors.some((flavor) => swatchToppings(product.slug, flavor.id).length > 0)
+  const columns = longNames ? 'grid-cols-1' : `${withPhotos ? 'grid-cols-1 min-[360px]:grid-cols-2' : 'grid-cols-2'} sm:grid-cols-3 lg:grid-cols-2`
 
   return (
     <fieldset
@@ -69,7 +73,7 @@ export function FlavorStep({
         </p>
       )}
 
-      <div className={`mt-4 grid gap-2.5 ${longNames ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-2'}`}>
+      <div className={`mt-4 grid gap-2.5 ${columns}`}>
         {product.flavors.map((flavor) => {
           // Esgotado pelo vendedor (2026-11-17): desligado, com o aviso no lugar do selo de marcado.
           const soldOut = flavor.available === false
@@ -124,10 +128,13 @@ export function FlavorStep({
   )
 }
 
+/** Batido: o que cada sabor leva por cima. Barca: a própria cobertura (as opções são as caldas). */
+function swatchToppings(slug: Product['slug'], flavorId: string): readonly string[] {
+  return slug === 'acai-batido' ? (BATIDO_FLAVOR_TOPPINGS[flavorId] ?? []) : slug === 'barca-de-acai' ? [flavorId] : []
+}
+
 function Swatch({ slug, flavorId }: { slug: Product['slug']; flavorId: string }) {
-  // Batido: o que cada sabor leva por cima. Barca: a própria cobertura (as opções são as caldas).
-  const extras =
-    slug === 'acai-batido' ? (BATIDO_FLAVOR_TOPPINGS[flavorId] ?? []) : slug === 'barca-de-acai' ? [flavorId] : []
+  const extras = swatchToppings(slug, flavorId)
   if (extras.length > 0) {
     return (
       <span aria-hidden="true" className="flex shrink-0 -space-x-3">
