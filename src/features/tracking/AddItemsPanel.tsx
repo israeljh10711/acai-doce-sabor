@@ -169,7 +169,7 @@ export function AddItemsPanel({ cart, mode }: { cart: Cart; mode: AddMode }) {
         <div className="mt-3 flex flex-col gap-3">
           <ComandaItems comanda={view.itemsBlock} fallback={view.items} />
           {view.additions.map((addition, index) => (
-            <div key={index} className="rounded-xl bg-gold-100 p-3 ring-1 ring-gold-400">
+            <div key={index} className="rounded-xl bg-orchid-100 p-3 ring-1 ring-orchid-400">
               <p className="mb-2 text-sm font-extrabold text-acai-950">➕ Itens adicionados</p>
               <ComandaItems comanda={addition.itemsBlock} fallback={addition.items} />
             </div>
@@ -265,7 +265,7 @@ export function AddItemsPanel({ cart, mode }: { cart: Cart; mode: AddMode }) {
               onClick={() => void confirm()}
               disabled={sending || cart.items.length === 0}
               aria-busy={sending || undefined}
-              className="btn-gold inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base leading-tight font-extrabold tracking-tight focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none"
+              className="btn-primary inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base leading-tight font-extrabold tracking-tight focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none"
             >
               {sending ? 'Confirmando…' : 'Confirmar adição ao pedido'}
             </button>

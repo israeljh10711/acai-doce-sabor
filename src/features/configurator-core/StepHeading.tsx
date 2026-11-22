@@ -21,7 +21,7 @@ export function StepHeading({ number, title, id, hint, hintId, hintTone = 'neutr
       >
         <span
           aria-hidden="true"
-          className="grid size-9 shrink-0 place-items-center rounded-xl bg-acai-800 text-lg font-black text-gold-400"
+          className="grid size-9 shrink-0 place-items-center rounded-xl bg-acai-800 text-lg font-black text-orchid-400"
         >
           {number}
         </span>
@@ -34,7 +34,7 @@ export function StepHeading({ number, title, id, hint, hintId, hintTone = 'neutr
         <p
           id={hintId}
           className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors duration-200 ${
-            hintTone === 'alert' ? 'bg-gold-400 text-acai-950' : 'bg-acai-100 text-acai-800'
+            hintTone === 'alert' ? 'bg-orchid-400 text-acai-950' : 'bg-acai-100 text-acai-800'
           }`}
         >
           {hint}

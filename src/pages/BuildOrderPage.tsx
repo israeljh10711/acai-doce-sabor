@@ -19,7 +19,7 @@ export function BuildOrderPage() {
 
   return (
     <>
-      <div className="bg-acai-800 bg-[radial-gradient(ellipse_at_80%_20%,#6a1650_0%,#4a0e36_50%,#3b072a_100%)] text-white">
+      <div className="bg-brand text-white">
         <Container className="flex flex-col items-start gap-4 pt-10 pb-12 sm:pt-12 sm:pb-14">
           <StoreStatusBadge />
           <h1 className="font-display text-5xl font-black tracking-tight uppercase sm:text-6xl">Cardápio</h1>

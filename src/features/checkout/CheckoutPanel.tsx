@@ -509,7 +509,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
               />
             </Field>
             {feePending && (
-              <p data-combinar-note="" className="rounded-xl bg-gold-100 px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-gold-400">
+              <p data-combinar-note="" className="rounded-xl bg-orchid-100 px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-orchid-400">
                 📞 Frete a combinar: a loja vai entrar em contato pelo telefone informado em “Seus dados” para confirmar o valor da entrega.
               </p>
             )}
@@ -597,7 +597,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
 
             <p aria-live="polite">
               {changeDue !== null && (
-                <span className="mt-3 flex items-baseline justify-between gap-3 rounded-xl bg-gold-100 px-3 py-2.5 text-acai-950 ring-1 ring-gold-400">
+                <span className="mt-3 flex items-baseline justify-between gap-3 rounded-xl bg-orchid-100 px-3 py-2.5 text-acai-950 ring-1 ring-orchid-400">
                   <span className="font-bold">Troco a levar:</span>
                   <strong className="nums text-xl font-extrabold whitespace-nowrap">{formatBRL(changeDue)}</strong>
                 </span>
@@ -632,7 +632,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
           </p>
         )}
         {antecipado && (
-          <p className="mb-3 rounded-xl bg-gold-100 px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-gold-400">
+          <p className="mb-3 rounded-xl bg-orchid-100 px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-orchid-400">
             A loja está fechada agora: o pedido vai como <strong className="font-bold">pedido antecipado</strong> e é preparado quando
             abrirmos ({status.reopenText}).
           </p>
@@ -643,7 +643,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
           onClick={() => void send()}
           disabled={closedBlocked || sending}
           aria-busy={sending || undefined}
-          className="btn-gold inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2 text-base leading-tight font-extrabold tracking-tight focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none"
+          className="btn-primary inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2 text-base leading-tight font-extrabold tracking-tight focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none"
         >
           <Check className="size-5" />
           {closedBlocked ? 'Loja fechada: pedidos bloqueados' : sending ? 'Enviando o pedido…' : 'Finalizar pedido'}
@@ -725,7 +725,7 @@ function Field({ id, label, problem, hint, children }: { id: string; label: stri
 function StorePlaceCard({ kind, contact }: { kind: 'retirada' | 'local'; contact: StoreContact }) {
   const local = kind === 'local'
   return (
-    <div data-store-place={kind} className={`rounded-2xl p-4 ring-1 ${local ? 'bg-gold-100 ring-gold-400' : 'bg-acai-50 ring-line'}`}>
+    <div data-store-place={kind} className={`rounded-2xl p-4 ring-1 ${local ? 'bg-orchid-100 ring-orchid-400' : 'bg-acai-50 ring-line'}`}>
       <p className="font-display text-base leading-snug font-extrabold text-acai-800">
         {local ? '🍨 Consumo no Local — Vamos deixar tudo pronto!' : '🛍️ Retirada no Balcão — Açaí Doce Sabor'}
       </p>
@@ -771,7 +771,7 @@ function ChoiceCard({
   return (
     <label
       className={`relative flex min-h-20 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 px-2 py-3 text-center text-sm leading-tight font-bold text-acai-950 transition duration-200 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800 ${
-        checked ? 'border-gold-400 bg-gold-100' : 'border-line bg-white hover:border-acai-600/40'
+        checked ? 'border-orchid-400 bg-orchid-100' : 'border-line bg-white hover:border-acai-600/40'
       }`}
     >
       <input type="radio" name={name} value={value} checked={checked} onChange={onChange} data-field={dataField} className="sr-only" />
@@ -783,7 +783,7 @@ function ChoiceCard({
         initial={false}
         animate={{ scale: checked ? 1 : 0.4, opacity: checked ? 1 : 0 }}
         transition={{ type: 'spring', stiffness: 600, damping: 28 }}
-        className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-acai-800 text-gold-400 shadow-sm"
+        className="absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-acai-800 text-orchid-400 shadow-sm"
       >
         <Check className="size-4" />
       </m.span>

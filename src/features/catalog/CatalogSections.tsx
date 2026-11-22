@@ -109,7 +109,7 @@ function CatalogSection({
         data-flash-target=""
         className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card ring-1 ring-line sm:gap-4 sm:p-4"
       >
-        <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center self-start rounded-full bg-acai-800 text-gold-400 sm:size-14 sm:self-center">
+        <span aria-hidden="true" className="grid size-12 shrink-0 place-items-center self-start rounded-full bg-acai-800 text-orchid-400 sm:size-14 sm:self-center">
           <SectionIcon icon={drawer.icon} className="size-6 sm:size-7" />
         </span>
         <div className="min-w-0 flex-1">
@@ -198,7 +198,7 @@ function SectionItemCard({ item, level, onChoose }: { item: ExtraItem; level: Le
         {(item.badge || flavors > 0) && (
           <ul className="mb-1.5 flex flex-wrap gap-1.5" aria-label="Selos">
             {item.badge && (
-              <li className="rounded-full bg-gold-400 px-2 py-0.5 text-[0.7rem] font-extrabold tracking-wide text-acai-950 uppercase">
+              <li className="rounded-full bg-orchid-400 px-2 py-0.5 text-[0.7rem] font-extrabold tracking-wide text-acai-950 uppercase">
                 {item.badge}
               </li>
             )}

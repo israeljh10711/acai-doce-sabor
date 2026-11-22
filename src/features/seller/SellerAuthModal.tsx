@@ -74,7 +74,7 @@ export function SellerAuthModal({ onClose }: { onClose: () => void }) {
         <button
           type="submit"
           disabled={busy || password.length === 0}
-          className="btn-gold mt-1 inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-primary mt-1 inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <LockOpen className="size-5" />
           {busy ? 'Conferindo…' : 'Entrar'}

@@ -30,7 +30,7 @@ export function TopHighlightsStrip({ items, level, onChoose }: { items: readonly
           <Flame className="size-6 text-acai-600" />
           Mais pedidos & ofertas do dia
         </Heading>
-        <span className="rounded-full bg-gold-400 px-2.5 py-1 text-[0.7rem] font-extrabold tracking-wide whitespace-nowrap text-acai-950 uppercase">
+        <span className="rounded-full bg-orchid-400 px-2.5 py-1 text-[0.7rem] font-extrabold tracking-wide whitespace-nowrap text-acai-950 uppercase">
           Pronto para pedir
         </span>
       </div>

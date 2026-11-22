@@ -31,7 +31,7 @@ export function TrackingBar() {
   if (!showStrip) return null
   const single = active.length === 1 ? active[0] : null
   return (
-    <div data-tracking-strip="" className="border-b border-gold-400 bg-gold-100">
+    <div data-tracking-strip="" className="border-b border-orchid-400 bg-orchid-100">
       <Container>
         <Link
           to={single ? paths.track(single.code) : paths.track()}
@@ -73,7 +73,7 @@ function AddModeBanner({ mode, onCart }: { mode: AddMode; onCart: boolean }) {
         </div>
         <div className="flex shrink-0 gap-2">
           {!onCart && (
-            <Link to={paths.cart} data-add-mode-review="" className={`${button} btn-gold flex-1 sm:flex-none`}>
+            <Link to={paths.cart} data-add-mode-review="" className={`${button} btn-primary flex-1 sm:flex-none`}>
               {count > 0 ? `Revisar e confirmar (${count})` : 'Ver carrinho'}
             </Link>
           )}

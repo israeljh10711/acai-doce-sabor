@@ -15,7 +15,7 @@ import {
 } from './ordersPanel.ts'
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
-  novo: 'bg-gold-100 text-acai-950 ring-gold-400',
+  novo: 'bg-orchid-100 text-acai-950 ring-orchid-400',
   confirmado: 'bg-acai-100 text-acai-800 ring-acai-800/20',
   preparando: 'bg-orange-100 text-orange-900 ring-orange-300',
   pronto: 'bg-emerald-100 text-emerald-900 ring-emerald-300',
@@ -56,7 +56,7 @@ export function ModalityBadge({ type }: { type: PanelOrder['deliveryType'] }) {
     case 'retirada':
       return <span data-modality="retirada" className={`${base} bg-white text-acai-800 ring-2 ring-acai-800`}>🛍️ Retirar</span>
     case 'local':
-      return <span data-modality="local" className={`${base} bg-gold-400 text-acai-950 ring-2 ring-acai-800`}>🍨 Comer no Local</span>
+      return <span data-modality="local" className={`${base} bg-orchid-400 text-acai-950 ring-2 ring-acai-800`}>🍨 Comer no Local</span>
     default:
       return <span data-modality="desconhecida" className={`${base} bg-zinc-100 text-zinc-700 ring-1 ring-zinc-300`}>Modalidade não informada</span>
   }
@@ -124,7 +124,7 @@ export function OrderCard({
       className={`flex scroll-mt-24 flex-col gap-3.5 rounded-2xl p-4 shadow-card transition-[box-shadow,background-color] duration-300 outline-none sm:p-5 ${
         added
           ? 'bg-acai-50 ring-4 ring-acai-600'
-          : `bg-white ${order.status === 'novo' ? 'ring-2 ring-gold-400' : order.status === 'cancelado' ? 'opacity-80 ring-2 ring-red-300' : 'ring-1 ring-line'}`
+          : `bg-white ${order.status === 'novo' ? 'ring-2 ring-orchid-400' : order.status === 'cancelado' ? 'opacity-80 ring-2 ring-red-300' : 'ring-1 ring-line'}`
       }`}
     >
       <AnimatePresence initial={false}>
@@ -144,7 +144,7 @@ export function OrderCard({
               data-added-seen=""
               aria-label={`Visto: itens novos do pedido ${order.code}`}
               onClick={onSeen}
-              className="inline-flex min-h-10 cursor-pointer items-center rounded-full bg-gold-400 px-3 text-xs font-extrabold text-acai-950 transition hover:bg-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+              className="inline-flex min-h-10 cursor-pointer items-center rounded-full bg-orchid-400 px-3 text-xs font-extrabold text-acai-950 transition hover:bg-orchid-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               ✓ Visto
             </button>
@@ -233,7 +233,7 @@ export function OrderCard({
           key={index}
           data-order-addition=""
           aria-label={'Itens adicionados pelo cliente às ' + whenText(addition.createdAt, now)}
-          className="rounded-xl bg-gold-100 p-3 ring-2 ring-gold-400"
+          className="rounded-xl bg-orchid-100 p-3 ring-2 ring-orchid-400"
         >
           <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm font-extrabold text-acai-950">
             <span>➕ Novos itens adicionados pelo cliente</span>
@@ -275,7 +275,7 @@ export function OrderCard({
               aria-busy={busy || undefined}
               aria-label={`${next.label} — pedido ${order.code}`}
               onClick={() => (next.status === 'concluido' ? setConfirmingConclude(true) : onStatus(next.status))}
-              className={`${actionButton} btn-gold`}
+              className={`${actionButton} btn-primary`}
             >
               {busy ? 'Salvando…' : next.label}
             </button>

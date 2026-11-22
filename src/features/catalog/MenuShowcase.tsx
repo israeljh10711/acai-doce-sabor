@@ -74,7 +74,7 @@ function Badges({ category }: { category: Category }) {
         return (
           <li
             key={badge}
-            className="inline-flex items-center gap-1.5 rounded-full bg-gold-400 px-3 py-1 text-xs font-extrabold tracking-wide text-acai-950 uppercase"
+            className="inline-flex items-center gap-1.5 rounded-full bg-orchid-400 px-3 py-1 text-xs font-extrabold tracking-wide text-acai-950 uppercase"
           >
             <Icon className="size-3.5" />
             {badge}
@@ -128,7 +128,7 @@ function FeaturedCard({ category, Heading }: { category: Category; Heading: 'h2'
         {available ? (
           <Link
             to={paths.configurator(category.slug)}
-            className="btn-gold inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-full px-7 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white sm:w-fit"
+            className="btn-primary inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-full px-7 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white sm:w-fit"
           >
             {category.actionLabel}
             <ArrowRight className="size-5" />
@@ -157,7 +157,7 @@ function Fact({ label, value, className = '' }: { label: string; value: string; 
       <dt className="text-[0.7rem] font-bold tracking-wide text-white/75 uppercase">{label}</dt>
       <dd
         style={{ '--chars': value.length } as CSSProperties}
-        className="nums mt-0.5 font-display text-xl font-black whitespace-nowrap text-gold-400 [font-size:min(1.25rem,calc(100cqi/(var(--chars)*0.62)))]"
+        className="nums mt-0.5 font-display text-xl font-black whitespace-nowrap text-orchid-400 [font-size:min(1.25rem,calc(100cqi/(var(--chars)*0.62)))]"
       >
         {value}
       </dd>
@@ -180,7 +180,7 @@ function ProductCard({ category, Heading }: { category: Category; Heading: 'h2' 
         <SoldOut available={available} />
         <SellerEditButton target={{ kind: 'product', id: category.slug }} label={category.name} className="absolute top-4 left-4 z-20" />
         <SellerStockToggle kind="products" id={category.slug} available={available} label={category.name} className="absolute top-14 left-4 z-20" />
-        <p className="nums absolute top-4 right-4 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
+        <p className="nums absolute top-4 right-4 rounded-full bg-orchid-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950 shadow-sm">
           <span className="font-semibold">a partir de </span>
           {formatBRL(startingPriceCents(category.slug))}
         </p>

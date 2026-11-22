@@ -53,7 +53,7 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
               </p>
             )}
             {cfg.completeLabel && (
-              <p data-montagem="" className="rounded-xl bg-gold-100 px-3 py-2 text-sm font-bold text-acai-950 ring-1 ring-gold-400">
+              <p data-montagem="" className="rounded-xl bg-orchid-100 px-3 py-2 text-sm font-bold text-acai-950 ring-1 ring-orchid-400">
                 Montagem: {cfg.completeLabel}
               </p>
             )}
@@ -101,7 +101,7 @@ export function OrderSummary({ product, cfg, editingItemId }: OrderSummaryProps)
         {cfg.missing.length > 0 && cfg.size && (
           <p
             id="resumo-falta"
-            className="mt-4 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-gold-400"
+            className="mt-4 rounded-2xl bg-orchid-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-orchid-400"
           >
             Falta escolher {cfg.missing.map((choice) => missingChoiceText(choice, term.missing)).join(' e ')}.
           </p>
@@ -166,7 +166,7 @@ function CartButton({ product, cfg, editingItemId }: OrderSummaryProps) {
         aria-disabled={!ready}
         aria-describedby={ready ? undefined : 'resumo-falta'}
         aria-haspopup={editingItemId ? undefined : 'dialog'}
-        className="btn-gold inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:shadow-none aria-disabled:hover:translate-y-0"
+        className="btn-primary inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base font-extrabold tracking-tight uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800 aria-disabled:cursor-not-allowed aria-disabled:opacity-55 aria-disabled:shadow-none aria-disabled:hover:translate-y-0"
       >
         <Bag className="size-5" />
         {editingItemId ? 'Salvar alterações' : 'Adicionar ao carrinho'}

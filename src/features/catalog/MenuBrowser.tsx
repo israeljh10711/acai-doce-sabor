@@ -297,7 +297,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
                     <button
                       type="button"
                       onClick={() => setQuery('')}
-                      className="btn-gold inline-flex min-h-12 cursor-pointer items-center rounded-full px-6 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+                      className="btn-primary inline-flex min-h-12 cursor-pointer items-center rounded-full px-6 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
                     >
                       Limpar busca
                     </button>

@@ -135,7 +135,7 @@ export function ImageLightboxModal({ image, onClose }: { image: LightboxImage | 
               {image.title}
             </h2>
             {image.price && (
-              <span className="nums shrink-0 rounded-full bg-gold-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950">
+              <span className="nums shrink-0 rounded-full bg-orchid-400 px-3 py-1 text-sm font-extrabold whitespace-nowrap text-acai-950">
                 {image.price}
               </span>
             )}
@@ -143,7 +143,7 @@ export function ImageLightboxModal({ image, onClose }: { image: LightboxImage | 
               type="button"
               aria-label="Fechar imagem"
               onClick={close}
-              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-gold-400"
+              className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-orchid-400"
             >
               <Close className="size-5" />
             </button>
@@ -182,7 +182,7 @@ export function ImageLightboxModal({ image, onClose }: { image: LightboxImage | 
             type="button"
             onClick={() => toggleZoom()}
             disabled={!fit}
-            className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-white px-5 text-sm font-extrabold text-acai-800 transition hover:bg-gold-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-gold-400 disabled:opacity-60"
+            className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full bg-white px-5 text-sm font-extrabold text-acai-800 transition hover:bg-orchid-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-orchid-400 disabled:opacity-60"
           >
             {zoomed ? <ZoomOut className="size-5" /> : <ZoomIn className="size-5" />}
             {zoomed ? 'Reduzir' : 'Ampliar'}

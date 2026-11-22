@@ -46,12 +46,12 @@ export function OffersShortcut({ onGo }: { onGo: (anchor: string) => void }) {
       className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-acai-800 bg-linear-to-r from-acai-800 to-acai-600 p-3 text-white shadow-sm transition hover:brightness-110 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
     >
       <span className="flex items-center gap-2.5">
-        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold-400 text-acai-950">
+        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-xl bg-orchid-400 text-acai-950">
           <Flame className="size-5" />
         </span>
         <span className="leading-tight font-extrabold">Ver Ofertas &amp; Combos</span>
       </span>
-      <ArrowRight className="size-5 text-gold-400" />
+      <ArrowRight className="size-5 text-orchid-400" />
     </a>
   )
 }
@@ -89,7 +89,7 @@ export function CategoryList({ entries, current, onGo, idPrefix }: NavProps & { 
               >
                 <span
                   aria-hidden="true"
-                  className="grid size-9 shrink-0 place-items-center rounded-xl bg-acai-100 text-acai-700 transition-colors duration-200 group-data-empty:bg-acai-50 group-aria-[current=true]:bg-white/10 group-aria-[current=true]:text-gold-400"
+                  className="grid size-9 shrink-0 place-items-center rounded-xl bg-acai-100 text-acai-700 transition-colors duration-200 group-data-empty:bg-acai-50 group-aria-[current=true]:bg-white/10 group-aria-[current=true]:text-orchid-400"
                 >
                   <SectionIcon icon={entry.icon} className="size-5" />
                 </span>
@@ -102,7 +102,7 @@ export function CategoryList({ entries, current, onGo, idPrefix }: NavProps & { 
                   )}
                 </span>
                 {entry.count !== null && (
-                  <span className="nums grid min-w-7 shrink-0 place-items-center rounded-full bg-acai-100 px-2 py-0.5 text-xs font-extrabold text-acai-800 transition-colors duration-200 group-data-empty:bg-acai-50 group-data-empty:text-ink-soft group-aria-[current=true]:bg-gold-400 group-aria-[current=true]:text-acai-800">
+                  <span className="nums grid min-w-7 shrink-0 place-items-center rounded-full bg-acai-100 px-2 py-0.5 text-xs font-extrabold text-acai-800 transition-colors duration-200 group-data-empty:bg-acai-50 group-data-empty:text-ink-soft group-aria-[current=true]:bg-orchid-400 group-aria-[current=true]:text-acai-800">
                     {entry.count}
                     <span className="sr-only"> {entry.count === 1 ? 'item' : 'itens'}</span>
                   </span>

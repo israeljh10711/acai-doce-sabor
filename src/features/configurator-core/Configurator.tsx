@@ -56,7 +56,7 @@ export function Configurator({ product }: { product: Product }) {
         <Container className="pt-4 pb-7 sm:pt-7 sm:pb-9">
           <Link
             to={editing ? paths.cart : info.menuPath}
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-gold-400 hover:text-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-orchid-400 hover:text-orchid-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             <ArrowLeft className="size-4" />
             <span className="link-draw">{editing ? 'Voltar ao carrinho' : 'Cardápio'}</span>
@@ -66,7 +66,7 @@ export function Configurator({ product }: { product: Product }) {
               {info.badges.map((badge) => {
                 const Icon = BADGE_ICONS[badge] ?? Tag
                 return (
-                  <li key={badge} className="inline-flex items-center gap-1.5 rounded-full bg-gold-400 px-3 py-1 text-xs font-extrabold tracking-wide text-acai-950 uppercase">
+                  <li key={badge} className="inline-flex items-center gap-1.5 rounded-full bg-orchid-400 px-3 py-1 text-xs font-extrabold tracking-wide text-acai-950 uppercase">
                     <Icon className="size-3.5" />
                     {badge}
                   </li>
@@ -77,7 +77,7 @@ export function Configurator({ product }: { product: Product }) {
           <h1 className="mt-2 font-display text-4xl font-black tracking-tight uppercase sm:text-5xl">{product.name}</h1>
           {summary && <p className="mt-2 max-w-prose text-lg text-white/80">{summary}</p>}
           {info.priceNote && (
-            <p className="nums mt-2 text-lg font-bold text-gold-400">{info.priceNote}</p>
+            <p className="nums mt-2 text-lg font-bold text-orchid-400">{info.priceNote}</p>
           )}
           {editing && (
             <p className="mt-3 inline-block rounded-full bg-white/12 px-3 py-1 text-sm font-semibold ring-1 ring-white/25">

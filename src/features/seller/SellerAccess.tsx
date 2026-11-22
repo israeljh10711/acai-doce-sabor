@@ -18,7 +18,7 @@ export function SellerAccessButton({ beforeOpen }: { beforeOpen?: () => void }) 
   if (seller.active) {
     return (
       <div className="flex items-center gap-2">
-        <span data-seller-active="" className="inline-flex flex-1 items-center gap-1.5 rounded-xl bg-gold-400 px-3 py-2 text-xs font-extrabold text-acai-800">
+        <span data-seller-active="" className="inline-flex flex-1 items-center gap-1.5 rounded-xl bg-orchid-400 px-3 py-2 text-xs font-extrabold text-acai-800">
           <Check className="size-4" />
           Modo Vendedor Ativo
         </span>
@@ -61,7 +61,7 @@ export function SellerBarSlot() {
 }
 
 const editClass =
-  'inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full bg-gold-400 px-2.5 text-xs font-extrabold text-acai-950 shadow-sm ring-1 ring-acai-800/20 transition hover:bg-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
+  'inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full bg-orchid-400 px-2.5 text-xs font-extrabold text-acai-950 shadow-sm ring-1 ring-acai-800/20 transition hover:bg-orchid-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
 
 /** "Editar" sobre um item, produto ou complemento (só com o modo vendedor ligado). */
 export function SellerEditButton({ target, label, className = '' }: { target: EditTarget; label: string; className?: string }) {
@@ -193,7 +193,7 @@ export function SellerDuplicateButton({ item, className = '' }: { item: ExtraIte
       type="button"
       data-seller-duplicate=""
       onClick={() => seller.edit({ kind: 'item', id: null, drawer: item.drawer, copyOf: item.id })}
-      className={`inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg border border-gray-200/80 bg-gray-100/90 px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-200/80 hover:text-[#4A0E36] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${className}`}
+      className={`inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-lg border border-gray-200/80 bg-gray-100/90 px-2 py-1 text-[11px] font-medium text-gray-600 transition hover:bg-gray-200/80 hover:text-acai-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${className}`}
     >
       <Copy className="size-3.5" />
       Duplicar<span className="sr-only">: {item.name}</span>

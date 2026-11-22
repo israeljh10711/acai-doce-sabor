@@ -51,10 +51,10 @@ export function CategoryNav({
                 }}
                 className="group inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-3 text-sm font-bold whitespace-nowrap text-acai-800 ring-1 ring-line transition-colors duration-200 hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 data-empty:bg-acai-50 data-empty:text-ink-soft aria-[current=true]:bg-acai-800 aria-[current=true]:text-white aria-[current=true]:ring-acai-800"
               >
-                <SectionIcon icon={entry.icon} className="size-4 text-acai-600 group-aria-[current=true]:text-gold-400" />
+                <SectionIcon icon={entry.icon} className="size-4 text-acai-600 group-aria-[current=true]:text-orchid-400" />
                 {entry.shortLabel}
                 {entry.count !== null && (
-                  <span className="nums grid min-w-5 place-items-center rounded-full bg-acai-100 px-1.5 text-xs leading-5 font-extrabold text-acai-800 group-data-empty:text-ink-soft group-aria-[current=true]:bg-gold-400 group-aria-[current=true]:text-acai-800">
+                  <span className="nums grid min-w-5 place-items-center rounded-full bg-acai-100 px-1.5 text-xs leading-5 font-extrabold text-acai-800 group-data-empty:text-ink-soft group-aria-[current=true]:bg-orchid-400 group-aria-[current=true]:text-acai-800">
                     {entry.count}
                     <span className="sr-only"> {entry.count === 1 ? 'item' : 'itens'}</span>
                   </span>

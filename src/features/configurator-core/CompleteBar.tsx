@@ -35,7 +35,7 @@ export function CompleteBar({ cfg }: { cfg: ConfiguratorApi }) {
             type="button"
             onClick={cfg.complete}
             disabled={cfg.completeFull}
-            className="btn-gold inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl px-4 text-sm font-extrabold whitespace-nowrap focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-default disabled:translate-y-0 disabled:shadow-none"
+            className="btn-primary inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-xl px-4 text-sm font-extrabold whitespace-nowrap focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-default disabled:translate-y-0 disabled:shadow-none"
           >
             {cfg.completeFull ? <Check className="size-4" /> : <Sparkles className="size-4" />}
             {label}
@@ -53,7 +53,7 @@ export function CompleteBar({ cfg }: { cfg: ConfiguratorApi }) {
         </div>
       </div>
       {active && (
-        <p className="mt-3 flex items-start gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-gold-400">
+        <p className="mt-3 flex items-start gap-2 rounded-xl bg-white px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-orchid-400">
           <Check className="mt-0.5 size-4 text-acai-700" />
           <span>
             Modo Completo ativado! Se não quiser algum item (ex.: Farinha Láctea), basta tocar nele ou no botão - para

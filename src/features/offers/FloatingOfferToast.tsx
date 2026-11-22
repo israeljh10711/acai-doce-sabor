@@ -89,10 +89,10 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
             onBlur={(event) => {
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) hold('focus', false)
             }}
-            className="fixed inset-x-3 bottom-24 z-40 overflow-hidden rounded-2xl border border-l-4 border-acai-800/15 border-l-gold-400 bg-white shadow-2xl md:inset-x-auto md:right-6 md:bottom-6 md:w-[390px]"
+            className="fixed inset-x-3 bottom-24 z-40 overflow-hidden rounded-2xl border border-l-4 border-acai-800/15 border-l-orchid-400 bg-white shadow-2xl md:inset-x-auto md:right-6 md:bottom-6 md:w-[390px]"
           >
             <div className="flex items-center justify-between gap-2 pt-1.5 pr-1 pl-3">
-              <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-gold-400 px-2.5 py-0.5 text-[11px] font-extrabold tracking-wide text-acai-950 uppercase">
+              <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-orchid-400 px-2.5 py-0.5 text-[11px] font-extrabold tracking-wide text-acai-950 uppercase">
                 <span aria-hidden="true">{offer.badge.emoji}</span>
                 <span className="truncate">{offer.badge.text}</span>
               </span>
@@ -154,8 +154,8 @@ export function FloatingOfferToast({ offer, snapshot, onAccept, onDismiss, onHol
             </div>
 
             {/* Barra de tempo: some para quem pediu menos movimento no aparelho. */}
-            <div aria-hidden="true" className="h-1 bg-gold-100 motion-reduce:hidden">
-              <div ref={bar} data-offer-bar className="h-full origin-left bg-gold-400" />
+            <div aria-hidden="true" className="h-1 bg-orchid-100 motion-reduce:hidden">
+              <div ref={bar} data-offer-bar className="h-full origin-left bg-orchid-400" />
             </div>
           </m.aside>
         )}

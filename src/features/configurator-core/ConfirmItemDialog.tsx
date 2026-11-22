@@ -107,7 +107,7 @@ export function ConfirmItemDialog({
               </dl>
             )}
 
-            <p className="mt-4 flex items-baseline justify-between gap-3 rounded-2xl bg-gold-100 px-4 py-3 text-acai-950 ring-1 ring-gold-400">
+            <p className="mt-4 flex items-baseline justify-between gap-3 rounded-2xl bg-orchid-100 px-4 py-3 text-acai-950 ring-1 ring-orchid-400">
               <span className="font-bold">Valor do item:</span>
               <strong className="nums text-2xl font-extrabold whitespace-nowrap">{formatBRL(summary.unitCents)}</strong>
             </p>
@@ -118,7 +118,7 @@ export function ConfirmItemDialog({
             <p id="confirmar-item-pergunta" className="text-center font-semibold text-acai-950">
               Deseja adicionar este item ao carrinho?
             </p>
-            <button ref={primary} type="button" onClick={onAddAndGoToCart} className={`btn-gold ${action}`}>
+            <button ref={primary} type="button" onClick={onAddAndGoToCart} className={`btn-primary ${action}`}>
               <Bag className="size-5" />
               Adicionar e ir para o carrinho
             </button>

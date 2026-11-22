@@ -11,10 +11,10 @@ const base =
   'inline-flex min-h-12 cursor-pointer select-none items-center justify-center gap-2 rounded-full px-6 text-base font-bold tracking-tight transition duration-200 focus-visible:outline-3 focus-visible:outline-offset-3'
 
 const variants: Record<Variant, string> = {
-  primary: 'btn-gold focus-visible:outline-acai-800',
+  primary: 'btn-primary focus-visible:outline-acai-800',
   secondary:
     'border-2 border-acai-800 text-acai-800 hover:bg-acai-800 hover:text-white active:scale-[0.98] focus-visible:outline-acai-800',
-  onBrandPrimary: 'btn-gold focus-visible:outline-white',
+  onBrandPrimary: 'btn-primary focus-visible:outline-white',
   onBrandSecondary:
     'border-2 border-white/70 text-white hover:border-white hover:bg-white hover:text-acai-800 active:scale-[0.98] focus-visible:outline-white',
 }

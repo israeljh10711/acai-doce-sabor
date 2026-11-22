@@ -42,7 +42,7 @@ export function SellerAdminPage() {
           <button
             type="button"
             onClick={seller.openAuth}
-            className="btn-gold mt-4 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+            className="btn-primary mt-4 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
           >
             <LockOpen className="size-5" />
             Entrar no Modo Vendedor
@@ -72,7 +72,7 @@ function Content({ tab }: { tab: AdminTab }) {
     return (
       <div role="alert" data-admin-error className="mx-auto max-w-md rounded-3xl bg-white p-6 text-center ring-1 ring-line">
         <p className="font-semibold text-acai-900">Não foi possível carregar o cardápio.</p>
-        <button type="button" onClick={catalog.reload} className="btn-gold mt-4 inline-flex min-h-12 cursor-pointer items-center rounded-xl px-5 font-extrabold">
+        <button type="button" onClick={catalog.reload} className="btn-primary mt-4 inline-flex min-h-12 cursor-pointer items-center rounded-xl px-5 font-extrabold">
           Tentar de novo
         </button>
       </div>
@@ -95,12 +95,12 @@ function Content({ tab }: { tab: AdminTab }) {
 
 function Shell({ tab, children }: { tab: AdminTab; children: ReactNode }) {
   const linkClass = (active: boolean) =>
-    `inline-flex min-h-11 shrink-0 items-center rounded-xl px-3.5 text-sm font-bold transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-gold-400 ${
-      active ? 'bg-gold-400 text-acai-950' : 'text-white ring-1 ring-white/30 hover:bg-white/10'
+    `inline-flex min-h-11 shrink-0 items-center rounded-xl px-3.5 text-sm font-bold transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-orchid-400 ${
+      active ? 'bg-orchid-400 text-acai-950' : 'text-white ring-1 ring-white/30 hover:bg-white/10'
     }`
   return (
     <>
-      <div className="bg-acai-800 bg-[radial-gradient(ellipse_at_80%_20%,#6a1650_0%,#4a0e36_50%,#3b072a_100%)] text-white">
+      <div className="bg-brand text-white">
         <Container className="pt-6 pb-6 sm:pt-8">
           <h1 className="font-display text-3xl font-black tracking-tight uppercase sm:text-4xl">Painel do vendedor</h1>
           <p className="mt-1 text-base text-white/85">Cardápio, ofertas e configurações da loja. O que você salva aqui vale na hora para os clientes.</p>

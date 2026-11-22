@@ -8,7 +8,7 @@ import { type ExtraItem, choiceGroupsOf, hasPricedChoices } from './extras.ts'
 export type ChooseItem = (item: ExtraItem, opener: HTMLElement) => void
 
 const actionClass =
-  'btn-gold inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-sm font-extrabold whitespace-nowrap focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
+  'btn-primary inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full px-4 text-sm font-extrabold whitespace-nowrap focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
 
 /**
  * Botão de compra de um item do catálogo, igual nas seções e na faixa de destaques: leva ao

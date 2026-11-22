@@ -66,7 +66,7 @@ export function FlavorStep({
       {product.flavorNotice && (
         <p
           id={noticeId}
-          className="mt-4 flex gap-2.5 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400"
+          className="mt-4 flex gap-2.5 rounded-2xl bg-orchid-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-orchid-400"
         >
           <Info className="mt-0.5 size-4 text-acai-700" />
           {product.flavorNotice}
@@ -83,7 +83,7 @@ export function FlavorStep({
           <div key={flavor.id} className="flex flex-col" data-flavor={flavor.id}>
             <div className="relative flex flex-1">
             <label
-              className={`group relative flex min-h-12 flex-1 items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800 ${
+              className={`group relative flex min-h-12 flex-1 items-center gap-3 rounded-2xl border-2 border-line bg-white px-3 py-2 transition duration-200 has-checked:border-orchid-400 has-checked:bg-orchid-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800 ${
                 soldOut ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-acai-600/40 active:scale-[0.98]'
               }`}
             >
@@ -105,7 +105,7 @@ export function FlavorStep({
               ) : (
                 <span
                   aria-hidden="true"
-                  className="ml-auto hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 group-has-checked:grid"
+                  className="ml-auto hidden size-5 shrink-0 place-items-center rounded-full bg-acai-800 text-orchid-400 group-has-checked:grid"
                 >
                   <Check className="size-3.5" />
                 </span>

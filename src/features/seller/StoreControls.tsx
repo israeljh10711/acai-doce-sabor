@@ -50,7 +50,7 @@ export function StoreSwitch() {
         aria-describedby={detailId}
         disabled={state === 'saving'}
         onClick={() => void toggle()}
-        className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-extrabold text-white shadow-sm transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-gold-400 disabled:cursor-wait disabled:opacity-70 ${
+        className={`inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl px-3 py-1.5 text-sm font-extrabold text-white shadow-sm transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-orchid-400 disabled:cursor-wait disabled:opacity-70 ${
           status.open ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-red-600 hover:bg-red-700'
         }`}
       >
@@ -120,7 +120,7 @@ function DeliveryTimeDialog({ onClose }: { onClose: () => void }) {
               disabled={busy}
               aria-pressed={settings.deliveryTime === time}
               onClick={(event) => void choose(time, event.currentTarget)}
-              className="nums inline-flex min-h-12 cursor-pointer flex-col items-center justify-center rounded-xl px-3 text-base font-bold text-acai-950 ring-1 ring-line transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 aria-pressed:bg-gold-100 aria-pressed:ring-2 aria-pressed:ring-gold-400"
+              className="nums inline-flex min-h-12 cursor-pointer flex-col items-center justify-center rounded-xl px-3 text-base font-bold text-acai-950 ring-1 ring-line transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 aria-pressed:bg-orchid-100 aria-pressed:ring-2 aria-pressed:ring-orchid-400"
             >
               {time}
               {time === '30–45 min' && <span className="text-xs font-semibold text-ink-soft">padrão</span>}
@@ -155,7 +155,7 @@ function DeliveryTimeDialog({ onClose }: { onClose: () => void }) {
           <button
             type="submit"
             disabled={busy}
-            className="btn-gold inline-flex min-h-12 cursor-pointer items-center justify-center rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:opacity-60"
+            className="btn-primary inline-flex min-h-12 cursor-pointer items-center justify-center rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:opacity-60"
           >
             Salvar prazo
           </button>

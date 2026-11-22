@@ -24,7 +24,7 @@ function ItemView({ item }: { item: ComandaItem }) {
         </p>
       )}
       {item.paid && (
-        <p data-item-paid="" className="rounded-lg bg-gold-100 px-2 py-1 font-bold text-acai-950 ring-1 ring-gold-400">
+        <p data-item-paid="" className="rounded-lg bg-orchid-100 px-2 py-1 font-bold text-acai-950 ring-1 ring-orchid-400">
           ➕ Extras pagos: {item.paid}
         </p>
       )}

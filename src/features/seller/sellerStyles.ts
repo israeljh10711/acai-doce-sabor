@@ -1,6 +1,6 @@
 /** Botão da faixa do modo vendedor (texto branco sobre o roxo). */
 export const barButton =
-  'inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-white ring-1 ring-white/30 transition hover:bg-white/10 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-gold-400 sm:text-sm'
+  'inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 text-xs font-bold text-white ring-1 ring-white/30 transition hover:bg-white/10 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-orchid-400 sm:text-sm'
 
 /** Campo de texto das janelas do vendedor. */
 export const sellerInput =
@@ -8,4 +8,4 @@ export const sellerInput =
 
 /** Botão principal (dourado) das janelas do vendedor. */
 export const sellerPrimary =
-  'btn-gold inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-60'
+  'btn-primary inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-60'

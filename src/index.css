@@ -1,47 +1,54 @@
 @import 'tailwindcss';
 
 /*
- * Identidade visual do Açaí Doce Sabor, redesenhada em 2026-11-12 a pedido do proprietário
- * (referência: açaiteria comercial, vibrante e apetitosa):
+ * Identidade "Tropical Editorial Premium" (redesenho de 2026-11-22; direção em
+ * docs/superpowers/specs/2026-11-22-redesign-tropical-premium-design.md). Cores medidas na
+ * referência do Pinterest (berinjela #371336, orquídea #BF5DC4) e no logo (#68054F), sem amarelo:
  *
- * - Roxo Açaí #4A0E36 e #5E1245: cabeçalho, faixas de destaque e acentos.
- * - Amarelo Ouro #FACC15 e #EAB308, sempre com texto #2A081D: botões principais, seleções
- *   e selos de preço e de grátis.
- * - Fundos #FFFFFF e #F8F6F9, com cartões nítidos de borda sutil.
- * - Títulos em Montserrat (800 e 900, caixa alta); textos, botões e preços em Inter.
+ * - Berinjela (acai-*): superfícies de marca, rodapé e títulos.
+ * - Orquídea (orchid-*): ações, seleção e acentos. O 400 serve nos três papéis do antigo amarelo:
+ *   texto sobre berinjela (5,20:1), fundo de selo com texto escuro (5,51:1) e borda de seleção no
+ *   branco (3,08:1). O 600 é o botão principal, com texto branco (5,39:1).
+ * - Lilás (orchid-100) para superfícies suaves; fundo da página #FFFAFC (canvas).
+ * - Folha (leaf-*): só pequenos detalhes tropicais, como as folhas do logo.
+ * - Títulos em Nunito (arredondada como a referência, caixa normal); textos e preços em Inter.
  *
- * Substitui a paleta do guia em PDF aplicada na Fase 2. A logo original continua a mesma.
- * Contraste conferido (AA): texto #2A081D no amarelo 11,9:1; branco no #4A0E36 14,9:1;
- * amarelo no #4A0E36 9,7:1; texto secundário #5C4655 no branco 8,5:1.
+ * Contraste conferido (AA): branco na berinjela 16,0:1; orchid-300 na berinjela 7,71:1; tinta no
+ * lilás 14,4:1; texto secundário no fundo 5,60:1; orchid-700 no branco 7,33:1; folha no branco 6,27:1.
  */
 @theme {
-  --font-display: 'Montserrat Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Nunito Variable', ui-rounded, ui-sans-serif, system-ui, sans-serif;
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
-  /* Roxo Açaí: o 800 e o 700 são as cores pedidas; o 950 é o texto. */
-  --color-acai-950: #2a081d;
-  /* Roxo Escuro do briefing de 2026-11-12. */
-  --color-acai-900: #3b072a;
-  --color-acai-800: #4a0e36;
-  --color-acai-700: #5e1245;
-  --color-acai-600: #7b1d5c;
-  --color-acai-200: #e8d6e3;
-  --color-acai-100: #f3e9f1;
-  /* Mesmo tom do fundo do estúdio 3D (src/features/configurator-3d/stage.ts). */
-  --color-acai-50: #f8f6f9;
+  /* Berinjela: o 800 é a cor da referência; o 950, o mais escuro. */
+  --color-acai-950: #220a24;
+  --color-acai-900: #2e0f31;
+  --color-acai-800: #371336;
+  --color-acai-700: #4a1b4b;
+  --color-acai-600: #6a2c6b;
+  --color-acai-200: #ead7ec;
+  --color-acai-100: #f5eaf6;
+  --color-acai-50: #fbf5fb;
 
-  /* Amarelo Ouro: o 400 e o 500 são as cores pedidas. */
-  --color-gold-500: #eab308;
-  --color-gold-400: #facc15;
-  --color-gold-300: #fde047;
-  --color-gold-100: #fef9c3;
+  /* Orquídea: o 500 é o da referência (só decoração: texto branco nele fica em 3,76:1). */
+  --color-orchid-700: #86338c;
+  --color-orchid-600: #a045a6;
+  --color-orchid-500: #bf5dc4;
+  --color-orchid-400: #cb71d0;
+  --color-orchid-300: #e29be8;
+  --color-orchid-100: #f6e6f7;
 
-  --color-ink: #2a081d;
-  --color-ink-soft: #5c4655;
-  --color-line: #e9e1ea;
+  /* Folha: o verde da referência e o do logo. */
+  --color-leaf-600: #1a6d50;
+  --color-leaf-500: #21865c;
 
-  --shadow-card: 0 1px 2px rgb(42 8 29 / 0.06), 0 14px 34px -20px rgb(74 14 54 / 0.38);
-  --shadow-lift: 0 2px 4px rgb(42 8 29 / 0.08), 0 28px 50px -24px rgb(74 14 54 / 0.5);
+  --color-canvas: #fffafc;
+  --color-ink: #28152d;
+  --color-ink-soft: #6e5f72;
+  --color-line: #ecdded;
+
+  --shadow-card: 0 1px 2px rgb(40 21 45 / 0.05), 0 12px 30px -18px rgb(55 19 54 / 0.3);
+  --shadow-lift: 0 2px 4px rgb(40 21 45 / 0.06), 0 24px 44px -22px rgb(55 19 54 / 0.42);
 
   --animate-rise: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-shake: shake 0.32s ease-in-out;
@@ -94,9 +101,14 @@ html {
 }
 
 body {
-  background-color: #ffffff;
+  background-color: var(--color-canvas);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: var(--color-orchid-300);
+  color: var(--color-acai-950);
 }
 
 /* Preços e números alinhados em coluna. */
@@ -118,25 +130,49 @@ body {
   }
 }
 
-/* Botão amarelo "de apertar": afunda ao toque, como um botão de verdade. */
-@utility btn-gold {
-  background-color: var(--color-gold-400);
-  color: var(--color-acai-950);
-  box-shadow: 0 4px 0 0 #b38605;
+/*
+ * Fundo de marca (redesenho de 2026-11-22): berinjela com um brilho orquídea no alto, à direita.
+ * Degradê pedido pelo responsável ("degradês roxo/orquídea"), só em superfícies de marca.
+ */
+@utility bg-brand {
+  background-color: var(--color-acai-800);
+  background-image: radial-gradient(
+    ellipse at 80% 15%,
+    color-mix(in oklab, var(--color-orchid-600) 55%, var(--color-acai-800)) 0%,
+    var(--color-acai-800) 55%,
+    var(--color-acai-900) 100%
+  );
+}
+
+/*
+ * Botão principal (redesenho de 2026-11-22): pílula orquídea com texto branco (5,39:1) e sombra
+ * discreta; escurece ao passar o ponteiro e encolhe um pouco ao apertar. Um por área.
+ */
+@utility btn-primary {
+  background-color: var(--color-orchid-600);
+  color: #ffffff;
+  box-shadow: 0 8px 18px -10px rgb(55 19 54 / 0.55);
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease,
-    background-color 0.2s ease;
+    transform 0.15s ease-out,
+    box-shadow 0.15s ease-out,
+    background-color 0.15s ease-out;
 
   &:hover {
-    background-color: var(--color-gold-300);
-    transform: translateY(-1px);
-    box-shadow: 0 5px 0 0 #b38605;
+    background-color: var(--color-orchid-700);
+    box-shadow: 0 10px 22px -10px rgb(55 19 54 / 0.6);
   }
 
   &:active {
-    transform: translateY(3px);
-    box-shadow: 0 1px 0 0 #b38605;
+    transform: scale(0.98);
+    box-shadow: 0 4px 10px -8px rgb(55 19 54 / 0.5);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: background-color 0.15s ease-out;
+
+    &:active {
+      transform: none;
+    }
   }
 }
 
@@ -247,6 +283,6 @@ html:has(dialog[open]) {
 
 /* Seção escolhida na navegação do cardápio: contorno dourado por 1,2 s (pedido de 2026-11-16). */
 [data-flash] {
-  outline: 3px solid var(--color-gold-400);
+  outline: 3px solid var(--color-orchid-400);
   outline-offset: 3px;
 }

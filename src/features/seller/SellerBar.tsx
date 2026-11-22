@@ -29,14 +29,14 @@ export function SellerBar() {
   const sound = useSoundState()
 
   return (
-    <div data-seller-bar="" className="border-b-2 border-gold-400 bg-acai-800 text-white">
+    <div data-seller-bar="" className="border-b-2 border-orchid-400 bg-acai-800 text-white">
       <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs sm:px-6 sm:text-sm">
         <p className="flex min-w-0 items-start gap-2">
-          <LockOpen className="mt-0.5 size-4 text-gold-400" />
+          <LockOpen className="mt-0.5 size-4 text-orchid-400" />
           <span>
             <strong className="font-extrabold">Modo Vendedor Ativo</strong> — Toque em "Editar" em qualquer item, em "Disponível" para
             esgotar num toque, ou em "+ Adicionar" em qualquer categoria.{' '}
-            <span className={`font-bold ${seller.backendKind === 'supabase' ? 'text-gold-300' : 'text-gold-400'}`}>
+            <span className={`font-bold ${seller.backendKind === 'supabase' ? 'text-orchid-300' : 'text-orchid-400'}`}>
               {seller.backendKind === 'supabase'
                 ? 'Salvo na nuvem: vale para todos os clientes.'
                 : 'Salvo só neste aparelho: os clientes ainda não veem.'}
@@ -65,7 +65,7 @@ export function SellerBar() {
             to={paths.orders}
             data-orders-link=""
             aria-label={newCount > 0 ? `Pedidos (${newCount} ${newCount === 1 ? 'novo' : 'novos'})` : 'Pedidos'}
-            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-gold-400 px-3 text-xs font-extrabold text-acai-950 ring-1 ring-gold-400 transition hover:bg-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
+            className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg bg-orchid-400 px-3 text-xs font-extrabold text-acai-950 ring-1 ring-orchid-400 transition hover:bg-orchid-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-sm"
           >
             📋 Pedidos
             {newCount > 0 && (
@@ -96,7 +96,7 @@ export function SellerBar() {
         página do Modo Vendedor, o aviso diz isso e oferece o toque. Silenciado de propósito: nada.
       */}
       {(sound === 'blocked' || sound === 'unsupported') && (
-        <div data-orders-sound-hint={sound} role="status" className="border-t border-gold-400 bg-gold-100 text-acai-950">
+        <div data-orders-sound-hint={sound} role="status" className="border-t border-orchid-400 bg-orchid-100 text-acai-950">
           <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-4 py-1.5 text-xs sm:px-6 sm:text-sm">
             <p className="min-w-0 font-semibold">
               {sound === 'blocked'
@@ -126,7 +126,7 @@ export function SellerBar() {
 const inputClass =
   'min-h-12 w-full rounded-xl bg-acai-50 px-4 text-base text-acai-950 ring-1 ring-line outline-none focus:bg-white focus:ring-2 focus:ring-acai-700'
 const primaryButton =
-  'btn-gold inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-60'
+  'btn-primary inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 disabled:cursor-not-allowed disabled:opacity-60'
 
 function ChangePassword({ onClose }: { onClose: () => void }) {
   const seller = useSellerMode()

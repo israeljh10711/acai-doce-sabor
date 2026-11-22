@@ -31,14 +31,14 @@ export function AddedToast({ notice, onDismiss }: { notice: AddedNotice | null; 
             // Celular: aviso e fechar na primeira linha, "Ver carrinho" embaixo. Telas maiores: uma linha só.
             className="pointer-events-auto grid w-full max-w-md grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl bg-acai-950 py-2 pr-2 pl-4 text-sm text-white shadow-lift sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]"
           >
-            <Check className="row-span-2 size-5 self-start text-gold-400 max-sm:mt-2.5 sm:row-span-1 sm:self-center" />
+            <Check className="row-span-2 size-5 self-start text-orchid-400 max-sm:mt-2.5 sm:row-span-1 sm:self-center" />
             <span className="col-start-2 row-start-1 min-w-0 py-1 leading-snug">
               <span className="block font-extrabold">Adicionado ao carrinho</span>
               <span className="line-clamp-2 font-medium text-white/85">{notice.name}</span>
             </span>
             <Link
               to={paths.cart}
-              className="col-start-2 row-start-2 -ml-3 inline-flex min-h-11 items-center gap-1 justify-self-start rounded-full px-3 font-extrabold text-gold-400 transition hover:bg-white/10 focus-visible:outline-3 focus-visible:outline-offset-0 focus-visible:outline-gold-400 sm:col-start-3 sm:row-start-1 sm:ml-0"
+              className="col-start-2 row-start-2 -ml-3 inline-flex min-h-11 items-center gap-1 justify-self-start rounded-full px-3 font-extrabold text-orchid-400 transition hover:bg-white/10 focus-visible:outline-3 focus-visible:outline-offset-0 focus-visible:outline-orchid-400 sm:col-start-3 sm:row-start-1 sm:ml-0"
             >
               Ver carrinho
               <ArrowRight className="size-4" />
@@ -47,7 +47,7 @@ export function AddedToast({ notice, onDismiss }: { notice: AddedNotice | null; 
               type="button"
               aria-label="Fechar aviso"
               onClick={onDismiss}
-              className="col-start-3 row-start-1 grid size-11 cursor-pointer place-items-center rounded-full transition hover:bg-white/10 focus-visible:outline-3 focus-visible:outline-offset-0 focus-visible:outline-gold-400 sm:col-start-4"
+              className="col-start-3 row-start-1 grid size-11 cursor-pointer place-items-center rounded-full transition hover:bg-white/10 focus-visible:outline-3 focus-visible:outline-offset-0 focus-visible:outline-orchid-400 sm:col-start-4"
             >
               <Close className="size-4" />
             </button>

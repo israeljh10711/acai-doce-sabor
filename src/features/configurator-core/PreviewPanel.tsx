@@ -48,13 +48,13 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
             <AnimatedValue value={cfg.price ? formatBRL(cfg.price.totalCents) : '—'} />
           </p>
           {cfg.selection.complete ? (
-            <p className="mt-1 inline-block rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-bold text-acai-950 ring-1 ring-gold-400">
+            <p className="mt-1 inline-block rounded-full bg-orchid-100 px-2.5 py-0.5 text-xs font-bold text-acai-950 ring-1 ring-orchid-400">
               Completo · {cfg.selectedCount} {cfg.selectedCount === 1 ? 'item' : 'itens'}
             </p>
           ) : (
             hasFreeLimit &&
             cfg.size && (
-              <p className="mt-1 inline-block rounded-full bg-gold-100 px-2.5 py-0.5 text-xs font-bold text-acai-950 ring-1 ring-gold-400">
+              <p className="mt-1 inline-block rounded-full bg-orchid-100 px-2.5 py-0.5 text-xs font-bold text-acai-950 ring-1 ring-orchid-400">
                 {cfg.freeUsed} de {cfg.freeLimit} adicionais grátis
               </p>
             )
@@ -73,7 +73,7 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
           Ver foto
           <Expand className="size-4" />
         </button>
-        <a href="#resumo" className={`${pill} btn-gold hidden flex-1 justify-center min-[360px]:inline-flex`}>
+        <a href="#resumo" className={`${pill} btn-primary hidden flex-1 justify-center min-[360px]:inline-flex`}>
           Ver resumo
         </a>
       </div>

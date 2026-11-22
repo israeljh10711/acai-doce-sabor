@@ -141,7 +141,7 @@ function Thumb({ topping }: { topping: Topping }) {
 
 function FreeBadge() {
   return (
-    <span className="inline-block rounded-full bg-gold-100 px-2 py-0.5 text-[0.7rem] font-bold tracking-wide text-acai-950 uppercase ring-1 ring-gold-400">
+    <span className="inline-block rounded-full bg-orchid-100 px-2 py-0.5 text-[0.7rem] font-bold tracking-wide text-acai-950 uppercase ring-1 ring-orchid-400">
       Grátis
     </span>
   )
@@ -149,7 +149,7 @@ function FreeBadge() {
 
 function PriceBadge({ cents, each = false }: { cents: number; each?: boolean }) {
   return (
-    <span className="nums inline-block rounded-full bg-gold-400 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-acai-950">
+    <span className="nums inline-block rounded-full bg-orchid-400 px-2 py-0.5 text-xs font-bold whitespace-nowrap text-acai-950">
       + {formatBRL(cents)}
       {each && ' cada'}
     </span>
@@ -168,7 +168,7 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
   return (
     <div
       className={`${cardBase} has-[>button:active:enabled]:scale-[0.98] ${blocked ? 'opacity-55' : 'hover:border-acai-600/40'} ${
-        on ? 'border-gold-400 bg-gold-100' : 'border-line'
+        on ? 'border-orchid-400 bg-orchid-100' : 'border-line'
       }`}
     >
       <button
@@ -196,7 +196,7 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
         initial={false}
         animate={{ scale: on ? 1 : 0.4, opacity: on ? 1 : 0 }}
         transition={{ type: 'spring', stiffness: 600, damping: 28 }}
-        className="pointer-events-none absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-acai-800 text-gold-400 shadow-sm"
+        className="pointer-events-none absolute -top-2 -right-2 grid size-6 place-items-center rounded-full bg-acai-800 text-orchid-400 shadow-sm"
       >
         <Check className="size-4" />
       </m.span>
@@ -220,7 +220,7 @@ function StepperCard({
   const blocker = cfg.blockerFor(topping.id)
 
   return (
-    <div className={`${cardBase} hover:border-acai-600/40 ${quantity > 0 ? 'border-gold-400 bg-gold-100' : 'border-line'}`}>
+    <div className={`${cardBase} hover:border-acai-600/40 ${quantity > 0 ? 'border-orchid-400 bg-orchid-100' : 'border-line'}`}>
       <Thumb topping={topping} />
       <span className="text-[0.95rem] leading-tight font-semibold text-balance hyphens-auto text-acai-950">{topping.name}</span>
       {paid ? <PriceBadge cents={topping.priceCents} each /> : <FreeBadge />}

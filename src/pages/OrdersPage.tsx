@@ -32,7 +32,7 @@ const withoutId = (set: ReadonlySet<string>, id: string): ReadonlySet<string> =>
 const withoutKey = <T,>(record: Record<string, T>, key: string): Record<string, T> => Object.fromEntries(Object.entries(record).filter(([name]) => name !== key))
 
 const toolButton =
-  'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3.5 text-sm font-bold ring-1 transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-gold-400'
+  'inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-3.5 text-sm font-bold ring-1 transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-orchid-400'
 
 /**
  * Painel de pedidos ao vivo do Modo Vendedor (2026-11-20), para deixar aberto no balcão: os
@@ -53,7 +53,7 @@ export function OrdersPage() {
             type="button"
             data-orders-login=""
             onClick={seller.openAuth}
-            className="btn-gold mt-4 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
+            className="btn-primary mt-4 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl px-5 font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800"
           >
             <LockOpen className="size-5" />
             Entrar no Modo Vendedor
@@ -166,7 +166,7 @@ function Board() {
         <div className="mt-4 flex flex-col gap-3">
           <p data-orders-live={snapshot.kind === 'local' ? 'local' : snapshot.live} className="text-sm font-semibold text-white/90">
             {snapshot.kind === 'local' && (
-              <span className="mr-2 inline-block rounded-full bg-white/15 px-2 py-0.5 text-xs font-extrabold tracking-wide text-gold-300 uppercase ring-1 ring-white/25">
+              <span className="mr-2 inline-block rounded-full bg-white/15 px-2 py-0.5 text-xs font-extrabold tracking-wide text-orchid-300 uppercase ring-1 ring-white/25">
                 Modo de demonstração local
               </span>
             )}
@@ -184,7 +184,7 @@ function Board() {
                 data-orders-sound-on=""
                 aria-pressed={sound === 'on'}
                 onClick={() => soundAlert.setOn(true)}
-                className={`${toolButton} min-h-10 ring-0 ${sound === 'on' ? 'bg-gold-400 text-acai-950' : 'text-white hover:bg-white/10'}`}
+                className={`${toolButton} min-h-10 ring-0 ${sound === 'on' ? 'bg-orchid-400 text-acai-950' : 'text-white hover:bg-white/10'}`}
               >
                 {sound === 'blocked' ? '🔔 Ativar som' : '🔔 Som Ativo'}
               </button>
@@ -318,10 +318,10 @@ function Board() {
 function Shell({ children, tools }: { children: ReactNode; tools?: ReactNode }) {
   return (
     <>
-      <div className="bg-acai-800 bg-[radial-gradient(ellipse_at_80%_20%,#6a1650_0%,#4a0e36_50%,#3b072a_100%)] text-white">
+      <div className="bg-brand text-white">
         <Container className="pt-6 pb-8 sm:pt-8 sm:pb-10">
           <h1 className="flex items-center gap-3 font-display text-4xl font-black tracking-tight uppercase sm:text-5xl">
-            <ClipboardList className="size-9 text-gold-400" />
+            <ClipboardList className="size-9 text-orchid-400" />
             Pedidos
           </h1>
           <p className="mt-2 text-lg text-white/85">Os pedidos de hoje e os que ainda estão em andamento.</p>

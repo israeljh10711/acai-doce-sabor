@@ -56,11 +56,11 @@ function NoticeCard({ notice }: { notice: AddedNotice }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, transition: { duration: 0.15 } }}
       transition={{ duration: 0.25, ease: [0.2, 0.7, 0.2, 1] }}
-      className="pointer-events-auto flex items-start gap-3 rounded-2xl bg-acai-950 py-2.5 pr-2 pl-4 text-sm text-white shadow-lift ring-2 ring-gold-400"
+      className="pointer-events-auto flex items-start gap-3 rounded-2xl bg-acai-950 py-2.5 pr-2 pl-4 text-sm text-white shadow-lift ring-2 ring-orchid-400"
     >
       <p className="min-w-0 flex-1 py-1 leading-snug">
         <span className="block font-extrabold">
-          🔔 Novos itens adicionados ao pedido <span className="nums text-gold-300">{notice.code}</span>
+          🔔 Novos itens adicionados ao pedido <span className="nums text-orchid-300">{notice.code}</span>
         </span>
         <span className="block text-white/85">{notice.batches > 1 ? `${notice.batches} acréscimos do cliente.` : 'O cliente acrescentou ao mesmo pedido.'}</span>
       </p>
@@ -68,7 +68,7 @@ function NoticeCard({ notice }: { notice: AddedNotice }) {
         type="button"
         data-added-notice-open=""
         onClick={show}
-        className="btn-gold inline-flex min-h-10 shrink-0 cursor-pointer items-center rounded-full px-3 text-xs font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="btn-primary inline-flex min-h-10 shrink-0 cursor-pointer items-center rounded-full px-3 text-xs font-extrabold focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
       >
         Ver pedido
       </button>

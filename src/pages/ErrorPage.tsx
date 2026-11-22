@@ -29,7 +29,7 @@ export function ErrorPage() {
         {/* Link comum, de propósito: recarrega o site inteiro e limpa o estado com erro. */}
         <a
           href={paths.home}
-          className="btn-gold mt-8 inline-flex min-h-12 items-center justify-center rounded-full px-6 font-bold focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800"
+          className="btn-primary mt-8 inline-flex min-h-12 items-center justify-center rounded-full px-6 font-bold focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800"
         >
           Voltar ao início
         </a>

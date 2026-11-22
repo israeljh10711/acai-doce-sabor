@@ -28,7 +28,7 @@ export function StoreClosedCard({ heading = 'h2', compact = false, className = '
       className={`rounded-3xl bg-acai-50 ring-1 ring-line ${compact ? 'p-4' : 'p-5 sm:p-6'} ${className}`}
     >
       <div className="flex items-start gap-3 sm:gap-4">
-        <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full bg-acai-800 text-gold-400 ${compact ? 'size-10' : 'size-12'}`}>
+        <span aria-hidden="true" className={`grid shrink-0 place-items-center rounded-full bg-acai-800 text-orchid-400 ${compact ? 'size-10' : 'size-12'}`}>
           <Moon className={compact ? 'size-5' : 'size-6'} />
         </span>
         <div className="min-w-0">
@@ -51,7 +51,7 @@ export function StoreClosedCard({ heading = 'h2', compact = false, className = '
           {address}
           <span className="sr-only"> (abre o mapa em nova aba)</span>
         </a>
-        <a href={buildWhatsAppUrl(settings.contact.whatsapp)} target="_blank" rel="noreferrer" className={`${link} btn-gold`}>
+        <a href={buildWhatsAppUrl(settings.contact.whatsapp)} target="_blank" rel="noreferrer" className={`${link} btn-primary`}>
           <Chat className="size-4" />
           <span className="nums">WhatsApp {settings.contact.whatsapp}</span>
           <span className="sr-only"> (abre em nova aba)</span>

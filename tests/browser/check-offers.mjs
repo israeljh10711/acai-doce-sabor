@@ -121,7 +121,7 @@ try {
     check(`${at} não cobre o topo (cabeçalho, busca, atalhos)`, box.top > 200, true)
     check(
       `${at} selo, X, "Aproveitar" e barra de tempo`,
-      await run(`(() => { const a = __offer(); return [!!a.querySelector('.rounded-full.bg-gold-400'), !!a.querySelector('button[aria-label="Fechar oferta"]'), a.textContent.includes('Aproveitar'), !!a.querySelector('[data-offer-bar]')] })()`),
+      await run(`(() => { const a = __offer(); return [!!a.querySelector('.rounded-full.bg-orchid-400'), !!a.querySelector('button[aria-label="Fechar oferta"]'), a.textContent.includes('Aproveitar'), !!a.querySelector('[data-offer-bar]')] })()`),
       [true, true, true, true],
     )
     check(`${at} a barra de tempo está correndo`, await run(`__q('[data-offer-bar]').getAnimations()[0]?.playState`), 'running')

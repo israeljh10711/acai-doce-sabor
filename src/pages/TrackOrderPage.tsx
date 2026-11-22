@@ -35,7 +35,7 @@ function timeText(iso: string | null): string | null {
   return Number.isFinite(at) ? timeOnly.format(at) : null
 }
 
-const hero = 'bg-acai-800 bg-[radial-gradient(ellipse_at_80%_20%,#6a1650_0%,#4a0e36_50%,#3b072a_100%)] text-white'
+const hero = 'bg-brand text-white'
 const card = 'rounded-3xl bg-white p-5 shadow-card ring-1 ring-line sm:p-6'
 const secondaryButton =
   'inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-white px-5 text-base font-bold text-acai-800 ring-1 ring-acai-800/30 transition hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800'
@@ -95,7 +95,7 @@ function TrackedRow({ order }: { order: TrackedOrder }) {
     <Link
       to={paths.track(order.code)}
       data-tracked-order={order.code}
-      className={`flex items-center justify-between gap-4 rounded-2xl bg-white p-4 shadow-card transition hover:ring-acai-700 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${active ? 'ring-2 ring-gold-400' : 'ring-1 ring-line'}`}
+      className={`flex items-center justify-between gap-4 rounded-2xl bg-white p-4 shadow-card transition hover:ring-acai-700 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-acai-800 ${active ? 'ring-2 ring-orchid-400' : 'ring-1 ring-line'}`}
     >
       <span className="min-w-0">
         <span className="nums block font-display text-xl font-black tracking-tight text-acai-800">#{order.code}</span>
@@ -104,7 +104,7 @@ function TrackedRow({ order }: { order: TrackedOrder }) {
           {order.demo && ' · Demonstração'}
         </span>
       </span>
-      <span data-tracked-status={order.status} className={`shrink-0 rounded-full px-3 py-1 text-xs font-extrabold tracking-wide uppercase ring-1 ${active ? 'bg-gold-100 text-acai-950 ring-gold-400' : 'bg-zinc-100 text-zinc-700 ring-zinc-300'}`}>
+      <span data-tracked-status={order.status} className={`shrink-0 rounded-full px-3 py-1 text-xs font-extrabold tracking-wide uppercase ring-1 ${active ? 'bg-orchid-100 text-acai-950 ring-orchid-400' : 'bg-zinc-100 text-zinc-700 ring-zinc-300'}`}>
         {CUSTOMER_STATUS_LABEL[order.status]}
       </span>
     </Link>
@@ -115,7 +115,7 @@ function BackToMenu() {
   return (
     <Link
       to={paths.buildOrder}
-      className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-gold-400 hover:text-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+      className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-orchid-400 hover:text-orchid-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
     >
       <ArrowLeft className="size-4" />
       <span className="link-draw">Voltar ao cardápio</span>
@@ -156,7 +156,7 @@ function OrderTracking({ code }: { code: string }) {
       <div className={hero}>
         <Container className="pt-6 pb-10 sm:pt-8 sm:pb-12">
           <BackToMenu />
-          <p className="mt-1 text-sm font-bold tracking-wide text-gold-400 uppercase">Acompanhar pedido</p>
+          <p className="mt-1 text-sm font-bold tracking-wide text-orchid-400 uppercase">Acompanhar pedido</p>
           <h1 className="nums font-display text-4xl font-black tracking-tight sm:text-5xl">Pedido #{code}</h1>
           {order && <p className="mt-1 text-white/85">Feito em {whenText(view?.createdAt ?? order.createdAt) ?? '—'}</p>}
           <p className="mt-2 text-lg text-white/85">Acompanhe cada etapa da preparação do seu pedido.</p>
@@ -167,7 +167,7 @@ function OrderTracking({ code }: { code: string }) {
         <div className="mx-auto flex max-w-2xl flex-col gap-5">
           {(notice.placed || notice.added) && <SuccessNotice code={code} added={Boolean(notice.added)} demo={order?.demo ?? false} />}
           {order?.demo && (
-            <p data-demo-notice="" className="rounded-2xl bg-gold-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-gold-400">
+            <p data-demo-notice="" className="rounded-2xl bg-orchid-100 px-4 py-3 text-sm font-semibold text-acai-950 ring-1 ring-orchid-400">
               <strong className="font-extrabold">Modo de demonstração:</strong> este pedido fica só neste navegador e a loja não recebe. As etapas mudam pelo painel de pedidos deste mesmo computador.
             </p>
           )}
@@ -321,7 +321,7 @@ function TrackedView({ view, demo, live, stale }: { view: OrderView; demo: boole
 
       <div className="flex flex-col gap-3">
         {addable && (
-          <button type="button" data-add-items="" onClick={startAdding} className="btn-gold inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base font-extrabold tracking-tight focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800">
+          <button type="button" data-add-items="" onClick={startAdding} className="btn-primary inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base font-extrabold tracking-tight focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-acai-800">
             ➕ Adicionar mais itens a este pedido
           </button>
         )}
@@ -384,7 +384,7 @@ function TrackingPix({ view }: { view: OrderView }) {
           </p>
           {due.feePending && <p className="text-sm text-ink-soft">+ entrega a combinar: a loja informa o valor quando entrar em contato.</p>}
           {due.additionsCents > 0 && (
-            <div data-pix-additions="" className="mt-2 rounded-xl bg-gold-100 p-3 text-sm text-acai-950 ring-1 ring-gold-400">
+            <div data-pix-additions="" className="mt-2 rounded-xl bg-orchid-100 p-3 text-sm text-acai-950 ring-1 ring-orchid-400">
               <p className="flex justify-between gap-3">
                 <span>Pedido antes dos acréscimos</span>
                 <span className="nums font-bold whitespace-nowrap">{formatBRL(due.beforeAdditionsCents)}</span>
@@ -407,7 +407,7 @@ function TrackingPix({ view }: { view: OrderView }) {
 
 const STEP_MARK: Record<TimelineStep['state'], string> = {
   done: 'bg-emerald-600 text-white',
-  current: 'bg-gold-400 text-acai-950 ring-4 ring-gold-100',
+  current: 'bg-orchid-400 text-acai-950 ring-4 ring-orchid-100',
   pending: 'bg-white text-ink-soft ring-2 ring-line',
   cancelled: 'bg-red-700 text-white',
 }
@@ -471,7 +471,7 @@ function OrderSummary({ view }: { view: OrderView }) {
       )}
       <ComandaItems comanda={view.itemsBlock} fallback={view.items} />
       {view.additions.map((addition, index) => (
-        <div key={index} data-order-addition="" className="rounded-xl bg-gold-100 p-3 ring-1 ring-gold-400">
+        <div key={index} data-order-addition="" className="rounded-xl bg-orchid-100 p-3 ring-1 ring-orchid-400">
           <p className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 text-sm font-extrabold text-acai-950">
             <span>➕ Itens adicionados</span>
             <span className="nums font-bold text-acai-800">{timeText(addition.createdAt) ?? ''}</span>

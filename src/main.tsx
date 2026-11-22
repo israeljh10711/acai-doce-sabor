@@ -1,5 +1,5 @@
 import '@fontsource-variable/inter'
-import '@fontsource-variable/montserrat'
+import '@fontsource-variable/nunito'
 import { LazyMotion, MotionConfig } from 'motion/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

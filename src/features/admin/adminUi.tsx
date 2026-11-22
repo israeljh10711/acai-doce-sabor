@@ -313,7 +313,7 @@ export function PhotoPicker({
 export function Chip({ tone, children }: { tone: 'ok' | 'warn' | 'off' | 'info'; children: ReactNode }) {
   const tones = {
     ok: 'bg-emerald-50 text-emerald-900 ring-emerald-200',
-    warn: 'bg-gold-100 text-acai-950 ring-gold-400',
+    warn: 'bg-orchid-100 text-acai-950 ring-orchid-400',
     off: 'bg-red-50 text-red-800 ring-red-200',
     info: 'bg-acai-50 text-acai-800 ring-line',
   } as const

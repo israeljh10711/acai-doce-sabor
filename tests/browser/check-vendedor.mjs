@@ -143,7 +143,7 @@ try {
   await run(`__type('#busca-cardapio', '')`)
   await sleep(300)
   await click(`__buy('picole-trufado-especial')`, 900)
-  await click(`__dialog()?.querySelector('button.btn-gold') ?? [...document.querySelectorAll('dialog[open] button')].find((b) => /Adicionar|Confirmar/.test(b.textContent))`, 900)
+  await click(`__dialog()?.querySelector('button.btn-primary') ?? [...document.querySelectorAll('dialog[open] button')].find((b) => /Adicionar|Confirmar/.test(b.textContent))`, 900)
   check('produto novo vai para o carrinho', await run(`__cartCount()`), 1)
   // A confirmação pode levar ao carrinho: volta ao cardápio.
   await goto('/monte-seu-pedido', desktop)

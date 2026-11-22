@@ -30,7 +30,7 @@ export function ZoomButton({ image, origin = 'page', className = 'absolute inset
         show(image, event.currentTarget, origin)
       }}
       // Contorno de foco roxo com borda branca por dentro: aparece sobre foto clara ou escura.
-      className={`group/zoom z-10 cursor-zoom-in rounded-[inherit] focus-visible:shadow-[inset_0_0_0_3px_#4a0e36,inset_0_0_0_5px_#fff] focus-visible:outline-none ${className}`}
+      className={`group/zoom z-10 cursor-zoom-in rounded-[inherit] focus-visible:shadow-[inset_0_0_0_3px_var(--color-acai-800),inset_0_0_0_5px_#fff] focus-visible:outline-none ${className}`}
     >
       <span
         aria-hidden="true"

@@ -71,7 +71,7 @@ function Hero() {
   return (
     <section
       aria-labelledby="inicio-titulo"
-      className="relative overflow-hidden bg-acai-800 bg-[radial-gradient(ellipse_at_75%_35%,#6a1650_0%,#4a0e36_45%,#3b072a_100%)] text-white"
+      className="relative overflow-hidden bg-brand text-white"
     >
       <Container className="grid items-center gap-10 pt-8 pb-14 sm:pt-12 lg:grid-cols-[1.05fr_1fr] lg:gap-6 lg:pt-14 lg:pb-20">
         <div className="relative z-10 flex flex-col items-start">
@@ -85,7 +85,7 @@ function Hero() {
             className="mt-6 font-display text-[2.6rem] leading-[0.95] font-black tracking-tight text-balance uppercase min-[400px]:text-5xl sm:text-6xl xl:text-7xl"
             {...rise(0.08)}
           >
-            O açaí mais saboroso <span className="text-gold-400">de Teixeira</span>
+            O açaí mais saboroso <span className="text-orchid-400">de Teixeira</span>
           </m.h1>
 
           <m.p className="mt-5 max-w-lg text-lg leading-relaxed text-white/85" {...rise(0.16)}>
@@ -96,7 +96,7 @@ function Hero() {
           <m.div className="mt-8 flex w-full flex-col gap-3 sm:w-auto sm:flex-row" {...rise(0.24)}>
             <a
               href="#cardapio"
-              className="btn-gold inline-flex min-h-14 items-center justify-center gap-2 rounded-full px-8 text-base font-extrabold tracking-tight whitespace-nowrap uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white"
+              className="btn-primary inline-flex min-h-14 items-center justify-center gap-2 rounded-full px-8 text-base font-extrabold tracking-tight whitespace-nowrap uppercase focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white"
             >
               Quero fazer meu pedido
               <ArrowRight className="size-5" />
@@ -105,7 +105,7 @@ function Hero() {
               href="#secao-acai-oca"
               className="inline-flex min-h-14 items-center justify-center gap-2 rounded-full border-2 border-white/60 px-7 font-bold whitespace-nowrap text-white transition hover:border-white hover:bg-white hover:text-acai-800 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-white"
             >
-              <Crown className="size-5 text-gold-400" />
+              <Crown className="size-5 text-orchid-400" />
               Conheça o Açaí Oca
             </a>
           </m.div>
@@ -166,21 +166,21 @@ function StoreInfo() {
           </h2>
           <ul className="mt-6 grid gap-4 text-white/85 sm:grid-cols-3">
             <li className="flex gap-3">
-              <Clock className="mt-0.5 size-5 shrink-0 text-gold-400" />
+              <Clock className="mt-0.5 size-5 shrink-0 text-orchid-400" />
               <span>
                 <span className="block font-bold text-white">Funcionamento</span>
                 {scheduleText(settings)}
               </span>
             </li>
             <li className="flex gap-3">
-              <Pin className="mt-0.5 size-5 shrink-0 text-gold-400" />
+              <Pin className="mt-0.5 size-5 shrink-0 text-orchid-400" />
               <span>
                 <span className="block font-bold text-white">Endereço</span>
                 {storeAddressText(contact)}
               </span>
             </li>
             <li className="flex gap-3">
-              <Chat className="mt-0.5 size-5 shrink-0 text-gold-400" />
+              <Chat className="mt-0.5 size-5 shrink-0 text-orchid-400" />
               <span>
                 <span className="block font-bold text-white">WhatsApp</span>
                 <span className="nums">{contact.whatsapp}</span>

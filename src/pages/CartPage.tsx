@@ -54,11 +54,11 @@ export function CartPage() {
 
   return (
     <>
-      <div className="bg-acai-800 bg-[radial-gradient(ellipse_at_80%_20%,#6a1650_0%,#4a0e36_50%,#3b072a_100%)] text-white">
+      <div className="bg-brand text-white">
         <Container className="pt-6 pb-10 sm:pt-8 sm:pb-12">
           <Link
             to={paths.buildOrder}
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-gold-400 hover:text-gold-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-orchid-400 hover:text-orchid-300 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             <ArrowLeft className="size-4" />
             <span className="link-draw">Continuar escolhendo</span>
@@ -151,7 +151,7 @@ function ProductLine({ item, onRemove }: { item: ProductCartItem; onRemove: () =
       )}
       {/* Completo (pedido de 2026-11-16): destaque no topo, para a equipe de montagem não errar. */}
       {description.montagem && (
-        <p data-montagem="" className="mt-1 inline-block rounded-lg bg-gold-100 px-2 py-0.5 text-sm font-bold text-acai-950 ring-1 ring-gold-400">
+        <p data-montagem="" className="mt-1 inline-block rounded-lg bg-orchid-100 px-2 py-0.5 text-sm font-bold text-acai-950 ring-1 ring-orchid-400">
           Montagem: {description.montagem}
         </p>
       )}

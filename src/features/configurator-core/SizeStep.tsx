@@ -52,7 +52,7 @@ export function SizeStep({ product, cfg, number }: { product: Product; cfg: Conf
       </div>
 
       {cfg.sizeNotice && (
-        <p className="mt-3 rounded-2xl bg-gold-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-gold-400">
+        <p className="mt-3 rounded-2xl bg-orchid-100 px-4 py-3 text-sm font-medium text-acai-950 ring-1 ring-orchid-400">
           {cfg.sizeNotice}
         </p>
       )}
@@ -76,7 +76,7 @@ function SizeOption({
   onChoose: () => void
 }) {
   return (
-    <label className="group relative flex min-h-[4.5rem] cursor-pointer flex-col justify-center gap-1 rounded-2xl border-2 border-line bg-white px-3.5 py-2.5 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-gold-400 has-checked:bg-gold-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800">
+    <label className="group relative flex min-h-[4.5rem] cursor-pointer flex-col justify-center gap-1 rounded-2xl border-2 border-line bg-white px-3.5 py-2.5 transition duration-200 hover:border-acai-600/40 active:scale-[0.98] has-checked:border-orchid-400 has-checked:bg-orchid-100 has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-acai-800">
       <input
         type="radio"
         name={name}
@@ -99,7 +99,7 @@ function SizeOption({
       )}
       <span
         aria-hidden="true"
-        className="absolute -top-2 -right-2 hidden size-6 place-items-center rounded-full bg-acai-800 text-gold-400 shadow-sm group-has-checked:grid"
+        className="absolute -top-2 -right-2 hidden size-6 place-items-center rounded-full bg-acai-800 text-orchid-400 shadow-sm group-has-checked:grid"
       >
         <Check className="size-4" />
       </span>
