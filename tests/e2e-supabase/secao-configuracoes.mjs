@@ -156,9 +156,9 @@ export default async function configuracoes({ secrets, db, site, seller, custome
   // Tira os backups baixados antes (o navegador sobrescreve o arquivo de mesmo nome).
   for (const old of readdirSync(OUT).filter((name) => name.startsWith('acai-doce-sabor-backup-'))) rmSync(join(OUT, old))
   const existing = new Set(readdirSync(OUT))
-  await seller.goto(`${site.url}/monte-seu-pedido`)
-  await seller.waitFor(`__q('[data-seller-bar]')`)
-  await seller.click(`__button('Backup / Restaurar')`, 700)
+  await seller.goto(`${site.url}/painel`)
+  await seller.waitFor(`__q('[data-panel-backup]')`)
+  await seller.click(`__q('[data-panel-backup]')`, 700)
   await seller.click(`__button('Baixar backup', __dialog())`, 2500)
   const file = readdirSync(OUT).find((name) => name.startsWith('acai-doce-sabor-backup-') && !existing.has(name))
   const text = file && existsSync(join(OUT, file)) ? readFileSync(join(OUT, file), 'utf8') : ''

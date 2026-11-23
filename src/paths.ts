@@ -14,6 +14,8 @@ export const routePatterns = {
   trackOrder: '/acompanhar/:codigo',
   /** Painel do vendedor: cardápio, ofertas e configurações da loja (cardápio dinâmico, 2026-11-21). */
   admin: '/vendedor',
+  /** Painel do Modo Vendedor (2026-11-23): operação, loja e cardápio, segurança e sessão. */
+  panel: '/painel',
 } as const
 
 /** Abas do painel do vendedor (`?aba=`). */
@@ -30,6 +32,7 @@ export const paths = {
   cart: routePatterns.cart,
   credits: routePatterns.credits,
   orders: routePatterns.orders,
+  panel: routePatterns.panel,
   /** Sem código, a lista dos pedidos deste aparelho; com o código, aquele pedido. */
   track: (code?: string) => (code ? `${routePatterns.track}/${encodeURIComponent(code)}` : routePatterns.track),
   /** Painel do vendedor, numa aba. */

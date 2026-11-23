@@ -8,7 +8,7 @@ import { DELIVERY_TIMES } from '../store/storeSettings.ts'
 import { SellerDialog } from './SellerDialog.tsx'
 import { useSellerMode } from './sellerModeContext.ts'
 import { saveStore } from './storeSave.ts'
-import { barButton } from './sellerStyles.ts'
+import { barButton, panelButton } from './sellerStyles.ts'
 
 
 /**
@@ -17,7 +17,7 @@ import { barButton } from './sellerStyles.ts'
  * dia seguinte; "Abrir" fora do horário vale até o fechamento (se abriu cedo) ou até as 5h.
  * Verde um tom mais escuro que o pedido, para o texto branco passar no contraste mínimo.
  */
-export function StoreSwitch() {
+export function StoreSwitch({ tone = 'dark' }: { tone?: 'dark' | 'light' } = {}) {
   const seller = useSellerMode()
   const status = useStoreStatus()
   const settings = useStoreSettings()
@@ -58,7 +58,7 @@ export function StoreSwitch() {
         {status.open ? 'Loja Aberta' : 'Loja Fechada'}
         <span className="sr-only">. Toque para {status.open ? 'fechar' : 'abrir'} a loja.</span>
       </button>
-      <span id={detailId} data-store-switch-detail="" className="text-xs text-white/85">
+      <span id={detailId} data-store-switch-detail="" className={`text-xs ${tone === 'light' ? 'text-ink-soft' : 'text-white/85'}`}>
         {detail}
       </span>
     </div>
@@ -66,12 +66,12 @@ export function StoreSwitch() {
 }
 
 /** "Tempo": o prazo de entrega do selo do topo, com 1 toque nas opções ou digitado. */
-export function DeliveryTimeButton() {
+export function DeliveryTimeButton({ tone = 'dark' }: { tone?: 'dark' | 'light' } = {}) {
   const settings = useStoreSettings()
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button type="button" data-delivery-time="" aria-haspopup="dialog" className={barButton} onClick={() => setOpen(true)}>
+      <button type="button" data-delivery-time="" aria-haspopup="dialog" className={tone === 'light' ? panelButton : barButton} onClick={() => setOpen(true)}>
         <Clock className="size-4" />
         <span>
           Tempo: <span className="nums">{settings.deliveryTime}</span>

@@ -137,6 +137,20 @@ const storeAdmin = async (change, back = '/carrinho') => {
   await goto(back, { width: 1280, height: 800 })
   if (method) await click(`document.querySelector('input[name="forma-de-pagamento"][value="${method}"]')`, 300)
 }
+/**
+ * As ferramentas de operação (Loja Aberta/Fechada, Tempo, atalhos) moram no painel do vendedor,
+ * /painel (2026-11-23). Abre o painel, roda `act` (devolve o que ele devolver) e volta para `back`,
+ * refazendo a forma de pagamento escolhida no carrinho.
+ */
+const onPanel = async (act, back = '/carrinho') => {
+  const method = await run(`document.querySelector('input[name="forma-de-pagamento"]:checked')?.value ?? null`)
+  await goto('/painel', { width: 1280, height: 800 })
+  if (!(await waitUntil(`__q('[data-panel-block="operacao"]')`))) throw new Error('O painel do vendedor não abriu.')
+  const result = await act()
+  await goto(back, { width: 1280, height: 800 })
+  if (method) await click(`document.querySelector('input[name="forma-de-pagamento"][value="${method}"]')`, 300)
+  return result
+}
 /** Abre o editor de produto pelo botão da loja e espera ele carregar. */
 const openEditor = async (button) => {
   await click(button, 300)
@@ -157,11 +171,16 @@ try {
   await goto('/', desktop)
   await run(`localStorage.clear(); sessionStorage.clear(); indexedDB.deleteDatabase('acai_doce_sabor_seller_images'); ${SESSION}`)
   await goto('/monte-seu-pedido', desktop)
+  await waitUntil(`__q('[data-seller-bar]') && __q('[data-seller-panel-link]')`)
+  check('topo do vendedor: aba "Painel" ao lado de Cardápio e Carrinho, sem a faixa roxa', await run(`[[...__q('nav[aria-label="Navegação principal"]').querySelectorAll('a')].map((a) => a.textContent.trim()), !/Alterar senha|Backup|Sair do Modo|Tempo:/.test(__q('[data-seller-bar]').textContent)]`), [['Cardápio', 'Painel', 'Carrinho'], true])
+  await goto('/painel', desktop)
   check(
-    'faixa do vendedor: linha de operação',
-    await run(`[!!__q('[data-store-switch]'), __q('[data-delivery-time]')?.textContent, __q('[data-delivery-settings]')?.textContent.trim(), __q('[data-hours-contact]')?.textContent.trim()]`),
-    [true, 'Tempo: 30–45 min', 'Entrega / Frete', 'Horários e Contato'],
+    'painel do vendedor: Operação com Loja Aberta/Fechada e Tempo; Loja e cardápio com Entrega / Frete e Horários e Contato',
+    await run(`[!!__q('[data-panel-block="operacao"] [data-store-switch]'), __q('[data-delivery-time]')?.textContent, __q('[data-panel-block="loja"] [data-delivery-settings]')?.textContent.startsWith('Entrega / Frete'), __q('[data-panel-block="loja"] [data-hours-contact]')?.textContent.startsWith('Horários e Contato')]`),
+    [true, 'Tempo: 30–45 min', true, true],
   )
+  await goto('/monte-seu-pedido', desktop)
+
   check('pílula "Disponível" em cada cartão (5 destaques, 44 itens, 4 produtos)', await run(`document.querySelectorAll('[data-seller-stock="disponivel"]').length`), 53)
 
   // --- 1. Esgotado em 1 toque ---
@@ -217,7 +236,8 @@ try {
   check('Granola de volta', await run(`${granola}.dataset.sellerStock`), 'disponivel')
 
   // --- 2. Loja Aberta / Fechada ---
-  await goto('/monte-seu-pedido', desktop)
+  await goto('/painel', desktop)
+  await waitUntil(`__q('[data-store-switch]')`)
   // Fechada pelo interruptor: se a loja já está fechada pelo horário (de madrugada), abre e fecha.
   if ((await run(`__switch()`)) === 'fechada') await click(`__q('[data-store-switch]')`, 900)
   await click(`__q('[data-store-switch]')`, 900)
@@ -226,6 +246,7 @@ try {
     await run(`[__switch(), /^Fechada até (hoje|amanhã) às 13h$/.test(__q('[data-store-switch-detail]').textContent), __badge()]`),
     ['fechada', true, 'Loja fechada no momento'],
   )
+  await goto('/monte-seu-pedido', desktop)
   check(
     'aviso acolhedor: convite para voltar, endereço no mapa e WhatsApp',
     await run(`(() => { const card = __q('[data-store-closed]'); const links = [...card.querySelectorAll('a')]; return [card.textContent.includes('Estamos fechados agora'), /Volte (hoje|amanhã) a partir das 13h/.test(card.textContent), links[0]?.href.startsWith('https://www.google.com/maps/search/?api=1&query=Rua%20Francisco%20Tota'), links[0]?.textContent.includes('Rua Francisco Tota, 12, Teixeira, PB'), links[1]?.href, links[1]?.textContent.includes('(83) 99699-9980')] })()`),
@@ -246,7 +267,7 @@ try {
   check('comanda com a loja fechada: "Pedido antecipado" logo abaixo da data', [/^📅 \*Data\/Hora:\* \d{2}\/\d{2}\/\d{4} às \d{2}:\d{2}$/.test(lines[1] ?? ''), lines[2]], [true, '⏰ *Pedido antecipado:* enviado com a loja fechada'])
 
   // Bloquear o envio com a loja fechada.
-  check('faixa: "Horários e Contato" leva às Configurações da loja', await run(`__q('[data-hours-contact]')?.getAttribute('href')`), '/vendedor?aba=loja#loja-horario')
+  check('painel: "Horários e Contato" leva às Configurações da loja', await onPanel(() => run(`__q('[data-hours-contact]')?.getAttribute('href')`)), '/vendedor?aba=loja#loja-horario')
   await storeAdmin(() => click(`__q('input[name="loja-fechada"][value="bloquear"]')`, 200))
   check(
     'loja fechada e "Bloquear o envio": botão desligado com o motivo',
@@ -255,11 +276,14 @@ try {
   )
   await storeAdmin(() => click(`__q('input[name="loja-fechada"][value="antecipado"]')`, 200))
 
-  // Abrir de volta.
-  await click(`__q('[data-store-switch]')`, 900)
+  // Abrir de volta (pelo painel).
+  const reopened = await onPanel(async () => {
+    await click(`__q('[data-store-switch]')`, 900)
+    return run(`__switch()`)
+  })
   check(
     'Loja Aberta: selo "Aberto agora • Entrega: 30–45 min", sem o aviso de fechada',
-    await run(`[__switch(), __badge().replace(/\\s+/g, ' '), !!__q('[data-store-closed]'), document.body.textContent.includes('pedido antecipado')]`),
+    await run(`[${JSON.stringify(reopened)}, __badge().replace(/\\s+/g, ' '), !!__q('[data-store-closed]'), document.body.textContent.includes('pedido antecipado')]`),
     ['aberta', 'Aberto agora•, Entrega: 30–45 min', false, false],
   )
   lines = await sendOrder()
@@ -297,7 +321,9 @@ try {
     ],
   )
 
-  // --- 3. Tempo ---
+  // --- 3. Tempo (no painel) ---
+  await goto('/painel', desktop)
+  await waitUntil(`__q('[data-delivery-time]')`)
   await click(`__q('[data-delivery-time]')`, 700)
   await click(`[...__dialog().querySelectorAll('button[aria-pressed]')].find((b) => b.textContent.startsWith('20–35'))`, 900)
   check('Tempo em 1 toque: 20–35 min no botão e no selo', await run(`[__q('[data-delivery-time]').textContent, __badge().includes('Entrega: 20–35 min')]`), ['Tempo: 20–35 min', true])
@@ -307,7 +333,7 @@ try {
   check('Tempo digitado: "1 hora"', await run(`__badge().includes('Entrega: 1 hora')`), true)
 
   // --- 4. Entrega / Frete ---
-  check('faixa: "Entrega / Frete" leva às Configurações da loja', await run(`__q('[data-delivery-settings]')?.getAttribute('href')`), '/vendedor?aba=loja#loja-entrega')
+  check('painel: "Entrega / Frete" leva às Configurações da loja', await run(`__q('[data-delivery-settings]')?.getAttribute('href')`), '/vendedor?aba=loja#loja-entrega')
   await storeAdmin(async () => {
     await click(`__q('input[name="loja-frete"][value="taxas"]')`, 300)
     await click(`__q('[data-add-zone]')`, 200)

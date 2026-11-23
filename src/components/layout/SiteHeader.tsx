@@ -4,6 +4,7 @@ import { StoreHeaderBadge } from '../../features/store-hours/StoreHeaderBadge.ts
 import { useCart } from '../../features/cart/cartStore.ts'
 import { paths } from '../../paths.ts'
 import { useStoreSettings } from '../../features/catalog/catalogStore.ts'
+import { SellerPanelTab } from '../../features/seller/SellerPanelTab.tsx'
 import { Logo } from '../brand/Logo.tsx'
 import { Bag } from '../ui/icons.tsx'
 import { Container } from './Container.tsx'
@@ -44,6 +45,8 @@ export function SiteHeader() {
             {/* A página atual fica marcada por um traço orquídea embaixo do nome. */}
             <span className="border-b-2 border-transparent pb-0.5 group-aria-[current=page]:border-orchid-500">Cardápio</span>
           </NavLink>
+          {/* Só com o Modo Vendedor ligado (2026-11-23): a faixa roxa saiu; tudo mora no painel. */}
+          <SellerPanelTab />
           <NavLink
             to={paths.cart}
             className={`btn-primary relative inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold whitespace-nowrap sm:px-5 ${focusRing}`}

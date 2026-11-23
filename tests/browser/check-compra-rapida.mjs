@@ -241,7 +241,11 @@ try {
   check('Modo Vendedor: a oferta some na hora', await waitFor(`!__q('[data-offer]')`, 3000), true)
   await sleep(8000)
   check('Modo Vendedor: nenhuma oferta e nem o "Ver ofertas" (8 s depois)', await run(`[!!__q('[data-offer]'), [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Ver ofertas')]`), [false, false])
-  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Sair do Modo Vendedor'))`, 800)
+  // "Sair do Modo Vendedor" mora no painel (2026-11-23); depois volta ao cardápio pelo topo.
+  await click(`__q('[data-seller-panel-link]')`, 800)
+  await waitFor(`__q('[data-panel-signout]')`)
+  await click(`__q('[data-panel-signout]')`, 1000)
+  await click(`[...document.querySelectorAll('header a')].find((a) => a.textContent.trim() === 'Cardápio')`, 800)
   check('saiu do Modo Vendedor: as ofertas voltam', await waitFor(`__q('[data-offer]') || [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Ver ofertas')`, 25_000), true)
 
   check('console sem erros', browser.consoleProblems(), [])

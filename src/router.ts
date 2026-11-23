@@ -53,6 +53,12 @@ export const router = createBrowserRouter([
         HydrateFallback: PageLoading,
         lazy: async () => ({ Component: (await import('./pages/SellerAdminPage.tsx')).SellerAdminPage }),
       },
+      {
+        // Painel do Modo Vendedor (2026-11-23): a aba "Painel" do topo, só com o modo ligado.
+        path: routePatterns.panel,
+        HydrateFallback: PageLoading,
+        lazy: async () => ({ Component: (await import('./pages/SellerPanelPage.tsx')).SellerPanelPage }),
+      },
       { path: '*', Component: NotFoundPage },
     ],
   },

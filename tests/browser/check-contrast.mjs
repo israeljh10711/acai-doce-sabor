@@ -34,6 +34,8 @@ const prepare = `
     el.dispatchEvent(new Event('input', { bubbles: true }));
   };
   window.__build = async () => {
+    // O personalizador carrega sob demanda: espera o primeiro campo (até 8 s) antes de clicar.
+    for (let i = 0; i < 80 && !document.querySelector('input[value="pote-200"]'); i++) await __wait(100);
     document.querySelector('input[value="pote-200"]').click();
     await __wait(150);
     document.querySelector('[aria-label="Adicionar Granola"]').click();
@@ -181,13 +183,20 @@ const routes = [
   },
   {
     path: '/monte-seu-pedido',
-    label: 'modo vendedor: faixa, Disponível / Esgotado e Duplicar',
+    label: 'modo vendedor: aba Painel, Disponível / Esgotado e Duplicar',
     before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); ${soldOut({ products: ['jujuba'] })} true`,
   },
   {
     path: '/monte-seu-pedido/acai-tradicional',
     label: 'modo vendedor: complementos com Disponível / Esgotado',
     before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); ${soldOut({ options: ['granola'] })} true`,
+  },
+  // Painel do Modo Vendedor (2026-11-23): os três blocos.
+  {
+    path: '/painel',
+    label: 'painel do vendedor: Operação, Loja e cardápio, Segurança e sessão',
+    before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
+    setup: `__wait(600)`,
   },
   // Painel do vendedor (cardápio dinâmico, 2026-11-21).
   {
@@ -233,8 +242,8 @@ const routes = [
     setup: `(async () => { await __wait(600); document.querySelector('input[name="loja-frete"][value="taxas"]').click(); await __wait(300); document.querySelector('[data-add-zone]').click(); await __wait(300); [...document.querySelectorAll('label')].find((l) => l.textContent.includes('Mesmo horário todos os dias')).querySelector('input').click(); await __wait(400) })()`,
   },
   {
-    path: '/',
-    label: 'modo vendedor: Tempo',
+    path: '/painel',
+    label: 'painel do vendedor: Tempo de entrega',
     before: `localStorage.setItem('acai_doce_sabor_seller_session_v1', '1'); true`,
     setup: `(async () => { document.querySelector('[data-delivery-time]').click(); await __wait(600) })()`,
   },

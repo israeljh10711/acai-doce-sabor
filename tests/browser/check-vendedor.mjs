@@ -98,6 +98,12 @@ const choosePhoto = async () => {
   await browser.send('DOM.setFileInputFiles', { nodeId: nodeIds.at(-1), files: [PHOTO] })
   await waitFor(`__dialog().querySelector('[data-photo-pick]')?.textContent.includes('Trocar foto') && !__dialog().querySelector('[data-photo-picker]').textContent.includes('Enviando')`)
 }
+/** "Backup / Restaurar" mora no painel (/painel), bloco "Segurança e sessão" (2026-11-23). */
+const openBackup = async (viewport) => {
+  await goto('/painel', viewport)
+  await waitFor(`__q('[data-panel-backup]')`, 10000)
+  await click(`__q('[data-panel-backup]')`, 900)
+}
 const login = async (password) => {
   await waitFor("__q('#senha-vendedor')", 8000)
   await run(`__type('#senha-vendedor', ${JSON.stringify(password)})`)
@@ -111,19 +117,50 @@ try {
   // --- Acesso ---
   await goto('/monte-seu-pedido', desktop, true)
   check('sem o modo vendedor: nenhum "Editar" nem "+ Adicionar"', await run(`[__all('[data-seller-edit]').length, __all('[data-seller-add]').length, !!__q('[data-seller-bar]')]`), [0, 0, false])
+  check('visão do cliente: o topo mostra só "Cardápio" e "Carrinho", sem aba de vendedor', await run(`[[...__q('nav[aria-label="Navegação principal"]').querySelectorAll('a')].map((a) => a.textContent.trim()), !!__q('[data-seller-panel-link]')]`), [['Cardápio', 'Carrinho'], false])
   check('"Senha para vendedor" no rodapé da barra lateral', await run(`__q('nav[aria-label="Categorias do cardápio"]').parentElement.querySelector('[data-seller-access]')?.textContent.trim()`), 'Senha para vendedor')
   await click(`__q('[data-seller-access]')`, 900)
   await login('1111')
   check('senha errada: aviso e modo desligado', await run(`[__q('#senha-vendedor-erro')?.textContent, !!__q('[data-seller-bar]')]`), ['Senha incorreta. Tente novamente.', false])
   await login(PASSWORD)
   await waitFor("__q('[data-seller-bar]')", 10000)
-  check('senha certa: faixa, selo e ferramentas', await run(`[!!__dialog(), __q('[data-seller-bar]')?.textContent.includes('Salvo só neste aparelho'), __q('[data-seller-active]')?.textContent.trim(), __all('[data-seller-add]').length > 0, __all('[data-seller-edit]').length > 40]`), [
+  check('senha certa: aba "Painel" ao lado de Cardápio e Carrinho, sem a faixa roxa, selo e ferramentas', await run(`[!!__dialog(), [...__q('nav[aria-label="Navegação principal"]').querySelectorAll('a')].map((a) => a.textContent.trim()), !/Alterar senha|Backup|Sair do Modo|Pedidos|Tempo:/.test(__q('[data-seller-bar]').textContent), __q('[data-seller-active]')?.textContent.trim(), __all('[data-seller-add]').length > 0, __all('[data-seller-edit]').length > 40]`), [
     false,
+    ['Cardápio', 'Painel', 'Carrinho'],
     true,
     'Modo Vendedor Ativo',
     true,
     true,
   ])
+
+  // --- Aba "Painel" (2026-11-23): a área dedicada, em três blocos ---
+  await click(`__q('[data-seller-panel-link]')`, 900)
+  await waitFor(`__q('[data-panel-block]')`, 10000)
+  check('aba "Painel" abre /painel, com a aba marcada como atual', await run(`[location.pathname, __q('[data-seller-panel-link]')?.getAttribute('aria-current')]`), ['/painel', 'page'])
+  check('painel: três blocos, na ordem Operação, Loja e cardápio, Segurança e sessão', await run(`__all('[data-panel-block]').map((b) => b.querySelector('h2').textContent)`), ['Operação', 'Loja e cardápio', 'Segurança e sessão'])
+  check(
+    'painel, Operação: Pedidos, Loja Aberta/Fechada e Tempo de entrega',
+    await run(`(() => { const b = __q('[data-panel-block="operacao"]'); return [!!b.querySelector('[data-orders-link]'), !!b.querySelector('[data-store-switch]'), b.querySelector('[data-delivery-time]')?.textContent.trim().startsWith('Tempo:')] })()`),
+    [true, true, true],
+  )
+  check(
+    'painel, Loja e cardápio: Cardápio, cardápio da loja, Entrega / Frete e Horários e Contato',
+    await run(`(() => { const b = __q('[data-panel-block="loja"]'); const href = (s) => b.querySelector(s)?.getAttribute('href'); return [href('[data-admin-link]'), href('[data-panel-menu-link]'), href('[data-delivery-settings]'), href('[data-hours-contact]')] })()`),
+    ['/vendedor', '/monte-seu-pedido', '/vendedor?aba=loja#loja-entrega', '/vendedor?aba=loja#loja-horario'],
+  )
+  check(
+    'painel, Segurança e sessão: Alterar senha, Backup / Restaurar e Sair do Modo Vendedor',
+    await run(`(() => { const b = __q('[data-panel-block="sessao"]'); return [b.querySelector('[data-panel-password]')?.textContent.includes('Alterar senha'), b.querySelector('[data-panel-backup]')?.textContent.includes('Backup / Restaurar'), b.querySelector('[data-panel-signout]')?.textContent.trim()] })()`),
+    [true, true, 'Sair do Modo Vendedor'],
+  )
+  check('painel: diz onde as mudanças ficam salvas', await run(`__q('[data-panel-active]')?.textContent.includes('Salvo só neste aparelho')`), true)
+  await click(`__q('[data-panel-password]')`, 600)
+  check('painel: "Alterar senha" abre a janela', await run(`__dialog()?.querySelector('h2, [id]')?.textContent.includes('Alterar senha') ?? false`), true)
+  await run(`__dialog()?.close(); true`)
+  // O cardápio da loja (pelo painel) continua com os botões rápidos de editar e esgotar.
+  await click(`__q('[data-panel-menu-link]')`, 900)
+  await waitFor(`__all('[data-seller-edit]').length > 40`, 10000)
+  check('painel → cardápio da loja: botões "Editar" e "Disponível / Esgotado" nos itens', await run(`[location.pathname, __all('[data-seller-edit]').length > 40, __all('[data-seller-stock]').length > 40]`), ['/monte-seu-pedido', true, true])
 
   // --- "+ Adicionar produto" com foto ---
   await click(`__q('[data-section="picoles-e-sorvetes"] [data-seller-add]')`, 300)
@@ -209,7 +246,7 @@ try {
   // --- Backup v2 com o cardápio, restaurado num aparelho limpo ---
   await goto('/monte-seu-pedido', desktop)
   await waitFor(`__q('[data-seller-bar]')`, 10000)
-  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Backup'))`, 900)
+  await openBackup(desktop)
   const backup = await run(`(async () => { const button = [...__dialog().querySelectorAll('button')].find((b) => b.textContent.includes('Baixar')); const original = URL.createObjectURL; let blob = null; URL.createObjectURL = (b) => { blob = b; return original.call(URL, b) }; button.click(); await new Promise((r) => setTimeout(r, 1500)); URL.createObjectURL = original; return blob ? await blob.text() : null })()`)
   const parsed = backup ? JSON.parse(backup) : null
   check('backup v2 com o cardápio e a foto do produto novo', [parsed?.v, !!parsed?.catalog?.products?.some((p) => p.id === 'picole-trufado-especial'), Object.keys(parsed?.photos ?? {}).length > 0], [2, true, true])
@@ -219,7 +256,7 @@ try {
   await click(`__q('[data-seller-access]')`, 900)
   await login(PASSWORD)
   await waitFor(`__q('[data-seller-bar]')`, 10000)
-  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Backup'))`, 900)
+  await openBackup(desktop)
   const { root } = await browser.send('DOM.getDocument', { depth: -1, pierce: true })
   const restoreFile = join(outDir, 'backup.json').replaceAll('\\', '/')
   const { writeFileSync } = await import('node:fs')
@@ -228,12 +265,16 @@ try {
   await browser.send('DOM.setFileInputFiles', { nodeId: nodeIds.at(-1), files: [restoreFile] })
   await sleep(2000)
   await run(`__dialog()?.close(); true`)
+  await goto('/monte-seu-pedido', desktop)
   check('backup restaurado: o produto novo volta, com a foto', await waitFor(`__item('picole-trufado-especial') && [...__item('picole-trufado-especial').querySelectorAll('img')].some((img) => img.src.startsWith('blob:'))`), true)
   check('backup restaurado: o preço editado volta', await run(`__item('sundae').textContent.includes('R$ 9,50')`), true)
 
   // --- Sair ---
-  await waitFor(`__q('[data-seller-bar]')`, 10000)
-  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Sair do Modo Vendedor'))`, 800)
+  await goto('/painel', desktop)
+  await waitFor(`__q('[data-panel-signout]')`, 10000)
+  await click(`__q('[data-panel-signout]')`, 800)
+  check('"Sair do Modo Vendedor" (no painel): o painel volta a pedir a senha, sem aba de vendedor', await run(`[!!__q('[data-panel-login]'), !!__q('[data-seller-panel-link]')]`), [true, false])
+  await goto('/monte-seu-pedido', desktop)
   check('"Sair do Modo Vendedor": sem faixa, sem ferramentas', await run(`[!!__q('[data-seller-bar]'), __all('[data-seller-edit]').length, !!__q('[data-seller-access]')]`), [false, 0, true])
 
   // --- Celular: o acesso no menu Categorias ---

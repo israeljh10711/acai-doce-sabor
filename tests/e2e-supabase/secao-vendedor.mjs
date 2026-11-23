@@ -22,9 +22,9 @@ export default async function vendedor({ secrets, db, site, seller, state, recor
   await seller.run(`__q('#senha-vendedor').form.requestSubmit(); true`)
   const logged = await seller.waitFor(`__q('[data-seller-bar]')`, 15000)
   ok(
-    'senha certa: Modo Vendedor ligado, "Salvo na nuvem", token 200 e sellers 200',
+    'senha certa: Modo Vendedor ligado (aba "Painel" no topo), token 200 e sellers 200',
     logged &&
-      (await seller.run(`__text(__q('[data-seller-bar]')).includes('Salvo na nuvem')`)) &&
+      (await seller.run(`!!__q('[data-seller-panel-link]')`)) &&
       seller.calls(since, '/auth/v1/token').some((call) => call.status === 200) &&
       seller.calls(since, '/rest/v1/sellers').some((call) => call.status === 200),
   )
@@ -45,7 +45,9 @@ export default async function vendedor({ secrets, db, site, seller, state, recor
   await seller.click(`[...__all('nav[aria-label="Seções do painel"] a')].find((a) => a.textContent.trim() === 'Pedidos')`, 800)
   ok('aba "Pedidos" abre o painel de pedidos (/pedidos)', await seller.waitFor(`location.pathname === '/pedidos' && (__q('[data-order-card]') || __q('[data-orders-search]') || __q('[data-orders-notice]'))`))
   await seller.goto(`${site.url}/monte-seu-pedido`)
-  ok('atalho da faixa "🗂️ Cardápio" leva ao painel', (await seller.run(`__q('[data-admin-link]')?.getAttribute('href')`)) === '/vendedor')
+  await seller.click(`__q('[data-seller-panel-link]')`, 800)
+  await seller.waitFor(`__q('[data-panel-block]')`)
+  ok('aba "Painel" abre /painel com os 3 blocos, "Salvo na nuvem" e o "Cardápio" que leva ao gerenciador', (await seller.run(`[location.pathname, __all('[data-panel-block]').length, __q('[data-admin-link]')?.getAttribute('href'), __q('[data-panel-active]')?.textContent.includes('Salvo na nuvem')].join()`)) === '/painel,3,/vendedor,true')
 
   // --- Categorias ---
   const id = 'e2e-acai-test-sorvetes'

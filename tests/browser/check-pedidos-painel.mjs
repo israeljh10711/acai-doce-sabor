@@ -210,14 +210,16 @@ try {
   await click(`__q('[data-orders-login]')`, 600)
   await run(`(() => { const el = __q('#senha-vendedor'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${q(SELLER_PASSWORD)}); el.dispatchEvent(new Event('input', { bubbles: true })); el.form.requestSubmit(); return true })()`)
   check('login: o painel carrega os pedidos', await waitFor(`document.querySelectorAll('[data-order-card]').length >= 6`), true)
-  await waitFor(`__q('[data-orders-link]')`)
+  await waitFor(`__q('[data-seller-panel-link]')`)
   check('ao vivo: conectado ao Realtime', await waitFor(`__q('[data-orders-live]')?.dataset.ordersLive === 'live'`), true)
   // A do cardápio (catalog_meta, 2026-11-21) é pública e fica fora da conta.
   check('uma inscrição só (faixa e página dividem), com o token do vendedor', [fake.realtime.sellerSubscriptions(), fake.realtime.ordersSubscriptions().every((sub) => sub.token === SELLER_TOKEN)], [1, true])
+  // A aba aparece antes dos pedidos chegarem; o selo vem junto com a contagem.
+  await waitFor(`__q('[data-orders-badge]')?.dataset.ordersBadge === '5'`)
   check(
-    '"📋 Pedidos" na faixa com o selo vermelho dos novos',
-    await run(`[__text(__q('[data-orders-link]')), __q('[data-orders-link]').getAttribute('aria-label'), __q('[data-orders-badge]')?.dataset.ordersBadge, getComputedStyle(__q('[data-orders-badge] span:last-child')).backgroundColor]`),
-    ['📋 Pedidos (5)', 'Pedidos (5 novos)', '5', 'oklch(0.577 0.245 27.325)'],
+    'aba "Painel" no topo com o selo vermelho dos novos',
+    await run(`[__text(__q('[data-seller-panel-link]')), __q('[data-seller-panel-link]').getAttribute('aria-label'), __q('[data-orders-badge]')?.dataset.ordersBadge, getComputedStyle(__q('[data-orders-badge]')).backgroundColor]`),
+    ['Painel 5', 'Painel do vendedor, Modo Vendedor ativo (5 pedidos novos)', '5', 'oklch(0.577 0.245 27.325)'],
   )
 
   // --- Lista e cartões ---
@@ -492,7 +494,10 @@ try {
   )
 
   // --- Sair do Modo Vendedor: a inscrição sai ---
-  await click(`[...document.querySelectorAll('[data-seller-bar] button')].find((b) => b.textContent.includes('Sair do Modo Vendedor'))`, 1000)
+  // "Sair do Modo Vendedor" mora no painel (2026-11-23).
+  await click(`__q('[data-seller-panel-link]')`, 800)
+  await waitFor(`__q('[data-panel-signout]')`)
+  await click(`__q('[data-panel-signout]')`, 1000)
   const left = await (async () => {
     for (let waited = 0; waited < 5000; waited += 100) {
       if (fake.realtime.sellerSubscriptions() === 0) return true

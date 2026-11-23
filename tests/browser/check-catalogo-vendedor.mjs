@@ -129,7 +129,9 @@ try {
   await click(`__q('[data-seller-access]')`, 800)
   await run(`(() => { const el = __q('#senha-vendedor'); __set(el, 'vendedor2026'); el.form.requestSubmit(); return true })()`)
   check('Modo Vendedor ligado', await waitFor(`__q('[data-seller-bar]')`), true)
-  check('faixa do vendedor leva ao painel', await run(`__q('[data-admin-link]')?.getAttribute('href')`), '/vendedor')
+  await click(`__q('[data-seller-panel-link]')`, 800)
+  await waitFor(`__q('[data-admin-link]')`)
+  check('aba "Painel" leva ao painel, e o "Cardápio" dele ao gerenciador', await run(`[location.pathname, __q('[data-admin-link]')?.getAttribute('href')]`), ['/painel', '/vendedor'])
 
   await admin()
   check('abas do painel', await run(`[__q('nav[aria-label="Seções do painel"] a')?.textContent, ...__all('[data-admin-tab]').map((a) => a.textContent)]`), [

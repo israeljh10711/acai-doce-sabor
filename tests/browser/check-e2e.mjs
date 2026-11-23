@@ -176,14 +176,16 @@ try {
     await page('/monte-seu-pedido', viewport)
 
     // --- Vitrine: os 4 carros-chefes com as fotos enviadas pela loja ---
-    const mains = await run(`(async () => Promise.all(['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake'].map(async (id) => {
+    // Um cartão de cada vez (2026-11-23): as fotos carregam ao aparecer; rolar para os 4 de uma vez deixava
+    // as três primeiras fora da tela e o decode() nunca terminava.
+    const mains = await run(`(async () => { const out = []; for (const id of ['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake']) out.push(await (async () => {
       const card = document.getElementById({ 'acai-oca': 'secao-acai-oca', 'acai-tradicional': 'secao-acai-tradicional', 'acai-batido': 'secao-acai-batido', 'milk-shake': 'secao-milkshake' }[id]);
       const img = card?.querySelector('[data-product-photo]');
       if (!img) return [id, null];
       img.scrollIntoView({ block: 'center' });
       await img.decode().catch(() => null);
       return [id, img.dataset.productPhoto, img.naturalWidth > 0, getComputedStyle(img).objectFit, new URL(img.currentSrc).pathname.split('/').slice(-2, -1)[0]];
-    })))()`)
+    })()); return out })()`)
     check(`${at} vitrine: os 4 carros-chefes com a foto da loja, inteira`, mains, [
       ['acai-oca', 'acai-oca', true, 'contain', 'produtos'],
       ['acai-tradicional', 'acai-tradicional', true, 'contain', 'produtos'],

@@ -128,6 +128,27 @@ try {
     await page('/monte-seu-pedido', viewport)
     check(`${at} busca com o texto pedido`, await browser.evaluate(`__q('#busca-cardapio').placeholder`), 'Buscar açaí, barca, picolé, combo, refri, trufa...')
     check(`${at} busca acima da faixa de destaques`, await browser.evaluate(`__q('#busca-cardapio').getBoundingClientRect().top < __q('[data-highlights]').getBoundingClientRect().top`), true)
+    // Faixa "Mais pedidos" (2026-11-23): os 4 carros-chefes na frente, depois os 5 itens que já estavam.
+    check(
+      `${at} faixa "Mais pedidos": Açaí Oca, Tradicional, Batido e Milk-shake primeiro, com preço e "Personalizar"`,
+      await browser.evaluate(`(() => { const cards = [...document.querySelectorAll('[data-highlights] [data-highlight-main]')]; return cards.map((c) => [c.dataset.highlightMain, c.querySelector('a')?.getAttribute('href'), c.querySelector('a')?.textContent.trim(), /a partir de\\s*R\\$\\s?\\d+,\\d{2}/.test(c.textContent)]) })()`),
+      [
+        ['acai-oca', '/monte-seu-pedido/acai-oca', 'Personalizar', true],
+        ['acai-tradicional', '/monte-seu-pedido/acai-tradicional', 'Personalizar', true],
+        ['acai-batido', '/monte-seu-pedido/acai-batido', 'Personalizar', true],
+        ['milk-shake', '/monte-seu-pedido/milk-shake', 'Personalizar', true],
+      ],
+    )
+    check(
+      `${at} faixa "Mais pedidos": os carros-chefes vêm antes dos potes, da barca e dos combos`,
+      await browser.evaluate(`(() => { const all = [...document.querySelectorAll('[data-highlight-main], [data-highlight]')].map((el) => el.dataset.highlightMain ?? el.dataset.highlight); return all })()`),
+      ['acai-oca', 'acai-tradicional', 'acai-batido', 'milk-shake', 'pote-de-acai-1-litro', 'barca-de-acai', 'kit-completo-casquinha', 'combo-1-litro', 'pote-de-acai-2-litros'],
+    )
+    check(
+      `${at} os carros-chefes continuam também nos cartões de cada categoria, abaixo da faixa`,
+      await browser.evaluate(`['secao-acai-oca', 'secao-acai-tradicional', 'secao-acai-batido', 'secao-milkshake'].every((id) => { const el = document.getElementById(id); return !!el && el.getBoundingClientRect().top > __q('[data-highlights]').getBoundingClientRect().bottom })`),
+      true,
+    )
     check(`${at} as 9 seções na navegação, na ordem pedida`, await browser.evaluate(`__navLinks().map((a) => a.dataset.nav ?? a.dataset.target)`), ANCHORS)
     check(`${at} "Catálogo completo"`, await browser.evaluate(`__q('#catalogo-completo-titulo')?.textContent`), 'Catálogo completo')
     check(`${at} 5 seções, na ordem`, await browser.evaluate(`__drawers()`), DRAWER_IDS)

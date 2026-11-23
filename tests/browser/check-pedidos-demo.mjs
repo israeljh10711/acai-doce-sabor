@@ -130,7 +130,10 @@ try {
   await waitFor(`__q('[data-seller-access]')`)
   await click(`__q('[data-seller-access]')`, 800)
   await run(`(() => { const el = __q('#senha-vendedor'); __set(el, 'vendedor2026'); el.form.requestSubmit(); return true })()`)
-  check('senha vendedor2026: Modo Vendedor ligado, "📋 Pedidos" com o selo (1)', [await waitFor(`__q('[data-orders-badge]')`), await run(`__q('[data-orders-badge]')?.dataset.ordersBadge`)], [true, '1'])
+  check('senha vendedor2026: Modo Vendedor ligado, aba "Painel" com o selo (1)', [await waitFor(`__q('[data-orders-badge]')`), await run(`__q('[data-orders-badge]')?.dataset.ordersBadge`)], [true, '1'])
+  // "Pedidos" mora no painel (2026-11-23): aba "Painel" → "Pedidos".
+  await click(`__q('[data-seller-panel-link]')`, 800)
+  await waitFor(`__q('[data-orders-link]')`)
   await click(`__q('[data-orders-link]')`, 800)
   await run(`__fakeAudio()`)
   await waitFor(`__q('[data-order-card]')`)
