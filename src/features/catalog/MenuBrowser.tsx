@@ -19,7 +19,7 @@ import { CategoryNav } from './CategoryNav.tsx'
 import { type ChoiceDraft, EMPTY_DRAFT, draftChoices } from './choiceDraft.ts'
 import { ExtraOptionsDialog } from './ExtraOptionsDialog.tsx'
 import { DRAWERS, type DrawerId, EXTRA_ITEMS, type ExtraItem, choiceGroupsOf, normalizeChoices } from './extras.ts'
-import { highlightItems } from './highlights.ts'
+import { highlightItems, highlightProducts } from './highlights.ts'
 import { ExtraVisual } from './ItemVisual.tsx'
 import { MenuShowcase } from './MenuShowcase.tsx'
 import { MobileCategoryDrawer } from './MobileCategoryDrawer.tsx'
@@ -246,6 +246,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
     return items ? [{ drawer, items, open: isOpen(drawer.id), instant: instantIds.has(drawer.id) }] : []
   })
   const highlights = highlightItems(result)
+  const flagships = highlightProducts(result)
   const nothingFound = searching && result.total === 0
   const Wrapper = labelledBy ? 'section' : 'div'
 
@@ -304,7 +305,7 @@ export function MenuBrowser({ headingLevel, intro, sectionId, labelledBy, classN
                   </div>
                 ) : (
                   <>
-                    <TopHighlightsStrip items={highlights} level={headingLevel} onChoose={choose} />
+                    <TopHighlightsStrip products={flagships} items={highlights} level={headingLevel} onChoose={choose} />
                     {result.main.length > 0 && (
                       <MenuShowcase headingLevel={`h${headingLevel}`} visible={searching ? result.main : undefined} />
                     )}
