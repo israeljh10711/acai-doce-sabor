@@ -69,7 +69,7 @@ function Hero() {
   return (
     <section
       aria-labelledby="inicio-titulo"
-      className="relative overflow-hidden bg-brand text-white"
+      className="hero-acai relative overflow-hidden text-white"
     >
       <Container className="grid items-center gap-10 pt-8 pb-14 sm:pt-12 lg:grid-cols-[1.05fr_1fr] lg:gap-6 lg:pt-14 lg:pb-20">
         <div className="relative z-10 flex flex-col items-start">
@@ -117,25 +117,16 @@ function Hero() {
 
 function HeroPhoto() {
   return (
-    <picture className="mx-auto block w-full max-w-[34rem] overflow-hidden rounded-3xl shadow-2xl">
-      <source
-        media="(min-width: 64rem)"
-        srcSet="/images/campanha/mesa-de-acai-640.webp 640w, /images/campanha/mesa-de-acai-1080.webp 1080w"
-        sizes="(min-width: 72rem) 33rem, 46vw"
-        width={1080}
-        height={1080}
-      />
-      <img
-        src="/images/campanha/primeira-colherada-600.webp"
-        srcSet="/images/campanha/primeira-colherada-600.webp 600w, /images/campanha/primeira-colherada-1080.webp 1080w"
-        sizes="(min-width: 36rem) 34rem, calc(100vw - 2rem)"
-        width={600}
-        height={400}
-        fetchPriority="high"
-        alt="Imagem de campanha com Açaí Oca em camadas, morangos e crocantes, uma tigela de açaí com banana e confeitos e um milk-shake de chocolate."
-        className="block h-auto w-full"
-      />
-    </picture>
+    <img
+      src="/images/campanha/acai-e-milkshake-600.webp"
+      srcSet="/images/campanha/acai-e-milkshake-600.webp 600w, /images/campanha/acai-e-milkshake-1080.webp 1080w"
+      sizes="(min-width: 72rem) 33rem, (min-width: 64rem) 46vw, (min-width: 36rem) 34rem, calc(100vw - 2rem)"
+      width={600}
+      height={480}
+      fetchPriority="high"
+      alt="Pote de Açaí Oca com morango e crocantes, tigela de açaí com banana e confeitos e milk-shake de chocolate com calda."
+      className="mx-auto block h-auto w-full max-w-[34rem] drop-shadow-[0_1rem_1rem_rgb(24_5_19/0.4)]"
+    />
   )
 }
 

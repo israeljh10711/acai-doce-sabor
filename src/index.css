@@ -144,6 +144,22 @@ body {
   );
 }
 
+.hero-acai {
+  --luz-fruta: 55% 85%;
+  --luz-cacau: 86% 93%;
+  background:
+    radial-gradient(ellipse 42% 30% at var(--luz-cacau), rgb(193 101 61 / 40%), transparent 100%),
+    radial-gradient(ellipse 62% 52% at var(--luz-fruta), #87385a, transparent 100%),
+    linear-gradient(140deg, #281028, #371431 60%, #361225);
+}
+
+@media (min-width: 64rem) {
+  .hero-acai {
+    --luz-fruta: 75% 34%;
+    --luz-cacau: 86% 65%;
+  }
+}
+
 /*
  * Botão principal (redesenho de 2026-11-22): pílula orquídea com texto branco (5,39:1) e sombra
  * discreta; escurece ao passar o ponteiro e encolhe um pouco ao apertar. Um por área.

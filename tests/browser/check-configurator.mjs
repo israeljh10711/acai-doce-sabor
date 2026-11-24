@@ -134,17 +134,22 @@ try {
     await browser.evaluate(`localStorage.clear(); true`)
 
     const campaign = await browser.evaluate(`(async () => {
-      const img = document.querySelector('section[aria-labelledby="inicio-titulo"] picture img[fetchpriority="high"]')
+      const img = document.querySelector('section[aria-labelledby="inicio-titulo"] img[fetchpriority="high"]')
       await img.decode()
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 32
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, 32, 32)
       return {
         file: new URL(img.currentSrc).pathname,
         ratio: img.naturalWidth / img.naturalHeight,
         displayedRatio: img.clientWidth / img.clientHeight,
+        cornerAlpha: ctx.getImageData(0, 0, 1, 1).data[3],
       }
     })()`)
-    check(`${at} início: foto de campanha para esta tela`, campaign.file.startsWith(
-      desktop ? '/images/campanha/mesa-de-acai-' : '/images/campanha/primeira-colherada-',
-    ), true)
+    check(`${at} início: açaís e milk-shake com fundo transparente`, [
+      campaign.file.startsWith('/images/campanha/acai-e-milkshake-'), campaign.cornerAlpha,
+    ], [true, 0])
     check(`${at} início: composição inteira, sem distorção`, Math.abs(campaign.displayedRatio - campaign.ratio) < 0.01, true)
 
     // --- Açaí Tradicional: ordem livre ---
