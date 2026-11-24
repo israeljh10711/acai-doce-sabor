@@ -168,7 +168,7 @@ function ToggleCard({ topping, cfg, hintId }: { topping: Topping; cfg: Configura
 
   return (
     <div
-      className={`${cardBase} has-[>button:active:enabled]:scale-[0.98] ${blocked ? 'opacity-55' : 'hover:border-acai-600/40'} ${
+      className={`${cardBase} has-[>button:active:enabled]:scale-[0.98] ${blocked ? 'border-dashed' : 'hover:border-acai-600/40'} ${
         on ? 'border-orchid-400 bg-orchid-100' : 'border-line'
       }`}
     >
