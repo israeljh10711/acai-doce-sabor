@@ -15,16 +15,11 @@ export function serverNow(): number {
   return Date.now() + offsetMs
 }
 
-/**
- * Hora do servidor a partir dos cabeçalhos da resposta. `Age` é o tempo que a resposta
- * passou guardada num cache intermediário: soma-se a ele para não ficar atrasado.
- */
-export function serverTimeFromHeaders(date: string | null, age: string | null): number | null {
+/** A Vercel envia a hora atual em Date, inclusive em cache HIT. Age é a idade do arquivo. */
+export function serverTimeFromDateHeader(date: string | null): number | null {
   if (!date) return null
   const parsed = Date.parse(date)
-  if (Number.isNaN(parsed)) return null
-  const ageSeconds = Number(age)
-  return parsed + (Number.isFinite(ageSeconds) && ageSeconds > 0 ? ageSeconds * 1000 : 0)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 /**
@@ -45,7 +40,7 @@ export function syncServerClock(fetchImpl: typeof fetch = fetch): Promise<boolea
       const sentAt = Date.now()
       const response = await fetchImpl(import.meta.env.BASE_URL, { method: 'HEAD', cache: 'no-store' })
       const receivedAt = Date.now()
-      const serverMs = serverTimeFromHeaders(response.headers.get('date'), response.headers.get('age'))
+      const serverMs = serverTimeFromDateHeader(response.headers.get('date'))
       if (serverMs === null) return false
       offsetMs = clockOffset(serverMs, sentAt, receivedAt)
       lastSync = receivedAt

@@ -171,7 +171,7 @@ function Board() {
               </span>
             )}
             {liveText(snapshot)}
-            {updatedText && <span className="text-white/75"> Atualizado às {updatedText}.</span>}
+            {updatedText && <span className="text-white/75"> Atualizado às {updatedText} (horário de Brasília).</span>}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" data-orders-refresh="" onClick={() => void getOrdersLive().refresh()} className={`${toolButton} text-white ring-white/30 hover:bg-white/10`}>

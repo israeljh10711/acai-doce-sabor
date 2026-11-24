@@ -118,7 +118,7 @@ process.env.VITE_SELLER_EMAIL = 'vendedor@teste.local'
 const site = await createServer({
   configFile: join(process.cwd(), 'vite.config.ts'),
   cacheDir: join(tmpdir(), 'acai-doce-sabor-vite-painel'),
-  server: { port: PORT, host: '127.0.0.1', strictPort: true },
+  server: { port: PORT, host: '127.0.0.1', strictPort: true, headers: { Age: '7390' } },
   logLevel: 'error',
 })
 await site.listen()
@@ -169,6 +169,7 @@ const WAKE_LOCK_FAKE = `(() => {
   Object.defineProperty(navigator, 'wakeLock', { value: api, configurable: true });
 })()`
 const browser = await openBrowser(join(outDir, 'edge-profile'), 9379)
+await browser.send('Emulation.setTimezoneOverride', { timezoneId: 'Asia/Tokyo' })
 // Tela acesa (2026-11-21): o Wake Lock de mentira vale em todas as páginas abertas daqui em diante.
 await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: WAKE_LOCK_FAKE })
 const run = async (expression) => {
@@ -229,6 +230,9 @@ try {
     ['true', ['ADS-0099', codes.gps, codes.retirada, codes.local, codes.semGps, codes.completo]],
   )
   check('tela acesa: o painel pediu o Wake Lock uma vez e está segurando', await run(`[window.__wake.requests >= 1, window.__wake.held]`), [true, 1])
+  const firstOrder = fake.db.orders.find(order => order.code === codes.gps)
+  const brasiliaClock = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  check('aparelho em Tóquio mostra a hora de Brasília no cartão', await run(`__text(__card('${codes.gps}').querySelector('[data-order-time]'))`), brasiliaClock.format(new Date(firstOrder.created_at)))
   check(
     'cada pedido em andamento mostra há quanto tempo entrou',
     await run(`__codes().map((code) => /^Há (menos de 1|\\d+) min$/.test(__text(__card(code).querySelector('[data-order-elapsed]')) ?? ''))`),

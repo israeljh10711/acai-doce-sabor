@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { HOURS_TEXT, atText, brasiliaTime, effectiveStatus, hoursText, overrideFor, storeStatusAt } from './hours.ts'
 import { DEFAULT_STORE_SETTINGS, type StoreSettings } from '../store/storeSettings.ts'
-import { clockOffset, serverTimeFromHeaders } from './serverClock.ts'
+import { clockOffset, serverNow, serverTimeFromDateHeader, syncServerClock } from './serverClock.ts'
+import { elapsedText } from '../orders/ordersPanel.ts'
 
 /** Instante a partir da hora de Brasília (UTC-3, sem horário de verão desde 2019). */
 const brt = (date: string, time: string) => Date.parse(`${date}T${time}-03:00`)
@@ -63,12 +64,25 @@ describe('selo de funcionamento (13h às 21h, todos os dias)', () => {
 })
 
 describe('relógio do servidor', () => {
-  it('lê a hora do cabeçalho Date e soma o tempo em cache (Age)', () => {
+  it('lê a data da resposta e rejeita uma data ausente ou inválida', () => {
     const date = 'Thu, 12 Nov 2026 19:00:00 GMT'
-    expect(serverTimeFromHeaders(date, null)).toBe(Date.parse(date))
-    expect(serverTimeFromHeaders(date, '30')).toBe(Date.parse(date) + 30_000)
-    expect(serverTimeFromHeaders(null, null)).toBeNull()
-    expect(serverTimeFromHeaders('não é data', null)).toBeNull()
+    expect(serverTimeFromDateHeader(date)).toBe(Date.parse(date))
+    expect(serverTimeFromDateHeader(null)).toBeNull()
+    expect(serverTimeFromDateHeader('não é data')).toBeNull()
+  })
+
+  it('um pedido das 13h30 mostra 3 min às 13h33 de Brasília, mesmo com HTML em cache na Vercel', async () => {
+    const now = Date.parse('2026-11-24T16:33:43Z')
+    const device = vi.spyOn(Date, 'now').mockReturnValue(now + 5 * 3_600_000)
+    try {
+      const headers = { Date: new Date(now).toUTCString(), Age: '7390' }
+      expect(await syncServerClock(async () => new Response(null, { headers }))).toBe(true)
+      expect(brasiliaTime(serverNow()).minutes).toBe(13 * 60 + 33)
+      expect(elapsedText(Date.parse('2026-11-24T16:30:43Z'), serverNow())).toBe('Há 3 min')
+    } finally {
+      device.mockRestore()
+      await syncServerClock(async () => new Response(null, { headers: { Date: new Date().toUTCString() } }))
+    }
   })
 
   it('corrige um aparelho com o relógio 5 horas atrasado', () => {
