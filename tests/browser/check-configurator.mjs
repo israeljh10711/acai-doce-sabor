@@ -163,6 +163,18 @@ try {
       check(`${at} volta para ${name} na vitrine`, await browser.evaluate(`document.activeElement === ${hotspot}`), true)
     }
 
+    // A vitrine só gira quando aparece na tela; reproduzimos a visita de quem rolou até ela.
+    await browser.evaluate(`${showcase}.scrollIntoView({block:'center',behavior:'instant'})`)
+    await click("__button('Iniciar giro')")
+    const activeSlide = `${showcase}.querySelector('img[data-sequence="true"]:last-of-type')`
+    for (const id of ['oca', 'milkshake', 'tradicional', 'oca']) {
+      await waitFor(`${activeSlide}?.dataset.item === '${id}'`, `giro automático: ${id}`)
+    }
+    await click("__button('Pausar giro')")
+    await sleep(5200)
+    check(`${at} pausa mantém o produto visível`, await browser.evaluate(`${activeSlide}?.dataset.item`), 'oca')
+    await click("__button('Ver os três')")
+
     // --- Açaí Tradicional: ordem livre ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)
     check(`${at} foto fixa e real do produto`, await browser.evaluate(`__photo()`), 'acai-tradicional')

@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
+import { AnimatePresence, m, useInView } from 'motion/react'
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import { TiltStage } from '../../components/ui/TiltStage.tsx'
 import { ArrowLeft, Rotate } from '../../components/ui/icons.tsx'
 
@@ -26,6 +27,9 @@ const products = [
 
 type Product = typeof products[number]
 
+const DISPLAY_MS = 5000
+const motionPreference = '(prefers-reduced-motion: reduce)'
+
 export function HeroShowcase() {
   const [selected, setSelected] = useState<Product | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -33,13 +37,66 @@ export function HeroShowcase() {
   const dragStart = useRef<{ pointer: number; x: number; y: number } | null>(null)
   const opener = useRef<HTMLButtonElement | null>(null)
   const back = useRef<HTMLButtonElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
+  const inView = useInView(stage, { amount: 0.25 })
+  const [playing, setPlaying] = useState(() => !window.matchMedia(motionPreference).matches)
+  const [visible, setVisible] = useState(() => !document.hidden)
+  const [inSequence, setInSequence] = useState(false)
+  const running = playing && inView && visible
+
+  useEffect(() => {
+    const preference = window.matchMedia(motionPreference)
+    const onPreference = () => { if (preference.matches) setPlaying(false) }
+    const onVisibility = () => setVisible(!document.hidden)
+    preference.addEventListener('change', onPreference)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      preference.removeEventListener('change', onPreference)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!running) return
+    let cancelled = false
+    const next = products[selected ? (products.indexOf(selected) + 1) % products.length : 0]
+    const photo = new Image()
+    photo.src = next.src
+    const timer = window.setTimeout(async () => {
+      try {
+        await photo.decode()
+        if (cancelled) return
+        setLoaded(true)
+        setFailed(false)
+        setInSequence(true)
+        setSelected(next)
+      } catch {
+        if (!cancelled) setPlaying(false)
+      }
+    }, selected ? DISPLAY_MS : 2200)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [running, selected])
 
   useLayoutEffect(() => {
+    if (!opener.current) return
     const control = selected ? back.current : opener.current
     control?.focus({ preventScroll: true })
+    if (!selected) opener.current = null
   }, [selected])
 
+  function showGroup() {
+    setPlaying(false)
+    setInSequence(false)
+    opener.current ??= stage.current?.querySelector('button[aria-label^="Ver "]') ?? null
+    setSelected(null)
+  }
+
   function open(product: Product, button: HTMLButtonElement) {
+    setPlaying(false)
+    setInSequence(false)
     dragStart.current = null
     opener.current = button
     setLoaded(false)
@@ -58,10 +115,11 @@ export function HeroShowcase() {
 
   return (
     <div
+      ref={stage}
       className="mx-auto w-full max-w-[34rem]"
       role="group"
       aria-label="Vitrine interativa"
-      onKeyDown={(event) => { if (event.key === 'Escape') setSelected(null) }}
+      onKeyDown={(event) => { if (event.key === 'Escape' && selected) showGroup() }}
     >
       <TiltStage enabled maxDegrees={9} className="relative aspect-5/4 touch-pan-y select-none">
         <img
@@ -86,41 +144,59 @@ export function HeroShowcase() {
             className="absolute inset-0 cursor-zoom-in touch-pan-y hover:bg-white/5 focus-visible:bg-white/25"
             onPointerDown={(event) => {
               if (!event.isPrimary || event.button !== 0) return
+              setPlaying(false)
               dragStart.current = { pointer: event.pointerId, x: event.clientX, y: event.clientY }
               event.currentTarget.setPointerCapture(event.pointerId)
             }}
             onPointerMove={(event) => followDrag(event, product)}
             onPointerUp={() => { dragStart.current = null }}
             onPointerCancel={() => { dragStart.current = null }}
+            onFocus={() => setPlaying(false)}
             onClick={(event) => open(product, event.currentTarget)}
           />
         ))}
-        {selected && (
-          <img
-            key={selected.id}
-            src={selected.src}
-            alt={selected.name}
-            draggable={false}
-            data-item={selected.id}
-            data-ready={loaded}
-            onLoad={() => setLoaded(true)}
-            onError={() => { setFailed(true); setSelected(null) }}
-            className="showcase-detail absolute inset-0 m-auto h-[94%] w-[92%] cursor-grab object-contain drop-shadow-xl active:cursor-grabbing"
-          />
-        )}
+        <AnimatePresence initial={false}>
+          {selected && (
+            <m.div key={selected.id} className="pointer-events-none absolute inset-0" exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+              <img
+                src={selected.src}
+                alt={selected.name}
+                draggable={false}
+                data-item={selected.id}
+                data-ready={loaded}
+                data-sequence={inSequence}
+                style={{ animationPlayState: inSequence && !running ? 'paused' : 'running' }}
+                onPointerDown={() => setPlaying(false)}
+                onLoad={() => setLoaded(true)}
+                onError={() => { setFailed(true); showGroup() }}
+                className="showcase-detail pointer-events-auto absolute inset-0 m-auto h-[94%] w-[92%] cursor-grab object-contain drop-shadow-xl active:cursor-grabbing"
+              />
+            </m.div>
+          )}
+        </AnimatePresence>
       </TiltStage>
       <div className="mt-3 flex min-h-12 flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm">
+        <button
+          type="button"
+          onClick={() => {
+            opener.current = null
+            if (!playing && selected) setInSequence(true)
+            setPlaying(!playing)
+          }}
+          className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-white/50 px-4 font-bold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <Rotate className="size-4" /> {playing ? 'Pausar giro' : 'Iniciar giro'}
+        </button>
         {selected ? (
           <>
-            <span className="font-bold" role="status">{selected.name}</span>
-            <button ref={back} type="button" onClick={() => setSelected(null)}
+            <span className="font-bold" aria-live={playing ? 'off' : 'polite'}>{selected.name}</span>
+            <button ref={back} type="button" onClick={showGroup}
               className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-white/50 px-4 font-bold hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2">
               <ArrowLeft className="size-4" /> Ver os três
             </button>
           </>
         ) : (
           <span className="inline-flex items-center gap-2 text-white/90" role="status">
-            <Rotate className="size-4" />
             {failed ? 'A foto não carregou. Toque para tentar de novo.' : 'Toque ou arraste um produto para ver de perto.'}
           </span>
         )}

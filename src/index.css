@@ -170,6 +170,17 @@ body {
   .showcase-detail[data-ready="true"] {
     animation: showcase-reveal 440ms cubic-bezier(.2, .72, .22, 1) both;
   }
+  .showcase-detail[data-ready="true"][data-sequence="true"] {
+    animation: showcase-turn 5s linear both;
+  }
+}
+
+@keyframes showcase-turn {
+  0% { opacity: 0; transform: perspective(800px) translateX(17%) rotateY(46deg) scale(.88); }
+  14% { opacity: 1; transform: perspective(800px) translateX(2%) rotateY(13deg) scale(.99); }
+  60% { transform: perspective(800px) translateX(0) rotateY(-3deg) scale(1.025); }
+  90% { transform: perspective(800px) translateX(-2%) rotateY(-14deg) scale(.99); }
+  100% { opacity: 1; transform: perspective(800px) translateX(-9%) rotateY(-32deg) scale(.93); }
 }
 
 @keyframes showcase-reveal {
