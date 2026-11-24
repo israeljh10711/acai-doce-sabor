@@ -152,6 +152,17 @@ try {
     ], [true, 0])
     check(`${at} início: composição inteira, sem distorção`, Math.abs(campaign.displayedRatio - campaign.ratio) < 0.01, true)
 
+    const showcase = `document.querySelector('[aria-label="Vitrine interativa"]')`
+    for (const [name, id] of [['Açaí Oca', 'oca'], ['Milk-shake de chocolate', 'milkshake'], ['Açaí Tradicional', 'tradicional']]) {
+      const hotspot = `${showcase}.querySelector('[aria-label="Ver ${name} inteiro"]')`
+      await click(hotspot)
+      await waitFor(`${showcase}.querySelector('img[data-item="${id}"][data-ready="true"]')`)
+      check(`${at} destaque de ${name} com o trio oculto`, await browser.evaluate(
+        `getComputedStyle(${showcase}.querySelector('img[fetchpriority]')).opacity === '0'`), true)
+      await key('Escape', 'Escape')
+      check(`${at} volta para ${name} na vitrine`, await browser.evaluate(`document.activeElement === ${hotspot}`), true)
+    }
+
     // --- Açaí Tradicional: ordem livre ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)
     check(`${at} foto fixa e real do produto`, await browser.evaluate(`__photo()`), 'acai-tradicional')

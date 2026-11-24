@@ -5,6 +5,7 @@ import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { ArrowRight, Camera, Chat, Clock, Crown, Pin } from '../components/ui/icons.tsx'
 import { legacyAnchors, MONTE_TITLE } from '../features/catalog/catalogNav.ts'
 import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
+import { HeroShowcase } from '../features/catalog/HeroShowcase.tsx'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
 import { useStoreSettings } from '../features/catalog/catalogStore.ts'
 import { scheduleText } from '../features/store-hours/hours.ts'
@@ -109,24 +110,9 @@ function Hero() {
           </m.div>
         </div>
 
-        <HeroPhoto />
+        <HeroShowcase />
       </Container>
     </section>
-  )
-}
-
-function HeroPhoto() {
-  return (
-    <img
-      src="/images/campanha/acai-e-milkshake-600.webp"
-      srcSet="/images/campanha/acai-e-milkshake-600.webp 600w, /images/campanha/acai-e-milkshake-1080.webp 1080w"
-      sizes="(min-width: 72rem) 33rem, (min-width: 64rem) 46vw, (min-width: 36rem) 34rem, calc(100vw - 2rem)"
-      width={600}
-      height={480}
-      fetchPriority="high"
-      alt="Pote de Açaí Oca com morango e crocantes, tigela de açaí com banana e confeitos e milk-shake de chocolate com calda."
-      className="mx-auto block h-auto w-full max-w-[34rem] drop-shadow-[0_1rem_1rem_rgb(24_5_19/0.4)]"
-    />
   )
 }
 
