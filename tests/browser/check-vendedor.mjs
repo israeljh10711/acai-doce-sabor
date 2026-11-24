@@ -225,8 +225,8 @@ try {
   await save()
   check('a cópia nasce oculta: não aparece na loja', await waitFor(`!__dialog() && !__item('sundae-copia') && __records().products.some((p) => p.id === 'sundae-copia' && !p.visible)`), true)
 
-  // --- Personalizador: complemento novo, esgotado e o Completo ---
-  await goto('/monte-seu-pedido/acai-oca', desktop)
+  // --- Tradicional: complemento novo, esgotado e o Completo ---
+  await goto('/monte-seu-pedido/acai-tradicional', desktop)
   await click(`[...document.querySelectorAll('[data-seller-add]')].find((b) => b.textContent.includes('complemento'))`, 300)
   await waitFor("__dialog()?.querySelector('[data-option-editor]')", 10000)
   check('"+ Adicionar complemento" abre o editor do complemento', await run(`!!__dialog()?.querySelector('[data-option-editor]')`), true)
