@@ -338,7 +338,7 @@ try {
     // --- "Adicionar e continuar comprando" zera o personalizador ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)
     await click(`__q('input[type=radio][value="pote-200"]')`)
-    await click(`__q('[aria-label="Adicionar Granola"]')`)
+    await click(`__q('[aria-label="Granola"]')`)
     await click(`__q('[aria-label="Banana"]')`)
     const countBefore = await run(`__cartCount()`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Adicionar ao carrinho'))`)
@@ -352,7 +352,7 @@ try {
     await page('/monte-seu-pedido/acai-tradicional', viewport)
     check(
       `${at} personalizador zerado depois de adicionar (sem tamanho, sem adicionais, sem frutas)`,
-      await run(`[[...document.querySelectorAll('input[type=radio]')].some((i) => i.checked), __q('[aria-label="Banana"]').getAttribute('aria-pressed'), [...document.querySelectorAll('button[aria-label^="Tirar "]')].some((b) => !b.disabled), __q('[role="group"][aria-label="Granola: 0"]') !== null, __q('[aria-label="Prévia do pedido"]').textContent.includes('—')]`),
+      await run(`[[...document.querySelectorAll('input[type=radio]')].some((i) => i.checked), __q('[aria-label="Banana"]').getAttribute('aria-pressed'), [...document.querySelectorAll('button[aria-label^="Tirar "]')].some((b) => !b.disabled), __q('[aria-pressed="false"][aria-label="Granola"]') !== null, __q('[aria-label="Prévia do pedido"]').textContent.includes('—')]`),
       [false, 'false', false, true, true],
     )
     check(`${at} console sem erros`, browser.consoleProblems(), [])

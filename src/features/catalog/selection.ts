@@ -13,6 +13,7 @@ import {
   type Topping,
   type ToppingGroupId,
   getTopping,
+  singleToppings,
   offers,
   toppingsOf,
 } from './menu.ts'
@@ -43,6 +44,7 @@ const ruleOf = (topping: Topping) => TOPPING_GROUPS[topping.group]?.rule ?? 'pai
  * barca: 2 frutas) ou o do grupo. Sem nenhum, sem máximo.
  */
 export function groupLimitOf(product: Product, group: ToppingGroupId): number | undefined {
+  if (product.slug === 'acai-tradicional') return undefined
   return product.groupLimits?.[group] ?? TOPPING_GROUPS[group]?.maxSelect
 }
 
@@ -61,11 +63,13 @@ export function quantityOf(selection: Selection, toppingId: string): number {
 
 /** Quantos adicionais gratuitos o tamanho escolhido inclui. Zero sem tamanho. */
 export function freeLimit(product: Product, selection: Selection): number {
+  if (product.slug === 'acai-tradicional') return Infinity
   return selectedSize(product, selection)?.freeToppings ?? 0
 }
 
 /** Menor e maior limite gratuito entre os tamanhos do produto. */
 export function freeLimitRange(product: Product): { min: number; max: number } {
+  if (product.slug === 'acai-tradicional') return { min: Infinity, max: Infinity }
   const limits = product.sizes.map((size) => size.freeToppings)
   return { min: Math.min(...limits), max: Math.max(...limits) }
 }
@@ -76,7 +80,7 @@ export function freeLimitRange(product: Product): { min: number; max: number } {
  * tamanho, o que passar do limite dele sai, com aviso (`chooseSize`).
  */
 export function freeCap(product: Product, selection: Selection): number {
-  return selectedSize(product, selection)?.freeToppings ?? freeLimitRange(product).max
+  return selection.sizeId ? freeLimit(product, selection) : freeLimitRange(product).max
 }
 
 /** Quantas unidades de adicionais gratuitos já foram escolhidas. */
@@ -95,8 +99,7 @@ export function freeUsed(selection: Selection): number {
  *
  * - `not-in-product`: o produto não aceita esse ingrediente;
  * - `free-limit`: o limite de adicionais gratuitos está cheio;
- * - `item-max`: o item já está na quantidade máxima (uma vez nas frutas, caldas e cremes; 10 nos
- *   adicionais pagos e nos adicionais grátis);
+ * - `item-max`: o ingrediente já foi marcado em um açaí ou atingiu seu máximo no produto;
  * - `group-limit`: o grupo já tem o número de ingredientes que o produto aceita (na barca, 2 frutas).
  */
 export type AddBlocker = 'not-in-product' | 'unavailable' | 'free-limit' | 'item-max' | 'group-limit'
@@ -123,7 +126,7 @@ export function addBlocker(
   if (selection.complete && inComplete(product, topping)) return quantity >= 1 ? 'item-max' : null
 
   const rule = ruleOf(topping)
-  if (quantity >= (rule === 'included' ? 1 : MAX_PAID_UNITS)) return 'item-max'
+  if (quantity >= (rule === 'included' || singleToppings(product) ? 1 : MAX_PAID_UNITS)) return 'item-max'
   // Máximo do grupo (o da barca: 2 frutas; ou o que o vendedor definiu no grupo).
   const limit = groupLimitOf(product, topping.group)
   if (limit !== undefined && groupUnits(product, selection, topping.group) >= limit) return 'group-limit'
@@ -168,7 +171,7 @@ export function chooseSize(
   const size = product.sizes.find((candidate) => candidate.id === sizeId)
   if (!size) return { selection, removed: [] }
   // No Completo não há cota: nada sai ao trocar de tamanho.
-  if (selection.complete) return { selection: { ...selection, sizeId }, removed: [] }
+  if ((product.completo && selection.complete) || product.slug === 'acai-tradicional') return { selection: { ...selection, sizeId }, removed: [] }
 
   const toppings = { ...selection.toppings }
   const removed: RemovedTopping[] = []
@@ -305,7 +308,7 @@ export function missingChoiceText(choice: MissingChoice, flavorMissing: string):
 
 /*
  * Botão "Completo" (pedido de 2026-11-16): na loja, o cliente pede "completo", paga o preço do
- * tamanho e diz o que não quer. Só nos produtos com `completo` (Oca, Tradicional, Pote 1 L e Barca).
+ * tamanho e diz o que não quer. Só nos produtos com `completo` (Tradicional, Pote 1 L e Barca).
  */
 
 /**

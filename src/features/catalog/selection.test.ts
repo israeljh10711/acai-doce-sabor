@@ -34,31 +34,28 @@ describe('limite de adicionais gratuitos', () => {
     const limits = (product: typeof tradicional) =>
       product.sizes.map((size) => freeLimit(product, build(product, size.id)))
 
-    expect(limits(tradicional)).toEqual([2, 2, 2, 4, 3, 3, 4, 5, 6, 7])
+    expect(limits(tradicional)).toEqual(tradicional.sizes.map(() => Infinity))
     expect(limits(oca)).toEqual([2, 4, 3, 3, 4, 5, 6, 7])
   })
 
   it('é zero enquanto nenhum tamanho foi escolhido', () => {
-    expect(freeLimit(tradicional, EMPTY_SELECTION)).toBe(0)
+    expect(freeLimit(oca, EMPTY_SELECTION)).toBe(0)
   })
 
   it('aceita adicionais até o limite e bloqueia o seguinte', () => {
-    const full = build(tradicional, 'copo-500', ['granola', 'pacoca', 'amendoim'])
+    const full = build(oca, 'copo-500', ['granola', 'pacoca', 'amendoim'])
 
     expect(freeUsed(full)).toBe(3)
-    expect(addBlocker(tradicional, full, 'leite-em-po')).toBe('free-limit')
-    expect(addTopping(tradicional, full, 'leite-em-po')).toBe(full)
+    expect(addBlocker(oca, full, 'leite-em-po')).toBe('free-limit')
+    expect(addTopping(oca, full, 'leite-em-po')).toBe(full)
   })
 
-  it('conta cada unidade quando o mesmo adicional é repetido', () => {
-    const selection = build(tradicional, 'copo-500', ['leite-em-po', 'leite-em-po'])
-
-    expect(quantityOf(selection, 'leite-em-po')).toBe(2)
-    expect(freeUsed(selection)).toBe(2)
-    expect(addBlocker(tradicional, selection, 'leite-em-po')).toBeNull()
-    expect(addBlocker(tradicional, addTopping(tradicional, selection, 'granola'), 'granola')).toBe(
-      'free-limit',
-    )
+  it('permite um de cada no Tradicional, inclusive sem Completo e no menor tamanho', () => {
+    const ids = toppingsOf(tradicional, 'dry').map(topping => topping.id)
+    const selection = build(tradicional, 'pote-150', [...ids, 'leite-em-po'])
+    expect(freeUsed(selection)).toBe(ids.length)
+    expect(quantityOf(selection, 'leite-em-po')).toBe(1)
+    expect(addBlocker(tradicional, selection, 'leite-em-po')).toBe('item-max')
   })
 
   it('libera espaço quando um adicional é removido', () => {
@@ -113,17 +110,17 @@ describe('adicionais pagos', () => {
 
     expect(price?.paidLines).toEqual([
       { toppingId: 'creme-de-avela', name: 'Creme de avelã', quantity: 1, unitCents: 300, totalCents: 300 },
-      { toppingId: 'kit-kat', name: 'Kit Kat', quantity: 2, unitCents: 400, totalCents: 800 },
+      { toppingId: 'kit-kat', name: 'Kit Kat', quantity: 1, unitCents: 400, totalCents: 400 },
     ])
-    expect(price?.paidCents).toBe(1100)
-    expect(price?.totalCents).toBe(1200 + 1100)
+    expect(price?.paidCents).toBe(700)
+    expect(price?.totalCents).toBe(1200 + 700)
   })
 
   it('param no limite técnico de unidades por item', () => {
-    const many = build(tradicional, 'copo-500', Array.from({ length: MAX_PAID_UNITS + 3 }, () => 'cereja'))
+    const many = build(milkShake, '500-ml', Array.from({ length: MAX_PAID_UNITS + 3 }, () => 'cereja'))
 
     expect(quantityOf(many, 'cereja')).toBe(MAX_PAID_UNITS)
-    expect(addBlocker(tradicional, many, 'cereja')).toBe('item-max')
+    expect(addBlocker(milkShake, many, 'cereja')).toBe('item-max')
   })
 })
 
@@ -159,33 +156,19 @@ describe('preço', () => {
 })
 
 describe('troca de tamanho', () => {
-  it('tira os adicionais que passam do novo limite, começando pelos últimos escolhidos', () => {
-    const big = build(tradicional, 'isopor-gg', [
-      'granola',
-      'granola',
-      'granola',
-      'pacoca',
-      'pacoca',
-      'amendoim',
-      'amendoim',
-    ])
-    const { selection, removed } = chooseSize(tradicional, big, 'pote-200')
-
-    expect(freeLimit(tradicional, selection)).toBe(2)
-    expect(selection.toppings).toEqual({ granola: 2 })
-    expect(removed).toEqual([
-      { toppingId: 'amendoim', quantity: 2 },
-      { toppingId: 'pacoca', quantity: 2 },
-      { toppingId: 'granola', quantity: 1 },
-    ])
+  it('reduz o Oca para a cota do novo tamanho na ordem das escolhas', () => {
+    const big = build(oca, 'isopor-gg', ['granola', 'pacoca', 'amendoim'])
+    const { selection, removed } = chooseSize(oca, big, 'pote-200')
+    expect(selection.toppings).toEqual({ granola: 1, pacoca: 1 })
+    expect(removed).toEqual([{ toppingId: 'amendoim', quantity: 1 }])
   })
 
   it('não mexe em frutas, coberturas e pagos', () => {
     const big = build(tradicional, 'isopor-p', ['granola', 'pacoca', 'amendoim', 'banana', 'calda-acai', 'kit-kat'])
     const { selection, removed } = chooseSize(tradicional, big, 'pote-150')
 
-    expect(removed).toEqual([{ toppingId: 'amendoim', quantity: 1 }])
-    expect(selection.toppings).toEqual({ granola: 1, pacoca: 1, banana: 1, 'calda-acai': 1, 'kit-kat': 1 })
+    expect(removed).toEqual([])
+    expect(selection.toppings).toEqual({ granola: 1, pacoca: 1, amendoim: 1, banana: 1, 'calda-acai': 1, 'kit-kat': 1 })
   })
 
   it('mantém tudo quando o novo tamanho comporta a escolha', () => {
@@ -288,7 +271,7 @@ describe('proteções', () => {
       selectedByGroup(tradicional, selection, 'dry').map(({ topping, quantity }) => [topping.name, quantity]),
     ).toEqual([
       ['Leite em pó', 1],
-      ['Granola', 2],
+      ['Granola', 1],
       ['Marshmallow', 1],
     ])
   })
@@ -307,19 +290,19 @@ describe('ordem livre (pedido de 2026-11-14)', () => {
   })
 
   it('sem tamanho, os grátis vão até o maior limite do produto (7)', () => {
-    const seven = Array.from({ length: 7 }, () => 'granola')
+    const seven = ['granola','bis','chocoball','leite-em-po','canudinho','sucrilhos','amendoim']
     let selection = EMPTY_SELECTION
-    for (const id of seven) selection = addTopping(tradicional, selection, id)
+    for (const id of seven) selection = addTopping(oca, selection, id)
 
-    expect(freeCap(tradicional, selection)).toBe(7)
-    expect(freeLimitRange(tradicional)).toEqual({ min: 2, max: 7 })
-    expect(addBlocker(tradicional, selection, 'pacoca')).toBe('free-limit')
+    expect(freeCap(oca, selection)).toBe(7)
+    expect(freeLimitRange(oca)).toEqual({ min: 2, max: 7 })
+    expect(addBlocker(oca, selection, 'pacoca')).toBe('free-limit')
   })
 
   it('ao escolher o tamanho, o que passa do limite dele sai, com aviso', () => {
     let selection = EMPTY_SELECTION
-    for (const id of ['granola', 'pacoca', 'amendoim', 'leite-em-po']) selection = addTopping(tradicional, selection, id)
-    const { selection: next, removed } = chooseSize(tradicional, selection, 'pote-200')
+    for (const id of ['granola', 'pacoca', 'amendoim', 'leite-em-po']) selection = addTopping(oca, selection, id)
+    const { selection: next, removed } = chooseSize(oca, selection, 'pote-200')
 
     expect(freeUsed(next)).toBe(2)
     expect(removed).toEqual([
@@ -351,11 +334,11 @@ describe('caldas e cremes (pedido de 2026-11-14)', () => {
   })
 
   it('o leite condensado agora é adicional: conta no limite grátis e não custa nada', () => {
-    const selection = build(tradicional, 'copo-500', ['leite-condensado', 'granola', 'disquete'])
+    const selection = build(oca, 'copo-500', ['leite-condensado', 'granola', 'disquete'])
 
     expect(freeUsed(selection)).toBe(3)
-    expect(addBlocker(tradicional, selection, 'farinha-lactea')).toBe('free-limit')
-    expect(priceOf(tradicional, selection)?.totalCents).toBe(1200)
+    expect(addBlocker(oca, selection, 'farinha-lactea')).toBe('free-limit')
+    expect(priceOf(oca, selection)?.totalCents).toBe(2000)
   })
 
   it('o açaí não oferece a cobertura de leite condensado; o milk-shake oferece', () => {

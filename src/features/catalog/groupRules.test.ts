@@ -32,7 +32,7 @@ describe('regras de grupo vindas do banco', () => {
   it('sem mudança, o cardápio do banco cobra igual ao do código', () => {
     setCatalogRecords(base)
     const selection = add('acai-oca', sized('acai-oca', 'pote-200'), 'granola', 'kiwi', 'creme-de-ninho', 'kit-kat', 'kit-kat')
-    expect(priceOf(product('acai-oca'), selection)?.totalCents).toBe(1000 + 300 + 400 * 2)
+    expect(priceOf(product('acai-oca'), selection)?.totalCents).toBe(1000 + 300 + 400)
   })
 
   it('grupo com grátis e preço extra cobra cada unidade além das grátis', () => {
@@ -52,9 +52,9 @@ describe('regras de grupo vindas do banco', () => {
   })
 
   it('máximo do grupo bloqueia o próximo', () => {
-    withGroups((group) => (group.id === 'paid' ? { ...group, maxSelect: 2 } : group))
-    const two = add('acai-oca', sized('acai-oca', 'pote-200'), 'cereja', 'kit-kat')
-    expect(addBlocker(product('acai-oca'), two, 'cereja')).toBe('group-limit')
+    withGroups((group) => (group.id === 'paid' ? { ...group, maxSelect: 1 } : group))
+    const one = add('acai-oca', sized('acai-oca', 'pote-200'), 'kit-kat')
+    expect(addBlocker(product('acai-oca'), one, 'cereja')).toBe('group-limit')
   })
 
   it('o máximo do produto vale mais que o do grupo (a barca: 2 frutas)', () => {
@@ -75,21 +75,21 @@ describe('regras de grupo vindas do banco', () => {
 
   it('grupo esgotado desliga todos os complementos dele (e sai do Completo)', () => {
     withGroups((group) => (group.id === 'fruit' ? { ...group, available: false } : group))
-    expect(addBlocker(product('acai-oca'), sized('acai-oca', 'pote-200'), 'kiwi')).toBe('unavailable')
-    expect(completeToppings(product('acai-oca')).some((topping) => topping.group === 'fruit')).toBe(false)
+    expect(addBlocker(product('acai-tradicional'), sized('acai-tradicional', 'pote-200'), 'kiwi')).toBe('unavailable')
+    expect(completeToppings(product('acai-tradicional')).some((topping) => topping.group === 'fruit')).toBe(false)
   })
 
   it('o Completo segue o grupo marcado no banco e o complemento fora dele', () => {
     withGroups((group) => (group.id === 'fruit' ? { ...group, inCompleto: false } : group), {
       options: base.options.map((option) => (option.id === 'granola' ? { ...option, noCompleto: true } : option)),
     })
-    const ids = completeToppings(product('acai-oca')).map((topping) => topping.id)
+    const ids = completeToppings(product('acai-tradicional')).map((topping) => topping.id)
     expect(ids).not.toContain('kiwi')
     expect(ids).not.toContain('granola')
     expect(ids).not.toContain('leite-condensado')
     expect(ids).toContain('pacoca')
-    const complete = applyComplete(product('acai-oca'), sized('acai-oca', 'pote-200'))
-    expect(priceOf(product('acai-oca'), complete)?.totalCents).toBe(1000)
+    const complete = applyComplete(product('acai-tradicional'), sized('acai-tradicional', 'pote-200'))
+    expect(priceOf(product('acai-tradicional'), complete)?.totalCents).toBe(700)
   })
 
   it('produto montável novo, criado no banco, funciona no personalizador', () => {

@@ -30,9 +30,8 @@ const tradicional = PRODUCTS['acai-tradicional']
 const pote = PRODUCTS['pote-de-acai-1-litro']
 
 describe('botão Completo (ajuste de 2026-11-16): só adicionais e frutas sem custo, pelo preço do tamanho', () => {
-  it('só os 4 açaís montáveis têm o Completo', () => {
+  it('Tradicional, pote de 1 litro e barca têm o Completo', () => {
     expect(Object.values(PRODUCTS).filter((product) => product.completo).map((product) => product.slug)).toEqual([
-      'acai-oca',
       'acai-tradicional',
       'pote-de-acai-1-litro',
       'barca-de-acai',
@@ -54,12 +53,10 @@ describe('botão Completo (ajuste de 2026-11-16): só adicionais e frutas sem cu
     expect(completeLabel(barca, selection)).toBe('COMPLETO')
   })
 
-  it('Oca pote de 200 ml: 15 itens (sem caldas nem cremes) e o preço continua R$ 10,00', () => {
-    const selection = applyComplete(oca, sized(oca, 'pote-200'))
-    expect(ids(selection)).toHaveLength(15)
-    expect(ids(selection)).not.toContain('creme-de-ninho')
-    expect(ids(selection)).not.toContain('calda-morango')
-    expect(priceOf(oca, selection)).toEqual({ sizeCents: 1000, paidLines: [], paidCents: 0, totalCents: 1000 })
+  it('Oca não aceita Completo, mesmo se o carrinho pedir', () => {
+    const selection = sized(oca, 'pote-200')
+    expect(applyComplete(oca, selection)).toBe(selection)
+    expect(completeToppings(oca)).toEqual([])
   })
 
   it('exemplo do pedido: tamanho de R$ 15,00 + Completo + creme de avelã + creme de ninho = R$ 21,00', () => {
@@ -96,11 +93,11 @@ describe('botão Completo (ajuste de 2026-11-16): só adicionais e frutas sem cu
   })
 
   it('trocar de tamanho no Completo não tira nada; o preço passa a ser o do novo tamanho', () => {
-    const complete = applyComplete(oca, sized(oca, 'isopor-gg'))
-    const { selection, removed } = chooseSize(oca, complete, 'pote-200')
+    const complete = applyComplete(tradicional, sized(tradicional, 'isopor-gg'))
+    const { selection, removed } = chooseSize(tradicional, complete, 'pote-200')
     expect(removed).toEqual([])
     expect(ids(selection)).toHaveLength(15)
-    expect(priceOf(oca, selection)?.totalCents).toBe(1000)
+    expect(priceOf(tradicional, selection)?.totalCents).toBe(700)
   })
 
   it('"Limpar" tira tudo (também os pagos) e volta ao modo normal; tamanho e cobertura ficam', () => {
@@ -131,9 +128,9 @@ describe('botão Completo (ajuste de 2026-11-16): só adicionais e frutas sem cu
     try {
       ;(farinha as { available?: boolean }).available = false
       ;(granola as { priceCents: number }).priceCents = 200
-      expect(names(completeToppings(oca))).not.toContain('Farinha láctea')
-      expect(names(completeToppings(oca))).not.toContain('Granola')
-      expect(ids(applyComplete(oca, sized(oca, 'pote-200')))).toHaveLength(13)
+      expect(names(completeToppings(tradicional))).not.toContain('Farinha láctea')
+      expect(names(completeToppings(tradicional))).not.toContain('Granola')
+      expect(ids(applyComplete(tradicional, sized(tradicional, 'pote-200')))).toHaveLength(13)
     } finally {
       ;(farinha as { available?: boolean }).available = before[0] as boolean | undefined
       ;(granola as { priceCents: number }).priceCents = before[1] as number

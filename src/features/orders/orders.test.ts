@@ -161,7 +161,7 @@ describe('comanda do WhatsApp (pedido de 2026-11-17)', () => {
       '1️⃣ *1x Açaí Oca* (Copo 500 ml) — *R$ 27,00*',
       '   ➕ *Cremes / Extras Pagos:* Creme de avelã (+R$ 3,00), Kit Kat (+R$ 4,00)',
       '   🥄 *Acompanhamentos:*',
-      '      • Adicionais: 2x Granola, Leite condensado',
+      '      • Adicionais: Granola, Leite condensado',
       '      • Frutas: Banana',
       '',
     ])

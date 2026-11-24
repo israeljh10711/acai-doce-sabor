@@ -77,7 +77,7 @@ export function ProductEditor({ draft: initial, records, isNew, onClose }: { dra
       variants: product.kind === 'direto' ? [] : current.variants,
       choices: product.kind === 'direto' || product.flavorsFrom ? [] : montavel ? current.choices.slice(0, 1) : current.choices,
       groups: montavel ? current.groups : [],
-      product: { ...product, completo: montavel && product.completo, flavorsFrom: montavel ? product.flavorsFrom : null },
+      product: { ...product, completo: montavel && product.id !== 'acai-oca' && product.completo, flavorsFrom: montavel ? product.flavorsFrom : null },
     }
     const taken = new Set(records.products.filter((entry) => entry.id !== initial.product.id).map((entry) => entry.id))
     const settled = settleDraft(cleaned, taken)
@@ -220,7 +220,7 @@ export function ProductEditor({ draft: initial, records, isNew, onClose }: { dra
         <div className="flex flex-wrap gap-x-6">
           <Switch checked={product.visible} onChange={(visible) => setP({ visible })} label="Visível na loja" description="Desligado: sai da loja, sem apagar." />
           <Switch checked={product.available} onChange={(available) => setP({ available })} label="Disponível" description="Desligado: aparece como esgotado." />
-          {montavel && <Switch checked={product.completo} onChange={(completo) => setP({ completo })} label='Botão "Completo"' description="Marca 1 de cada complemento grátis dos grupos do Completo." />}
+          {montavel && product.id !== 'acai-oca' && <Switch checked={product.completo} onChange={(completo) => setP({ completo })} label='Botão "Completo"' description="Marca 1 de cada complemento grátis dos grupos do Completo." />}
         </div>
 
         {product.kind !== 'direto' && (
@@ -248,9 +248,11 @@ export function ProductEditor({ draft: initial, records, isNew, onClose }: { dra
                     </Field>
                     {montavel && (
                       <>
-                        <Field id={`tamanho-${index}-gratis`} label="Adicionais grátis" error={error(`variants.${index}.freeCount`)}>
-                          <CountInput id={`tamanho-${index}-gratis`} value={variant.freeCount} onChange={(value) => setVariant(index, { freeCount: value ?? 0 })} />
-                        </Field>
+                        {product.id !== 'acai-tradicional' && (
+                          <Field id={`tamanho-${index}-gratis`} label="Adicionais grátis" error={error(`variants.${index}.freeCount`)}>
+                            <CountInput id={`tamanho-${index}-gratis`} value={variant.freeCount} onChange={(value) => setVariant(index, { freeCount: value ?? 0 })} />
+                          </Field>
+                        )}
                         <Field id={`tamanho-${index}-recipiente`} label="Recipiente">
                           <select id={`tamanho-${index}-recipiente`} value={variant.container ?? 'copo'} onChange={(event) => setVariant(index, { container: event.target.value })} className={inputClass}>
                             {CONTAINERS.map((container) => (

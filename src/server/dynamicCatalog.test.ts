@@ -127,6 +127,20 @@ describe('produto criado pelo vendedor', () => {
     expect(await handleOrder(order(cart, 1500), deps)).toEqual({ ok: false, reason: 'item-indisponivel' })
   })
 
+  it('checkout confere as montagens do Oca e do Tradicional mesmo com um catálogo antigo', async () => {
+    const { deps } = fakeDeps({ catalog: catalogWith(base => ({
+      ...base, products: base.products.map(p => p.id === 'acai-oca' ? { ...p, completo: true } : p),
+    })) })
+    const cart = (slug: string, toppings: [string, number][], complete = false) => JSON.stringify({
+      v: 2, items: [{ kind: 'product', id: 'a', slug, quantity: 1, sizeId: 'pote-200', toppings, complete }],
+    })
+    const three: [string, number][] = [['granola', 1], ['pacoca', 1], ['leite-em-po', 1]]
+    for (const invalid of [cart('acai-oca', three), cart('acai-oca', [], true), cart('acai-tradicional', [['granola', 2]])]) {
+      expect(await handleOrder(order(invalid, 1000), deps)).toMatchObject({ ok: false, reason: 'item-indisponivel' })
+    }
+    expect(await handleOrder(order(cart('acai-tradicional', three), 700), deps)).toMatchObject({ ok: true })
+  })
+
   it('máximo do grupo baixado depois de montar: recusa com o nome do item, sem cortar em silêncio', async () => {
     const cart = cartWith(withSellerProduct(records()), () => zeroCart('copo-300-ml', ['kiwi', 'morango', 'banana']))
     const lowered = all(withSellerProduct, (base) => ({ ...base, groups: base.groups.map((group) => (group.id === 'fruit' ? { ...group, maxSelect: 2 } : group)) }))

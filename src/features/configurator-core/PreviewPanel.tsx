@@ -25,7 +25,7 @@ export function PreviewPanel({ product, cfg }: { product: Product; cfg: Configur
 
   const flavor = product.flavors.find((candidate) => candidate.id === cfg.selection.flavorId)
   // Algum grupo conta no limite grátis do tamanho (no código, os adicionais).
-  const hasFreeLimit = product.groups.some((group) => TOPPING_GROUPS[group]?.rule === 'limited')
+  const hasFreeLimit = product.slug !== 'acai-tradicional' && product.groups.some((group) => TOPPING_GROUPS[group]?.rule === 'limited')
   const caption = cfg.size
     ? [cfg.size.name, flavor?.name].filter(Boolean).join(' · ')
     : 'Monte na ordem que quiser'

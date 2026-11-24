@@ -182,10 +182,10 @@ try {
       await key('Escape')
       check(`${at} "Ver foto": o foco volta para o botão`, await run(`document.activeElement?.textContent.trim().startsWith('Ver foto')`), true)
     }
-    await realClick(`__q('[role="group"][aria-label="Granola: 0"]').parentElement.querySelector('[data-zoom]')`)
+    await realClick(`__q('[aria-pressed="false"][aria-label="Granola"]').parentElement.querySelector('[data-zoom]')`)
     check(
       `${at} adicional (Granola): abre a foto grande e não adiciona`,
-      [(await run(`__info()`))?.title, (await run(`__info()`))?.price, await run(`!!__q('[role="group"][aria-label="Granola: 0"]')`)],
+      [(await run(`__info()`))?.title, (await run(`__info()`))?.price, await run(`!!__q('[aria-pressed="false"][aria-label="Granola"]')`)],
       ['Granola', 'Grátis', true],
     )
     check(`${at} Granola: a cópia grande, maior que a miniatura`, await run(`__img().naturalWidth > 256 && __img().currentSrc.endsWith('granola-grande.webp')`), true)

@@ -24,7 +24,7 @@ const BASE = [
     slug: 'acai-tradicional',
     name: 'Açaí Tradicional',
     summary: 'Em pote, copo ou isopor, a partir de 150 ml.',
-    tagline: 'Do seu jeito: adicionais grátis conforme o tamanho, mais frutas e coberturas à vontade.',
+    tagline: 'Do seu jeito: escolha os complementos um a um ou peça o Completo.',
     actionLabel: 'Montar açaí Tradicional',
     badges: [],
     keywords: ['tradicional'],

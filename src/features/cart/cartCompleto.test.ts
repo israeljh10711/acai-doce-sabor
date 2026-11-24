@@ -5,7 +5,7 @@ import { productSummary } from '../configurator-core/confirmSummary.ts'
 import { buildOrderMessage } from '../orders/orderMessage.ts'
 import { type Cart, EMPTY_CART, addItem, describeItem, normalizeSelection, parseCart, serializeCart, summarizeSelection, unitPriceCents } from './cart.ts'
 
-const oca = PRODUCTS['acai-oca']
+const tradicional = PRODUCTS['acai-tradicional']
 const barca = PRODUCTS['barca-de-acai']
 const NEWLINE = String.fromCharCode(10)
 const PIX = { method: 'pix' } as const
@@ -19,44 +19,44 @@ const message = (cart: Cart) =>
     antecipado: false,
   })
 
-const ocaCompleta = () => applyComplete(oca, chooseSize(oca, EMPTY_SELECTION, 'pote-200').selection)
-const semFarinha = () => removeTopping(ocaCompleta(), 'farinha-lactea')
+const tradicionalCompleto = () => applyComplete(tradicional, chooseSize(tradicional, EMPTY_SELECTION, 'pote-200').selection)
+const semFarinha = () => removeTopping(tradicionalCompleto(), 'farinha-lactea')
 
 describe('Completo no carrinho, na confirmação e no WhatsApp (pedido de 2026-11-16)', () => {
   it('o carrinho guarda o Completo: 15 itens pelo preço do pote de 200 ml, e a marca volta ao reler', () => {
-    const { cart } = addItem(EMPTY_CART, 'acai-oca', ocaCompleta())
+    const { cart } = addItem(EMPTY_CART, 'acai-tradicional', tradicionalCompleto())
     const [item] = cart.items
     expect(item.kind === 'product' && item.selection.complete).toBe(true)
-    expect(unitPriceCents(item)).toBe(1000)
+    expect(unitPriceCents(item)).toBe(700)
     const reread = parseCart(serializeCart(cart))
     const [again] = reread.items
     expect(again.kind === 'product' && Object.keys(again.selection.toppings)).toHaveLength(15)
     expect(again.kind === 'product' && again.selection.complete).toBe(true)
-    expect(unitPriceCents(again)).toBe(1000)
+    expect(unitPriceCents(again)).toBe(700)
   })
 
-  it('sem a marca do Completo, a revalidação aplica a cota de sempre (carrinho antigo continua igual)', () => {
-    const normalized = normalizeSelection('acai-oca', { ...ocaCompleta(), complete: undefined })!
+  it('um Oca Completo antigo volta com a cota vigente e perde a marca de Completo', () => {
+    const normalized = normalizeSelection('acai-oca', tradicionalCompleto())!
     expect(normalized.complete).toBeFalsy()
     // O pote de 200 ml tem 2 adicionais grátis: só os 2 primeiros ficam.
     expect(Object.keys(normalized.toppings).filter((id) => getTopping(id)?.group === 'dry')).toEqual(['leite-em-po', 'granola'])
   })
 
   it('resumo: "COMPLETO", e o creme marcado à parte com o preço (+ R$ 3,00)', () => {
-    const summary = summarizeSelection('acai-oca', ocaCompleta())
+    const summary = summarizeSelection('acai-tradicional', tradicionalCompleto())
     expect(summary.montagem).toBe('COMPLETO')
     expect(summary.sections.map((section) => section.group)).toEqual(['dry', 'fruit'])
-    const withCream = summarizeSelection('acai-oca', addTopping(oca, ocaCompleta(), 'creme-de-ninho'))
-    expect(withCream.unitCents).toBe(1300)
+    const withCream = summarizeSelection('acai-tradicional', addTopping(tradicional, tradicionalCompleto(), 'creme-de-ninho'))
+    expect(withCream.unitCents).toBe(1000)
     expect(withCream.sections.find((section) => section.group === 'syrup')?.items).toEqual([{ name: 'Creme de ninho', quantity: 1, totalCents: 300 }])
   })
 
   it('confirmação: a linha "Montagem" vem antes das outras', () => {
-    expect(productSummary('acai-oca', semFarinha()).rows[0]).toEqual({ label: 'Montagem', value: 'COMPLETO (SEM: Farinha láctea)' })
+    expect(productSummary('acai-tradicional', semFarinha()).rows[0]).toEqual({ label: 'Montagem', value: 'COMPLETO (SEM: Farinha láctea)' })
   })
 
   it('carrinho: a descrição do item começa pela montagem', () => {
-    const { item } = addItem(EMPTY_CART, 'acai-oca', semFarinha())
+    const { item } = addItem(EMPTY_CART, 'acai-tradicional', semFarinha())
     if (!item) throw new Error('esperava um produto')
     expect(describeItem(item).montagem).toBe('COMPLETO (SEM: Farinha láctea)')
     // Nada pago marcado: nada cobrado à parte; caldas e cremes não entram sozinhos.
@@ -65,11 +65,11 @@ describe('Completo no carrinho, na confirmação e no WhatsApp (pedido de 2026-1
   })
 
   it('WhatsApp: "COMPLETO" e "RETIRAR (SEM): Farinha láctea" logo abaixo do título, a Farinha láctea fora da lista e os pagos à parte', () => {
-    const selection = addTopping(oca, addTopping(oca, addTopping(oca, semFarinha(), 'creme-de-avela'), 'creme-de-ninho'), 'calda-chocolate')
-    const { cart } = addItem(EMPTY_CART, 'acai-oca', selection)
+    const selection = addTopping(tradicional, addTopping(tradicional, addTopping(tradicional, semFarinha(), 'creme-de-avela'), 'creme-de-ninho'), 'calda-chocolate')
+    const { cart } = addItem(EMPTY_CART, 'acai-tradicional', selection)
     const lines = message(cart).split(NEWLINE)
-    const title = lines.findIndex((line) => line.startsWith('1️⃣ *1x Açaí Oca'))
-    expect(lines[title]).toContain('R$ 16,00')
+    const title = lines.findIndex((line) => line.startsWith('1️⃣ *1x Açaí Tradicional'))
+    expect(lines[title]).toContain('R$ 13,00')
     expect(lines.slice(title + 1, title + 3)).toEqual(['   ✨ *Montagem:* COMPLETO', '   🚫 *RETIRAR (SEM):* Farinha láctea'])
     expect(lines.some((line) => line.includes('Farinha láctea') && !line.includes('RETIRAR'))).toBe(false)
     // A cobertura grátis fica nos acompanhamentos, com o nome do grupo do personalizador.

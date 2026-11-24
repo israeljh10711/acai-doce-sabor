@@ -35,6 +35,7 @@ export function blockerText(blocker: AddBlocker, limit: number): string {
 }
 
 function freeCount(product: Product, selection: Selection): string {
+  if (product.slug === 'acai-tradicional' || selection.complete) return `${freeUsed(selection)} ${freeUsed(selection) === 1 ? 'adicional grátis escolhido' : 'adicionais grátis escolhidos'}.`
   return `${freeUsed(selection)} de ${freeLimit(product, selection)} adicionais grátis usados.`
 }
 

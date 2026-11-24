@@ -68,7 +68,8 @@ export function changedSelection(rawCart: string, cart: Cart): string | null {
     const sameToppings = sent.size === kept.size && [...sent].every(([id, quantity]) => kept.get(id) === quantity)
     const sameSize = (entry.sizeId ?? null) === item.selection.sizeId
     const sameFlavor = (entry.flavorId ?? null) === item.selection.flavorId
-    if (!sameToppings || !sameSize || !sameFlavor) return itemName(item)
+    const sameComplete = (entry.complete === true) === (item.selection.complete === true)
+    if (!sameToppings || !sameSize || !sameFlavor || !sameComplete) return itemName(item)
   }
   return null
 }

@@ -39,6 +39,7 @@ export function SizeStep({ product, cfg, number }: { product: Product; cfg: Conf
                   <SizeOption
                     key={size.id}
                     size={size}
+                    showLimit={product.slug !== 'acai-tradicional'}
                     name={`${product.slug}-tamanho`}
                     label={grouped ? shortName(size) : size.name}
                     hiddenPrefix={grouped ? `${CONTAINER_NAMES[kind]} ` : ''}
@@ -62,6 +63,7 @@ export function SizeStep({ product, cfg, number }: { product: Product; cfg: Conf
 
 function SizeOption({
   size,
+  showLimit,
   name,
   label,
   hiddenPrefix,
@@ -69,6 +71,7 @@ function SizeOption({
   onChoose,
 }: {
   size: ProductSize
+  showLimit: boolean
   name: string
   label: string
   hiddenPrefix: string
@@ -94,7 +97,7 @@ function SizeOption({
         </span>
         <span className="nums text-sm font-bold whitespace-nowrap text-acai-950">{formatBRL(size.priceCents)}</span>
       </span>
-      {size.freeToppings > 0 && (
+      {showLimit && size.freeToppings > 0 && (
         <span className="text-xs font-medium text-ink-soft">{size.freeToppings} adicionais grátis</span>
       )}
       <span

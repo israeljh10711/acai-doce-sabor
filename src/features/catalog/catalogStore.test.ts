@@ -94,14 +94,14 @@ describe('as mudanças do vendedor chegam a todo o site (catalogStore)', () => {
       ...NO_CHANGES,
       toppings: { 'novo-ovomaltine': { created: true, group: 'dry', name: 'Ovomaltine', priceCents: 0 }, 'farinha-lactea': { available: false } },
     })
-    const oca = PRODUCTS['acai-oca']
-    const names = completeToppings(oca).map((topping) => topping.name)
+    const tradicional = PRODUCTS['acai-tradicional']
+    const names = completeToppings(tradicional).map((topping) => topping.name)
     expect(names).toContain('Ovomaltine')
     expect(names).not.toContain('Farinha láctea')
     // Completo (ajuste de 2026-11-16): 12 adicionais sem o leite condensado, menos a Farinha láctea
     // esgotada, mais a Ovomaltine nova, e as 3 frutas.
-    expect(Object.keys(applyComplete(oca, EMPTY_SELECTION).toppings)).toHaveLength(15)
-    expect(addBlocker(oca, EMPTY_SELECTION, 'farinha-lactea')).toBe('unavailable')
+    expect(Object.keys(applyComplete(tradicional, EMPTY_SELECTION).toppings)).toHaveLength(15)
+    expect(addBlocker(tradicional, EMPTY_SELECTION, 'farinha-lactea')).toBe('unavailable')
     expect(getTopping('novo-ovomaltine')?.name).toBe('Ovomaltine')
   })
 

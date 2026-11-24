@@ -68,7 +68,7 @@ export const KIND_LABELS: Readonly<Record<ProductKind, { title: string; text: st
 }
 
 export const RULES: Readonly<Record<GroupRule, { title: string; text: string }>> = {
-  limited: { title: 'Conta no limite grátis do tamanho', text: 'Grátis até o número de adicionais do tamanho; pode repetir o mesmo (até 10).' },
+  limited: { title: 'Conta no limite grátis do tamanho', text: 'Segue a cota do tamanho no Oca. No Tradicional, pode escolher todos, um de cada.' },
   included: { title: 'Um de cada', text: 'Cada complemento entra uma vez; o preço dele (se tiver) soma.' },
   paid: { title: 'Cobrado por unidade', text: 'Pode repetir (até 10 de cada); cada unidade soma o preço.' },
 }

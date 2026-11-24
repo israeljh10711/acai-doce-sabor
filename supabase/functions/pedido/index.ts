@@ -1122,6 +1122,16 @@ function extraPriceCents(item, choices = {}) {
 /** Acompanha a escolha de sabores do milk-shake. */
 var FLAVOR_AVAILABILITY_NOTICE = "Favor verificar com a nossa atendente a disponibilidade de sabores.";
 // src/features/catalog/menu.ts
+/** Nos açaís cada ingrediente é uma escolha de sim ou não. */
+function singleToppings(product) {
+	return [
+		"acai-oca",
+		"acai-tradicional",
+		"acai-batido",
+		"pote-de-acai-1-litro",
+		"barca-de-acai"
+	].includes(product.slug);
+}
 var DEFAULT_FLAVOR_TERM = {
 	label: "Sabor",
 	missing: "o sabor"
@@ -1242,7 +1252,6 @@ var ACAI_GROUPS = [
 var BASE_PRODUCTS = {
 	"acai-oca": {
 		slug: "acai-oca",
-		completo: true,
 		name: "Açaí Oca",
 		groups: ACAI_GROUPS,
 		flavors: [],
@@ -1445,6 +1454,7 @@ var ruleOf = (topping) => TOPPING_GROUPS[topping.group]?.rule ?? "paid";
 * barca: 2 frutas) ou o do grupo. Sem nenhum, sem máximo.
 */
 function groupLimitOf(product, group) {
+	if (product.slug === "acai-tradicional") return void 0;
 	return product.groupLimits?.[group] ?? TOPPING_GROUPS[group]?.maxSelect;
 }
 /** Unidades escolhidas de um grupo. */
@@ -1457,8 +1467,17 @@ function selectedSize(product, selection) {
 function quantityOf(selection, toppingId) {
 	return selection.toppings[toppingId] ?? 0;
 }
+/** Quantos adicionais gratuitos o tamanho escolhido inclui. Zero sem tamanho. */
+function freeLimit(product, selection) {
+	if (product.slug === "acai-tradicional") return Infinity;
+	return selectedSize(product, selection)?.freeToppings ?? 0;
+}
 /** Menor e maior limite gratuito entre os tamanhos do produto. */
 function freeLimitRange(product) {
+	if (product.slug === "acai-tradicional") return {
+		min: Infinity,
+		max: Infinity
+	};
 	const limits = product.sizes.map((size) => size.freeToppings);
 	return {
 		min: Math.min(...limits),
@@ -1471,7 +1490,7 @@ function freeLimitRange(product) {
 * tamanho, o que passar do limite dele sai, com aviso (`chooseSize`).
 */
 function freeCap(product, selection) {
-	return selectedSize(product, selection)?.freeToppings ?? freeLimitRange(product).max;
+	return selection.sizeId ? freeLimit(product, selection) : freeLimitRange(product).max;
 }
 /** Quantas unidades de adicionais gratuitos já foram escolhidas. */
 function freeUsed(selection) {
@@ -1489,7 +1508,7 @@ function addBlocker(product, selection, toppingId, options = {}) {
 	const quantity = quantityOf(selection, toppingId);
 	if (selection.complete && inComplete(product, topping)) return quantity >= 1 ? "item-max" : null;
 	const rule = ruleOf(topping);
-	if (quantity >= (rule === "included" ? 1 : 10)) return "item-max";
+	if (quantity >= (rule === "included" || singleToppings(product) ? 1 : 10)) return "item-max";
 	const limit = groupLimitOf(product, topping.group);
 	if (limit !== void 0 && groupUnits(product, selection, topping.group) >= limit) return "group-limit";
 	if (rule === "limited" && freeUsed(selection) >= freeCap(product, selection)) return "free-limit";
@@ -1517,7 +1536,7 @@ function chooseSize(product, selection, sizeId) {
 		selection,
 		removed: []
 	};
-	if (selection.complete) return {
+	if (product.completo && selection.complete || product.slug === "acai-tradicional") return {
 		selection: {
 			...selection,
 			sizeId
@@ -1917,7 +1936,7 @@ var BASE_CATEGORIES = [
 		slug: "acai-tradicional",
 		name: "Açaí Tradicional",
 		summary: "Em pote, copo ou isopor, a partir de 150 ml.",
-		tagline: "Do seu jeito: adicionais grátis conforme o tamanho, mais frutas e coberturas à vontade.",
+		tagline: "Do seu jeito: escolha os complementos um a um ou peça o Completo.",
 		actionLabel: "Montar açaí Tradicional",
 		badges: [],
 		keywords: ["tradicional"]
@@ -3047,7 +3066,7 @@ function recordsToCatalog(records, options = {}) {
 			...details.flavorTerm ? { flavorTerm: details.flavorTerm } : {},
 			...details.flavorHint ? { flavorHint: details.flavorHint } : {},
 			...Object.keys(limits).length > 0 ? { groupLimits: limits } : {},
-			...product.completo ? { completo: true } : {},
+			...product.completo && product.id !== "acai-oca" ? { completo: true } : {},
 			...product.available ? {} : { available: false },
 			...product.flavorsFrom ? { flavorsFrom: product.flavorsFrom } : {}
 		};
@@ -4027,7 +4046,8 @@ function changedSelection(rawCart, cart) {
 		const sameToppings = sent.size === kept.size && [...sent].every(([id, quantity]) => kept.get(id) === quantity);
 		const sameSize = (entry.sizeId ?? null) === item.selection.sizeId;
 		const sameFlavor = (entry.flavorId ?? null) === item.selection.flavorId;
-		if (!sameToppings || !sameSize || !sameFlavor) return itemName(item);
+		const sameComplete = entry.complete === true === (item.selection.complete === true);
+		if (!sameToppings || !sameSize || !sameFlavor || !sameComplete) return itemName(item);
 	}
 	return null;
 }

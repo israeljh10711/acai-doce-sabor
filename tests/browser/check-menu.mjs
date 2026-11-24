@@ -357,7 +357,7 @@ try {
       [true, true, true, true],
     )
     check(`${at} pote 1 L: selo e preço riscado no topo`, await browser.evaluate(`[document.body.textContent.includes('De R$ 33,00 por R$ 30,00'), __q('[aria-label="Destaques"]')?.textContent]`), [true, 'Oferta'])
-    for (const name of ['Granola', 'Paçoca']) await click(`__q('[aria-label="Adicionar ${name}"]')`)
+    for (const name of ['Granola', 'Paçoca']) await click(`__q('[aria-label="${name}"]')`)
     await click(`__q('[aria-label="Kiwi"]')`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Adicionar ao carrinho'))`)
     const poteText = await browser.evaluate(`__confirmText()`)
@@ -383,7 +383,7 @@ try {
       await browser.evaluate(`[__q('[aria-label="Kiwi"]').getAttribute('aria-pressed'), __q('[aria-label="Morango"]').getAttribute('aria-pressed'), __q('[aria-label="Banana"]').disabled, document.body.textContent.includes('2 de 2 frutas, sem custo · limite atingido')]`),
       ['true', 'true', true, true],
     )
-    await click(`__q('[aria-label="Adicionar Kit Kat"]')`)
+    await click(`__q('[aria-label="Kit Kat"]')`)
     await click(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Adicionar ao carrinho'))`)
     const barcaText = await browser.evaluate(`__confirmText()`)
     check(`${at} barca: confirmação`, ['Barca de Açaí', 'CoberturaChocolate', 'FrutasKiwi e Morango', 'Kit Kat (+ R$ 4,00)', 'Valor do item:R$ 34,00'].map((t) => barcaText.includes(t)), [true, true, true, true, true])

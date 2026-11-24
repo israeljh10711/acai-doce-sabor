@@ -96,9 +96,9 @@ try {
       ['Completo aplicado', 'Limpar'],
       true,
     ])
-    check(`${at} Barca: o leite condensado não é marcado pelo Completo`, await run(`__q('[aria-label="Leite condensado: 0"]') !== null`), true)
-    check(`${at} Barca: no Completo, "+" da Granola bloqueado (1 de cada)`, await run(`__q('button[aria-label="Adicionar Granola"]').getAttribute('aria-disabled') ?? String(__q('button[aria-label="Adicionar Granola"]').disabled)`), 'true')
-    await click(`__q('button[aria-label="Tirar Farinha láctea"]')`)
+    check(`${at} Barca: o leite condensado não é marcado pelo Completo`, await run(`__q('[aria-pressed="false"][aria-label="Leite condensado"]') !== null`), true)
+    check(`${at} Barca: Completo marca Granola uma vez`, await run(`__q('button[aria-label="Granola"]').getAttribute('aria-pressed')`), 'true')
+    await click(`__q('button[aria-label="Farinha láctea"]')`)
     check(
       `${at} Barca: tirar a Farinha láctea mantém o resto e o preço; "Marcar tudo novamente"`,
       await run(`[__resumo().includes('14 itens selecionados'), __total(), __montagem(), __barButtons()[0]]`),
@@ -151,7 +151,7 @@ try {
     await click(`[...document.querySelectorAll('button[aria-pressed]')].find((b) => b.getAttribute('aria-label') === 'Creme de avelã')`)
     await click(`[...document.querySelectorAll('button[aria-pressed]')].find((b) => b.getAttribute('aria-label') === 'Creme de ninho')`)
     check(`${at} Tradicional Isopor M: + creme de avelã + creme de ninho = R$ 21,00`, await run(`__total()`), 'R$ 21,00')
-    await click(`__q('button[aria-label="Adicionar Kit Kat"]')`)
+    await click(`__q('button[aria-label="Kit Kat"]')`)
     check(`${at} Tradicional Isopor M: + Kit Kat = R$ 25,00`, await run(`__total()`), 'R$ 25,00')
     await click(`[...document.querySelectorAll('#resumo button')].find((b) => b.textContent.trim().startsWith('Adicionar ao carrinho'))`, 700)
     check(
@@ -177,7 +177,7 @@ try {
     )
 
     // --- Sem o botão ---
-    for (const slug of ['acai-batido', 'milk-shake']) {
+    for (const slug of ['acai-oca', 'acai-batido', 'milk-shake']) {
       await page(`/monte-seu-pedido/${slug}`, viewport)
       check(`${at} ${slug}: sem o botão Completo`, await run(`!!__bar()`), false)
     }

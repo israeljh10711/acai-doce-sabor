@@ -57,13 +57,13 @@ describe('adicionar ao carrinho', () => {
     const selection = built('acai-tradicional', 'isopor-g', ['granola', 'banana', 'kit-kat', 'kit-kat'])
     const { item } = addItem(EMPTY_CART, 'acai-tradicional', selection)
     expect(unitPriceCents(item!)).toBe(priceOf(PRODUCTS['acai-tradicional'], selection)?.totalCents)
-    expect(unitPriceCents(item!)).toBe(1800 + 2 * 400)
+    expect(unitPriceCents(item!)).toBe(1800 + 400)
   })
 
   it('confere as regras de novo: o que passa do limite grátis não entra', () => {
     const tooMany: Selection = { sizeId: 'copo-500', flavorId: null, toppings: { granola: 2, pacoca: 2 } }
     const { item } = addItem(EMPTY_CART, 'acai-oca', tooMany)
-    expect(item?.selection.toppings).toEqual({ granola: 2, pacoca: 1 })
+    expect(item?.selection.toppings).toEqual({ granola: 1, pacoca: 1 })
   })
 })
 
@@ -115,10 +115,10 @@ describe('quantidades, remoção e totais', () => {
     cart = setQuantity(cart, 'a', 2)
     const [batido, shake] = cart.items
 
-    expect(unitPriceCents(batido)).toBe(1200 + 2 * 300)
-    expect(lineTotalCents(batido)).toBe(2 * 1800)
+    expect(unitPriceCents(batido)).toBe(1200 + 300)
+    expect(lineTotalCents(batido)).toBe(2 * 1500)
     expect(unitPriceCents(shake)).toBe(1000 + 300)
-    expect(cartTotalCents(cart)).toBe(3600 + 1300)
+    expect(cartTotalCents(cart)).toBe(3000 + 1300)
     expect(cartCount(cart)).toBe(3)
   })
 
@@ -150,7 +150,7 @@ describe('descrição do item', () => {
 
     expect(description).toMatchObject({ productName: 'Açaí Tradicional', sizeName: 'Copo 500 ml', container: 'Copo', flavorName: null })
     expect(description.included).toEqual([
-      { group: 'Adicionais', items: ['2x Leite em pó', 'Leite condensado'] },
+      { group: 'Adicionais', items: ['Leite em pó', 'Leite condensado'] },
       { group: 'Frutas', items: ['Banana'] },
       // O creme de ninho tem preço: vai nas linhas pagas, não aqui.
       { group: 'Caldas e cremes', items: ['Morango'] },
@@ -174,7 +174,7 @@ describe('resumo para a confirmação e a mensagem', () => {
     expect(summary.sizeLabel).toBe('Isopor M')
     expect(summary.flavorName).toBeNull()
     expect(summary.sections.map((section) => [section.label, section.items.map(choiceText)])).toEqual([
-      ['Adicionais', ['2x Granola']],
+      ['Adicionais', ['Granola']],
       ['Frutas', ['Kiwi']],
       ['Caldas e cremes', ['Creme de ninho (+ R$ 3,00)', 'Chocolate']],
       ['Adicionais pagos', ['Cereja (+ R$ 3,00)']],
@@ -186,7 +186,7 @@ describe('resumo para a confirmação e a mensagem', () => {
     const summary = summarizeSelection('acai-batido', built('acai-batido', '500-ml', ['batido-creme-de-avela', 'batido-creme-de-avela'], 'leite-condensado'))
     expect(summary.sizeLabel).toBe('Copo 500 ml')
     expect(summary.flavorName).toBe('Açaí Batido com Leite Condensado')
-    expect(summary.sections.map((section) => section.items.map(choiceText))).toEqual([['2x Creme de avelã (+ R$ 6,00)']])
+    expect(summary.sections.map((section) => section.items.map(choiceText))).toEqual([['Creme de avelã (+ R$ 3,00)']])
   })
 
   it('montagem sem ingredientes não tem grupos', () => {
@@ -224,7 +224,7 @@ describe('guardar no aparelho', () => {
     const cart = parseCart(raw)
     expect(cart.items.map((item) => item.id)).toEqual(['ok', 'qtd'])
     expect(cart.items[1].quantity).toBe(MAX_ITEM_QUANTITY)
-    expect(productAt(cart, 1).selection.toppings).toEqual({ cereja: 10 })
+    expect(productAt(cart, 1).selection.toppings).toEqual({ cereja: 1 })
   })
 
   it('carrinho guardado com Biscoito (saiu do cardápio) volta sem ele', () => {

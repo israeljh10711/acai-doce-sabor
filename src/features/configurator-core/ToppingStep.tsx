@@ -1,7 +1,7 @@
 import { m } from 'motion/react'
 import { SellerAddButton, SellerEditButton, SellerStockToggle } from '../seller/SellerAccess.tsx'
 import { Check } from '../../components/ui/icons.tsx'
-import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, toppingsOf } from '../catalog/menu.ts'
+import { type Product, TOPPING_GROUPS, type Topping, type ToppingGroupId, singleToppings, toppingsOf } from '../catalog/menu.ts'
 import { ingredientPhoto } from '../catalog/photos.ts'
 import { toppingLightbox } from '../lightbox/lightboxImages.ts'
 import { ZoomButton } from '../lightbox/ZoomButton.tsx'
@@ -47,6 +47,7 @@ function hintFor(product: Product, group: ToppingGroupId, cfg: ConfiguratorApi):
   }
   const optional = !product.groups.some((candidate) => TOPPING_GROUPS[candidate]?.rule === 'limited')
   if (rule === 'limited') {
+    if (product.slug === 'acai-tradicional') return { text: 'Escolha quantos quiser, um de cada', full: false }
     const full = cfg.freeUsed >= cfg.freeCap
     if (cfg.size) {
       const text = `${cfg.freeUsed} de ${cfg.freeLimit} adicionais grátis`
@@ -94,7 +95,7 @@ export function ToppingStep({ product, group, number, cfg }: ToppingStepProps) {
       <ul className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-2">
         {toppings.map((topping) => (
           <li key={topping.id}>
-            {rule === 'included' ? (
+            {rule === 'included' || singleToppings(product) ? (
               <ToggleCard topping={topping} cfg={cfg} hintId={hintId} />
             ) : (
               <StepperCard topping={topping} cfg={cfg} paid={rule === 'paid'} hintId={hintId} />

@@ -23,13 +23,13 @@ describe('blockerText', () => {
 describe('addedText', () => {
   it('nos adicionais, conta quantos grátis já foram usados', () => {
     expect(addedText(tradicional, build('copo-500', ['granola', 'granola']), 'granola')).toBe(
-      'Você adicionou Granola. 2 de 3 adicionais grátis usados.',
+      'Você adicionou Granola. 1 adicional grátis escolhido.',
     )
   })
 
   it('nos pagos, diz a quantidade e quanto custam', () => {
     expect(addedText(tradicional, build('copo-500', ['kit-kat', 'kit-kat']), 'kit-kat')).toBe(
-      'Você adicionou Kit Kat. 2 unidades, R$ 8,00.',
+      'Você adicionou Kit Kat. 1 unidade, R$ 4,00.',
     )
     expect(addedText(tradicional, build('copo-500', ['cereja']), 'cereja')).toBe(
       'Você adicionou Cereja. 1 unidade, R$ 3,00.',
@@ -50,7 +50,7 @@ describe('addedText', () => {
 describe('removedText', () => {
   it('confirma a retirada e, nos adicionais, atualiza a conta dos grátis', () => {
     expect(removedText(tradicional, build('copo-500', ['granola']), 'granola')).toBe(
-      'Você tirou Granola. 1 de 3 adicionais grátis usados.',
+      'Você tirou Granola. 1 adicional grátis escolhido.',
     )
     expect(removedText(tradicional, build('copo-500', []), 'banana')).toBe('Você tirou Banana.')
     expect(removedText(tradicional, build('copo-500', []), 'calda-morango')).toBe(

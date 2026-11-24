@@ -38,7 +38,7 @@ const prepare = `
     for (let i = 0; i < 80 && !document.querySelector('input[value="pote-200"]'); i++) await __wait(100);
     document.querySelector('input[value="pote-200"]').click();
     await __wait(150);
-    document.querySelector('[aria-label="Adicionar Granola"]').click();
+    document.querySelector('[aria-label="Granola"]').click();
     await __wait(150);
     __clickText('button', 'Adicionar ao carrinho');
     await __wait(500);

@@ -98,6 +98,11 @@ export type Flavor = {
 export type ExtraProductSlug = 'pote-de-acai-1-litro' | 'barca-de-acai'
 export type ProductSlug = CategorySlug | ExtraProductSlug
 
+/** Nos açaís cada ingrediente é uma escolha de sim ou não. */
+export function singleToppings(product: Product): boolean {
+  return ['acai-oca', 'acai-tradicional', 'acai-batido', 'pote-de-acai-1-litro', 'barca-de-acai'].includes(product.slug)
+}
+
 /** Como a escolha obrigatória se chama e como completa a frase "Falta escolher ...". */
 export type FlavorTerm = { label: string; missing: string }
 
@@ -123,8 +128,7 @@ export type Product = {
    */
   groupLimits?: Partial<Readonly<Record<ToppingGroupId, number>>>
   /**
-   * Tem o botão "Completo" (pedido de 2026-11-16): marca todos os adicionais, frutas e caldas e
-   * cremes pelo preço do tamanho. Só os 4 açaís montáveis.
+   * O botão "Completo" marca os acompanhamentos gratuitos dos grupos incluídos.
    */
   completo?: true
   /**
@@ -251,7 +255,6 @@ const ACAI_GROUPS: readonly ToppingGroupId[] = ['dry', 'fruit', 'syrup', 'paid']
 export const BASE_PRODUCTS: Readonly<Record<ProductSlug, Product>> = {
   'acai-oca': {
     slug: 'acai-oca',
-    completo: true,
     name: 'Açaí Oca',
     groups: ACAI_GROUPS,
     flavors: [],

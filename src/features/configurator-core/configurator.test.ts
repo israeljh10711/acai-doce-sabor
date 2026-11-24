@@ -22,7 +22,7 @@ describe('configuratorReducer', () => {
     ])
 
     expect(state.selection.toppings).toEqual({ granola: 1 })
-    expect(state.announcement).toBe('Você adicionou Granola. 1 de 3 adicionais grátis usados.')
+    expect(state.announcement).toBe('Você adicionou Granola. 1 adicional grátis escolhido.')
   })
 
   it('não muda nada quando o item não pode entrar', () => {
@@ -32,7 +32,7 @@ describe('configuratorReducer', () => {
       { type: 'add', toppingId: 'granola' },
     ])
 
-    expect(configuratorReducer(tradicional, full, { type: 'add', toppingId: 'pacoca' })).toBe(full)
+    expect(configuratorReducer(tradicional, full, { type: 'add', toppingId: 'granola' })).toBe(full)
     // Ingrediente que o produto não oferece também não muda nada.
     expect(configuratorReducer(tradicional, INITIAL_STATE, { type: 'add', toppingId: 'calda-leite-condensado' })).toBe(
       INITIAL_STATE,
@@ -51,7 +51,7 @@ describe('configuratorReducer', () => {
   })
 
   it('ao diminuir o tamanho, avisa o que saiu', () => {
-    const state = run(tradicional, [
+    const state = run(PRODUCTS['acai-oca'], [
       { type: 'size', sizeId: 'copo-500' },
       { type: 'add', toppingId: 'granola' },
       { type: 'add', toppingId: 'pacoca' },
@@ -62,7 +62,7 @@ describe('configuratorReducer', () => {
     expect(state.selection.toppings).toEqual({ granola: 1, pacoca: 1 })
     expect(state.sizeNotice).toBe('Saíram por passar do novo limite: 1 Amendoim.')
     expect(state.announcement).toBe(
-      'Tamanho: Pote 200 ml, R$ 7,00. Saíram por passar do novo limite: 1 Amendoim.',
+      'Tamanho: Pote 200 ml, R$ 10,00. Saíram por passar do novo limite: 1 Amendoim.',
     )
   })
 

@@ -75,10 +75,10 @@ describe('Açaí Batido: adicionais exclusivos', () => {
 
     expect(price?.sizeCents).toBe(1000)
     expect(price?.paidLines.map((line) => [line.name, line.quantity, line.totalCents])).toEqual([
-      ['Creme de avelã', 2, 600],
+      ['Creme de avelã', 1, 300],
       ['Ovomaltine', 1, 300],
     ])
-    expect(price?.totalCents).toBe(1000 + 3 * 300)
+    expect(price?.totalCents).toBe(1000 + 2 * 300)
   })
 
   it('500 ml com um de cada adicional dá R$ 27,00', () => {
@@ -86,13 +86,13 @@ describe('Açaí Batido: adicionais exclusivos', () => {
     expect(priceOf(batido, build('500-ml', 'leite-condensado-amendoim', all))?.totalCents).toBe(2700)
   })
 
-  it('aceita no máximo 10 unidades de cada adicional', () => {
+  it('aceita no máximo uma porção de cada adicional', () => {
     const ten = build('500-ml', 'leite-condensado', Array(MAX_PAID_UNITS).fill('batido-creme-de-cookies'))
 
-    expect(MAX_PAID_UNITS).toBe(10)
+    expect(ten.toppings['batido-creme-de-cookies']).toBe(1)
     expect(addBlocker(batido, ten, 'batido-creme-de-cookies')).toBe('item-max')
     expect(addTopping(batido, ten, 'batido-creme-de-cookies')).toBe(ten)
-    expect(priceOf(batido, ten)?.totalCents).toBe(1200 + 10 * 300)
+    expect(priceOf(batido, ten)?.totalCents).toBe(1200 + 300)
     // O limite é por adicional: os outros continuam livres.
     expect(addBlocker(batido, ten, 'batido-creme-de-ninho')).toBeNull()
   })

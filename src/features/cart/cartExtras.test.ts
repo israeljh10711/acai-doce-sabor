@@ -133,8 +133,8 @@ describe('produtos das gavetas no personalizador', () => {
     expect(pote.sizes).toEqual([{ id: 'pote-1-litro', name: 'Pote 1 litro', container: 'pote', priceCents: 3000, freeToppings: 7 }])
     expect(pote.groups).toEqual(PRODUCTS['acai-tradicional'].groups)
     let selection: Selection = { ...EMPTY_SELECTION, sizeId: 'pote-1-litro' }
-    for (let i = 0; i < 8; i++) selection = addTopping(pote, selection, 'granola')
-    expect(selection.toppings).toEqual({ granola: 7 })
+    for (const id of ['granola', 'pacoca', 'bis', 'chocoball', 'canudinho', 'sucrilhos', 'leite-em-po', 'amendoim']) selection = addTopping(pote, selection, id)
+    expect(Object.keys(selection.toppings)).toEqual(['granola', 'pacoca', 'bis', 'chocoball', 'canudinho', 'sucrilhos', 'leite-em-po'])
     const summary = summarizeSelection('pote-de-acai-1-litro', selection)
     expect([summary.sizeLabel, summary.unitCents]).toEqual(['', 3000])
   })
@@ -163,7 +163,7 @@ describe('produtos das gavetas no personalizador', () => {
     expect(addBlocker(barca, full, 'banana')).toBe('group-limit')
     expect(addTopping(barca, full, 'banana')).toBe(full)
     // 7 adicionais grátis: o oitavo não entra.
-    for (let unit = 0; unit < 7; unit++) full = addTopping(barca, full, unit < 4 ? 'granola' : 'pacoca')
+    for (const id of ['granola', 'pacoca', 'bis', 'chocoball', 'canudinho', 'sucrilhos', 'leite-em-po']) full = addTopping(barca, full, id)
     expect([freeUsed(full), addBlocker(barca, full, 'amendoim')]).toEqual([7, 'free-limit'])
     // Tudo isso pelo mesmo preço: só o Kit Kat é cobrado.
     expect(summarizeSelection('barca-de-acai', full).unitCents).toBe(3400)

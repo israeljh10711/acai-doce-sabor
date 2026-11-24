@@ -200,7 +200,7 @@ export function recordsToCatalog(records: CatalogRecords, options: AdapterOption
       ...(details.flavorTerm ? { flavorTerm: details.flavorTerm } : {}),
       ...(details.flavorHint ? { flavorHint: details.flavorHint } : {}),
       ...(Object.keys(limits).length > 0 ? { groupLimits: limits } : {}),
-      ...(product.completo ? { completo: true as const } : {}),
+      ...(product.completo && product.id !== 'acai-oca' ? { completo: true as const } : {}),
       ...(product.available ? {} : { available: false }),
       ...(product.flavorsFrom ? { flavorsFrom: product.flavorsFrom as ToppingGroupId } : {}),
     }

@@ -229,7 +229,7 @@ try {
   await click(granola, 900)
   check(
     'Granola esgotada em 1 toque: o "+" fica desligado para o cliente',
-    await run(`[${granola}.dataset.sellerStock, __q('button[aria-label="Adicionar Granola"]')?.getAttribute('aria-disabled') === 'true' || __q('button[aria-label="Adicionar Granola"]')?.disabled === true]`),
+    await run(`[${granola}.dataset.sellerStock, __q('button[aria-label="Granola"]')?.getAttribute('aria-disabled') === 'true' || __q('button[aria-label="Granola"]')?.disabled === true]`),
     ['esgotado', true],
   )
   await click(granola, 900)

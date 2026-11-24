@@ -190,28 +190,27 @@ try {
       [fits['leite-condensado.png'], fits['leite-em-po.png'], fits['farinha-lactea.png'], fits['cobertura-morango.png'], fits['banana.png'], fits['marshmallow.png'], fits['creme-avela.png']],
       ['contain', 'contain', 'contain', 'contain', 'cover', 'cover', 'cover'],
     )
-    check(`${at} antes do tamanho, "Adicionar Granola" liberado`, await browser.evaluate(`__blocked('Adicionar Granola')`), false)
+    check(`${at} antes do tamanho, "Granola" liberado`, await browser.evaluate(`__blocked('Granola')`), false)
     check(`${at} antes do tamanho, Banana liberada`, await browser.evaluate(`__blocked('Banana')`), false)
-    for (let i = 0; i < 4; i++) await click(`__button('Adicionar Granola')`)
+    for (const name of ['Granola', 'Paçoca', 'Amendoim', 'BIS']) await click(`__button('${name}')`)
     await click(`__button('Banana')`)
     await click(`__button('Creme de ninho')`)
-    check(`${at} sem tamanho: escolhas aceitas, contador de escolhidos`, await browser.evaluate(`__text().includes('4 escolhidos · de 2 a 7 grátis')`), true)
+    check(`${at} quatro complementos distintos antes do tamanho`, await browser.evaluate(`['Granola','Paçoca','Amendoim','BIS'].every(n => __pressed(n) === 'true')`), true)
     check(`${at} sem tamanho, o total espera o tamanho`, await browser.evaluate(`__summary().includes('Escolha o tamanho para ver o preço.')`), true)
     check(`${at} carrinho espera o tamanho`, await browser.evaluate(`__blocked('Adicionar ao carrinho')`), true)
 
     await click(`__radio('copo-500')`)
-    check(`${at} copo 500 corta o que passa de 3 grátis`, await browser.evaluate(`__text().includes('Saíram por passar do novo limite: 1 Granola.')`), true)
-    check(`${at} contador "3 de 3 adicionais grátis"`, await browser.evaluate(`__text().includes('3 de 3 adicionais grátis · limite atingido')`), true)
-    check(`${at} com o limite cheio, "Adicionar Leite condensado" desabilitado`, await browser.evaluate(`__blocked('Adicionar Leite condensado')`), true)
-    check(`${at} com o limite cheio, "Adicionar Kit Kat" habilitado`, await browser.evaluate(`__blocked('Adicionar Kit Kat')`), false)
+    check(`${at} quatro complementos também cabem no copo 500`, await browser.evaluate(`['Granola','Paçoca','Amendoim','BIS'].every(n => __pressed(n) === 'true')`), true)
+    check(`${at} dica do Tradicional sem cota`, await browser.evaluate(`__text().includes('Escolha quantos quiser, um de cada')`), true)
+    check(`${at} outro ingrediente continua disponível`, await browser.evaluate(`__blocked('Leite condensado')`), false)
+    check(`${at} com o limite cheio, "Kit Kat" habilitado`, await browser.evaluate(`__blocked('Kit Kat')`), false)
     check(`${at} creme de ninho marcado, + R$ 3,00: R$ 15,00`, await browser.evaluate(`__pressed('Creme de ninho') === 'true' && __summary().includes('R$ 15,00')`), true)
     await click(`__button('Creme de ninho')`)
     check(`${at} creme é um só: tocar de novo desmarca (R$ 12,00)`, await browser.evaluate(`__pressed('Creme de ninho') === 'false' && __summary().includes('R$ 12,00')`), true)
-    await click(`__button('Adicionar Kit Kat')`)
-    await click(`__button('Adicionar Kit Kat')`)
+    await click(`__button('Kit Kat')`)
     await click(`__button('cobertura de Banana caramelada')`)
     check(`${at} cobertura grátis marcada uma vez`, await browser.evaluate(`__pressed('cobertura de Banana caramelada')`), 'true')
-    check(`${at} total R$ 20,00`, await browser.evaluate(`__summary().includes('R$ 20,00')`), true)
+    check(`${at} total R$ 16,00`, await browser.evaluate(`__summary().includes('R$ 16,00')`), true)
     check(`${at} a foto não muda com os ingredientes`, await browser.evaluate(`__photo()`), 'acai-tradicional')
 
     await click(`__radio('isopor-m')`)
@@ -237,11 +236,12 @@ try {
     }
 
     await click(`__radio('pote-200')`)
-    check(`${at} aviso visível da saída`, await browser.evaluate(`__text().includes('Saíram por passar do novo limite: 1 Granola.')`), true)
-    check(`${at} anúncio da saída`, await browser.evaluate(`__live()`), 'Tamanho: Pote 200 ml, R$ 7,00. Saíram por passar do novo limite: 1 Granola.')
-    check(`${at} total R$ 15,00 no pote`, await browser.evaluate(`__summary().includes('R$ 15,00')`), true)
-    await click(`__button('Tirar Kit Kat')`)
-    check(`${at} tirar 1 Kit Kat: total R$ 11,00`, await browser.evaluate(`__summary().includes('R$ 11,00')`), true)
+    check(`${at} reduzir o Tradicional mantém os complementos`, await browser.evaluate(`['Granola','Paçoca','Amendoim','BIS'].every(n => __pressed(n) === 'true')`), true)
+    check(`${at} anúncio do novo tamanho`, await browser.evaluate(`__live()`), 'Tamanho: Pote 200 ml, R$ 7,00.')
+    check(`${at} total R$ 11,00 no pote`, await browser.evaluate(`__summary().includes('R$ 11,00')`), true)
+    await click(`__button('Kit Kat')`)
+    check(`${at} desmarcar Kit Kat remove a cobrança`, await browser.evaluate(`__summary().includes('R$ 7,00')`), true)
+    await click(`__button('Kit Kat')`)
     await click(`__button('Banana')`)
     await click(`__buttonStarting('Adicionar ao carrinho')`)
     check(`${at} "Adicionar ao carrinho" abre a confirmação, sem adicionar`, await browser.evaluate(`[__confirm().open, __cartCount()]`), [true, '0'])
@@ -249,7 +249,7 @@ try {
     check(`${at} confirmação: título, produto e tamanho`, ['Confirme seu item antes de adicionar', 'Açaí Tradicional — Pote 200 ml'].map((t) => confirmText.includes(t)), [true, true])
     check(
       `${at} confirmação: grupos escolhidos, sem os vazios`,
-      ['Adicionais2x Granola', 'Caldas e cremesBanana caramelada', 'Adicionais pagosKit Kat (+ R$ 4,00)', 'Frutas'].map((t) => confirmText.includes(t)),
+      ['AdicionaisGranola', 'Caldas e cremesBanana caramelada', 'Adicionais pagosKit Kat (+ R$ 4,00)', 'Frutas'].map((t) => confirmText.includes(t)),
       [true, true, true, false],
     )
     check(`${at} confirmação: valor do item e pergunta`, ['Valor do item:R$ 11,00', 'Deseja adicionar este item ao carrinho?'].map((t) => confirmText.includes(t)), [true, true])
@@ -287,7 +287,7 @@ try {
     check(`${at} foto do Oca`, await browser.evaluate(`__photo()`), 'acai-oca')
     check(`${at} Oca não tem 150 ml`, await browser.evaluate(`__radio('pote-150') === null`), true)
     await click(`__radio('copo-500')`)
-    for (const id of ['Leite condensado', 'Leite em pó', 'Disquete (confete)']) await click(`__button('Adicionar ${id}')`)
+    for (const id of ['Leite condensado', 'Leite em pó', 'Disquete (confete)']) await click(`__button('${id}')`)
     await click(`__button('Morango')`)
     await click(`__button('Creme de avelã')`)
     check(`${at} Oca copo 500 + creme de avelã: R$ 23,00`, await browser.evaluate(`__summary().includes('R$ 23,00')`), true)
@@ -309,24 +309,23 @@ try {
       await browser.evaluate(`['leite-condensado', 'leite-condensado-amendoim', 'leite-condensado-pacoca'].every((id) => !!__radio(id))`),
       true,
     )
-    await click(`__button('Adicionar Creme de avelã')`)
-    check(`${at} batido: adicional antes do tamanho e do sabor`, await browser.evaluate(`document.querySelector('[role=group][aria-label="Creme de avelã: 1"]') !== null`), true)
+    await click(`__button('Creme de avelã')`)
+    check(`${at} batido: adicional antes do tamanho e do sabor`, await browser.evaluate(`__pressed('Creme de avelã') === 'true'`), true)
     await click(`__radio('300-ml')`)
     check(`${at} batido sem sabor pede o sabor`, await browser.evaluate(`__summary().includes('Falta escolher o sabor.')`), true)
     await click(`__radio('leite-condensado-amendoim')`)
-    await click(`__button('Adicionar Creme de avelã')`)
-    await click(`__button('Adicionar Ovomaltine')`)
-    check(`${at} batido 300 ml + 3 adicionais de R$ 3,00: R$ 19,00`, await browser.evaluate(`__summary().includes('R$ 19,00')`), true)
-    for (let i = 0; i < 11; i++) await click(`__button('Adicionar Creme de cookies')`)
-    check(`${at} batido: no máximo 10 de cada adicional`, await browser.evaluate(`__blocked('Adicionar Creme de cookies')`), true)
-    check(`${at} batido 300 ml + 13 adicionais: R$ 49,00`, await browser.evaluate(`__summary().includes('R$ 49,00')`), true)
+    await click(`__button('Ovomaltine')`)
+    check(`${at} batido 300 ml + 2 adicionais de R$ 3,00: R$ 16,00`, await browser.evaluate(`__summary().includes('R$ 16,00')`), true)
+    await click(`__button('Creme de cookies')`)
+    check(`${at} cookies selecionado uma vez`, await browser.evaluate(`__pressed('Creme de cookies')`), 'true')
+    check(`${at} batido 300 ml + 3 adicionais: R$ 19,00`, await browser.evaluate(`__summary().includes('R$ 19,00')`), true)
     await click(`__radio('500-ml')`)
-    check(`${at} batido 500 ml com os mesmos adicionais: R$ 51,00`, await browser.evaluate(`__summary().includes('R$ 51,00')`), true)
+    check(`${at} batido 500 ml com os mesmos adicionais: R$ 21,00`, await browser.evaluate(`__summary().includes('R$ 21,00')`), true)
     await click(`__buttonStarting('Adicionar ao carrinho')`)
     const batidoText = await browser.evaluate(`__confirmText()`)
     check(
       `${at} confirmação do batido: sabor, adicionais com preço e valor`,
-      ['Açaí Batido — Copo 500 ml', 'SaborAçaí com Leite Condensado e Amendoim', '2x Creme de avelã (+ R$ 6,00), 10x Creme de cookies (+ R$ 30,00) e Ovomaltine (+ R$ 3,00)', 'Valor do item:R$ 51,00'].map((t) => batidoText.includes(t)),
+      ['Açaí Batido — Copo 500 ml', 'SaborAçaí com Leite Condensado e Amendoim', 'Creme de avelã (+ R$ 3,00), Creme de cookies (+ R$ 3,00) e Ovomaltine (+ R$ 3,00)', 'Valor do item:R$ 21,00'].map((t) => batidoText.includes(t)),
       [true, true, true, true],
     )
     await click(`__confirmButton('ir para o carrinho')`)
@@ -338,7 +337,7 @@ try {
     check(`${at} foto do milk-shake`, await browser.evaluate(`__photo()`), 'milkshake')
     check(`${at} aviso de sabores`, await browser.evaluate(`__text().includes('Favor verificar com a nossa atendente a disponibilidade de sabores.')`), true)
     check(`${at} 13 sabores`, await browser.evaluate(`document.querySelectorAll('input[name="milk-shake-sabor"]').length`), 13)
-    check(`${at} sem adicionais grátis nem frutas`, await browser.evaluate(`!__button('Adicionar Granola') && !__button('Banana')`), true)
+    check(`${at} sem adicionais grátis nem frutas`, await browser.evaluate(`!__button('Granola') && !__button('Banana')`), true)
     check(`${at} milk-shake continua com a cobertura de leite condensado`, await browser.evaluate(`!!__button('cobertura de Leite condensado')`), true)
     await click(`__radio('500-ml')`)
     check(`${at} sem sabor, o resumo pede o sabor`, await browser.evaluate(`__summary().includes('Falta escolher o sabor.')`), true)
@@ -358,10 +357,10 @@ try {
     await page('/carrinho', viewport)
     check(`${at} carrinho com os 3 itens`, await browser.evaluate(`document.querySelectorAll('[aria-label="Itens do carrinho"] > li').length`), 3)
     check(`${at} carrinho com as fotos dos produtos`, await browser.evaluate(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] [data-product-photo]')].map((img) => img.dataset.productPhoto)`), ['acai-tradicional', 'acai-batido', 'milkshake'])
-    // Tradicional Pote 200 (R$ 11,00) + Batido 500 ml (R$ 51,00) + Milk-shake (R$ 15,00) = R$ 77,00.
-    check(`${at} total do carrinho R$ 77,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 77,00')`), true)
+    // Tradicional Pote 200 (R$ 11,00) + Batido 500 ml (R$ 21,00) + Milk-shake (R$ 15,00) = R$ 47,00.
+    check(`${at} total do carrinho R$ 47,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 47,00')`), true)
     await click(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] > li')][0].querySelector('[aria-label="Aumentar quantidade"]')`)
-    check(`${at} 2x o primeiro item: R$ 88,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 88,00')`), true)
+    check(`${at} 2x o primeiro item: R$ 58,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 58,00')`), true)
     check(`${at} contador do cabeçalho: 4 itens`, await browser.evaluate(`__q('header').innerText.includes('4')`), true)
     check(`${at} quatro formas de pagamento`, await browser.evaluate(`[...document.querySelectorAll('input[name="forma-de-pagamento"]')].map((i) => i.value)`), ['pix', 'credito', 'debito', 'dinheiro'])
     writeFileSync(join(outDir, `carrinho-${viewport.width}.png`), await browser.screenshot())
@@ -375,10 +374,10 @@ try {
     await click(`__buttonStarting('Salvar alterações')`)
     await waitFor(`location.pathname === '/carrinho' && document.querySelector('[aria-labelledby="total-titulo"]')`)
     check(`${at} salvar volta ao carrinho`, await browser.evaluate(`location.pathname`), '/carrinho')
-    check(`${at} item editado: R$ 88,00 - R$ 2,00 = R$ 86,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 86,00')`), true)
+    check(`${at} item editado: R$ 58,00 - R$ 2,00 = R$ 56,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 56,00')`), true)
     check(`${at} editar não cria item novo`, await browser.evaluate(`document.querySelectorAll('[aria-label="Itens do carrinho"] > li').length`), 3)
     await click(`[...document.querySelectorAll('[aria-label="Itens do carrinho"] > li')][2].querySelector('button[class*="red"]')`)
-    check(`${at} remover o milk-shake: R$ 71,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 71,00')`), true)
+    check(`${at} remover o milk-shake: R$ 41,00`, await browser.evaluate(`__q('[aria-labelledby="total-titulo"]').innerText.includes('R$ 41,00')`), true)
 
     // --- Finalização: forma de pagamento, troco, Pix e a comanda (pedido 100% no site, 2026-11-20) ---
     // Sem o Supabase, o pedido fica no modo de demonstração deste navegador; nenhuma aba abre.
@@ -400,14 +399,14 @@ try {
     check(`${at} sem forma de pagamento: aviso e nada salvo`, await browser.evaluate(`[__text().includes('Selecione uma forma de pagamento para continuar'), __demoCount() - ${demoBefore}]`), [true, 0])
     check(`${at} sem forma de pagamento: foco nas opções`, await browser.evaluate(`document.activeElement.name`), 'forma-de-pagamento')
     await click(`__radio('dinheiro')`)
-    await browser.evaluate(`__type('#troco-para', '50')`)
+    await browser.evaluate(`__type('#troco-para', '30')`)
     await sleep(200)
-    check(`${at} troco para 50: aviso de valor menor que o total`, await browser.evaluate(`__text().includes('O valor informado é menor que o total do pedido (R$ 71,00)')`), true)
+    check(`${at} troco para 30: aviso de valor menor que o total`, await browser.evaluate(`__text().includes('O valor informado é menor que o total do pedido (R$ 41,00)')`), true)
     await click(sendButton)
     check(`${at} troco menor que o total bloqueia a finalização`, await browser.evaluate(`__demoCount() - ${demoBefore}`), 0)
     await browser.evaluate(`__type('#troco-para', '100')`)
     await sleep(200)
-    check(`${at} troco calculado na hora: R$ 29,00`, await browser.evaluate(`__liveText().includes('Troco a levar:R$ 29,00')`), true)
+    check(`${at} troco calculado na hora: R$ 59,00`, await browser.evaluate(`__liveText().includes('Troco a levar:R$ 59,00')`), true)
     await click(sendButton)
     await waitFor(`location.pathname.startsWith('/acompanhar/DEMO-') && __q('[data-order-success="pedido"]')`)
     check(
@@ -424,16 +423,16 @@ try {
         '🍨 *ITENS DO PEDIDO*',
         '*2x Açaí Tradicional* (Pote 200 ml) — *R$ 22,00*',
         '   ➕ *Cremes / Extras Pagos:* Kit Kat (+R$ 4,00)',
-        '      • Adicionais: 2x Granola',
+        '      • Adicionais: Granola',
         '      • Caldas e cremes: Banana caramelada',
-        '*1x Açaí Batido* (Copo 300 ml · Sabor: Açaí com Leite Condensado e Amendoim) — *R$ 49,00*',
-        '💰 *TOTAL A PAGAR:* *R$ 71,00*',
+        '*1x Açaí Batido* (Copo 300 ml · Sabor: Açaí com Leite Condensado e Amendoim) — *R$ 19,00*',
+        '💰 *TOTAL A PAGAR:* *R$ 41,00*',
       ].map((t) => message.includes(t)),
       Array(8).fill(true),
     )
     check(
       `${at} comanda: dinheiro com troco`,
-      ['• *Método escolhido:* 💵 *Dinheiro* — *R$ 71,00*', '  🪙 *Troco para:* R$ 100,00 *(Levar R$ 29,00 de troco)*'].map((t) => message.split('\n').includes(t)),
+      ['• *Método escolhido:* 💵 *Dinheiro* — *R$ 41,00*', '  🪙 *Troco para:* R$ 100,00 *(Levar R$ 59,00 de troco)*'].map((t) => message.split('\n').includes(t)),
       [true, true],
     )
     check(`${at} o carrinho esvaziou depois da confirmação`, await browser.evaluate(`__cartCount()`), '0')
@@ -463,7 +462,7 @@ try {
     const pixLines = (await browser.evaluate(`__openedText()`)).split('\n')
     check(
       `${at} comanda com Pix`,
-      ['• *Método escolhido:* 💠 *Pix* — *R$ 71,00*', '  📎 _Conferir o comprovante do Pix._'].map((t) => pixLines.includes(t)),
+      ['• *Método escolhido:* 💠 *Pix* — *R$ 41,00*', '  📎 _Conferir o comprovante do Pix._'].map((t) => pixLines.includes(t)),
       [true, true],
     )
     check(`${at} console sem erros`, browser.consoleProblems(), [])
@@ -473,7 +472,7 @@ try {
   await browser.goto(baseUrl + '/monte-seu-pedido/acai-tradicional', { width: 390, height: 844, reducedMotion: true })
   await browser.evaluate(helpers)
   await click(`__radio('isopor-m')`)
-  await click(`__button('Adicionar Paçoca')`)
+  await click(`__button('Paçoca')`)
   await click(`__button('Kiwi')`)
   check('movimento reduzido: total R$ 15,00', await browser.evaluate(`__summary().includes('R$ 15,00')`), true)
   check('movimento reduzido: a mesma foto no isopor', await browser.evaluate(`__photo()`), 'acai-tradicional')
