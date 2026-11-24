@@ -12,7 +12,7 @@
  *
  * Funções puras com o banco por fora (`OrderDeps`): testadas sem Supabase.
  */
-import { cartItemProblem, cartTotalCents, lineTotalCents, parseCart } from '../features/cart/cart.ts'
+import { MAX_CART_LINES, cartItemProblem, cartTotalCents, lineTotalCents, parseCart } from '../features/cart/cart.ts'
 import { getStoreSettings } from '../features/catalog/catalogState.ts'
 import { type CustomerDraft, checkCustomer, feeCents, parseCustomerDraft } from '../features/checkout/delivery.ts'
 import { EMPTY_PAYMENT, PAYMENT_METHODS, type PaymentDraft, allowedMethods, checkPayment, paymentLabel, paymentProblemText } from '../features/checkout/payment.ts'
@@ -25,7 +25,7 @@ import { changedSelection, loadServerCatalog } from './serverCatalog.ts'
 
 /** Tamanho máximo do carrinho recebido (texto), e de linhas nele. */
 export const MAX_CART_LENGTH = 200_000
-export const MAX_LINES = 60
+export const MAX_LINES = MAX_CART_LINES
 
 /** Marca do código na comanda, trocada pelo código de verdade depois de sair o número. */
 const CODE_MARK = '{{CODIGO_DO_PEDIDO}}'
@@ -200,17 +200,20 @@ function prepare(input: OrderInput, now: number): Prepared | Rejection {
   return { ok: true, row: orderRowFields({ cart, customer, payment, antecipado, message, whatsapp: toWhatsAppNumber(settings.contact.whatsapp) }) }
 }
 
-const accepted = (order: StoredOrder, repeated: boolean): OrderResponse => ({
-  ok: true,
-  id: order.id,
-  code: order.code,
-  createdAt: order.created_at,
-  tracked: order.customer_user_id !== null,
-  totalCents: order.total_cents,
-  repeated,
-  message: order.message,
-  whatsapp: order.whatsapp,
-})
+function accepted(order: StoredOrder, customerId: string | null, repeated: boolean): OrderResponse {
+  if (order.customer_user_id !== customerId) return reject('pedido-invalido')
+  return {
+    ok: true,
+    id: order.id,
+    code: order.code,
+    createdAt: order.created_at,
+    tracked: order.customer_user_id !== null,
+    totalCents: order.total_cents,
+    repeated,
+    message: order.message,
+    whatsapp: order.whatsapp,
+  }
+}
 
 /**
  * A chave de repetição: com o id da tentativa que o site sorteou (2026-11-20), o mesmo pedido
@@ -232,11 +235,7 @@ export async function handleOrder(raw: unknown, deps: OrderDeps, customerId: str
 
   const attemptKey = await attemptKeyOf(input, deps)
   const existing = await deps.findOrder(attemptKey)
-  if (existing) {
-    // A mesma tentativa vinda de outra sessão: não devolve o pedido de ninguém.
-    if (existing.customer_user_id && customerId && existing.customer_user_id !== customerId) return reject('pedido-invalido')
-    return accepted(existing, true)
-  }
+  if (existing) return accepted(existing, customerId, true)
 
   // O cardápio e as configurações do banco (2026-11-21). Daqui até a comanda ficar pronta, nada de
   // await: o cardápio é um estado do módulo.
@@ -256,5 +255,5 @@ export async function handleOrder(raw: unknown, deps: OrderDeps, customerId: str
   }
   const stored = (await deps.insertOrder(row)) ?? (await deps.findOrder(attemptKey))
   if (!stored) throw new Error('O pedido não foi gravado.')
-  return accepted(stored, stored.code !== code)
+  return accepted(stored, customerId, stored.code !== code)
 }

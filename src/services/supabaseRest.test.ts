@@ -50,12 +50,12 @@ describe('cliente REST do Supabase (modo vendedor, 2026-11-16)', () => {
 
   it('login com o e-mail do vendedor e a senha; confere que está na lista de vendedores', async () => {
     const { calls, deps } = fakeRest((call) =>
-      call.url.includes('/auth/v1/token') ? { status: 200, body: TOKEN } : { status: 200, body: [{ user_id: 'u1' }] },
+      call.url.includes('/functions/v1/conta') ? { status: 200, body: TOKEN } : { status: 200, body: [{ user_id: 'u1' }] },
     )
     const rest = createSupabaseRest(CONFIG, deps)
     expect(await rest.signIn('senha-certa')).toBe(true)
-    expect(calls[0].url).toBe('https://projeto.supabase.co/auth/v1/token?grant_type=password')
-    expect(calls[0].body).toEqual({ email: 'vendedor@loja.app', password: 'senha-certa' })
+    expect(calls[0].url).toBe('https://projeto.supabase.co/functions/v1/conta')
+    expect(calls[0].body).toEqual({ action: 'seller', password: 'senha-certa' })
     expect(calls[1].url).toBe('https://projeto.supabase.co/rest/v1/sellers?select=user_id')
     expect(calls[1].headers.authorization).toBe('Bearer token-1')
     expect(rest.isSignedIn()).toBe(true)
@@ -64,7 +64,7 @@ describe('cliente REST do Supabase (modo vendedor, 2026-11-16)', () => {
   it('senha errada (400) ou conta fora da lista de vendedores: não entra', async () => {
     const wrong = fakeRest(() => ({ status: 400, body: { error: 'invalid_grant' } }))
     expect(await createSupabaseRest(CONFIG, wrong.deps).signIn('x')).toBe(false)
-    const outsider = fakeRest((call) => (call.url.includes('/auth/') ? { status: 200, body: TOKEN } : { status: 200, body: [] }))
+    const outsider = fakeRest((call) => (call.url.includes('/functions/v1/conta') ? { status: 200, body: TOKEN } : { status: 200, body: [] }))
     const rest = createSupabaseRest(CONFIG, outsider.deps)
     expect(await rest.signIn('x')).toBe(false)
     expect(rest.isSignedIn()).toBe(false)
@@ -72,7 +72,7 @@ describe('cliente REST do Supabase (modo vendedor, 2026-11-16)', () => {
 
   it('gravar: upsert com o token e "merge-duplicates"; apagar: DELETE pelo tipo e id', async () => {
     const { calls, deps } = fakeRest((call) =>
-      call.url.includes('/auth/v1/token') ? { status: 200, body: TOKEN } : call.url.includes('sellers') ? { status: 200, body: [{ user_id: 'u1' }] } : { status: 201 },
+      call.url.includes('/functions/v1/conta') ? { status: 200, body: TOKEN } : call.url.includes('sellers') ? { status: 200, body: [{ user_id: 'u1' }] } : { status: 201 },
     )
     const rest = createSupabaseRest(CONFIG, deps)
     await rest.signIn('s')
@@ -90,7 +90,7 @@ describe('cliente REST do Supabase (modo vendedor, 2026-11-16)', () => {
   it('token vencido é renovado antes de gravar', async () => {
     let now = 1_000_000
     const { calls, deps } = fakeRest((call) => {
-      if (call.url.includes('grant_type=password')) return { status: 200, body: TOKEN }
+      if (call.url.includes('/functions/v1/conta')) return { status: 200, body: TOKEN }
       if (call.url.includes('grant_type=refresh_token')) return { status: 200, body: { ...TOKEN, access_token: 'token-2' } }
       if (call.url.includes('sellers')) return { status: 200, body: [{ user_id: 'u1' }] }
       return { status: 201 }
@@ -105,7 +105,7 @@ describe('cliente REST do Supabase (modo vendedor, 2026-11-16)', () => {
 
   it('foto: envia para o bucket "catalogo" e devolve o endereço público', async () => {
     const { calls, deps } = fakeRest((call) =>
-      call.url.includes('/auth/v1/token') ? { status: 200, body: TOKEN } : call.url.includes('sellers') ? { status: 200, body: [{ user_id: 'u1' }] } : { status: 200, body: { Key: 'x' } },
+      call.url.includes('/functions/v1/conta') ? { status: 200, body: TOKEN } : call.url.includes('sellers') ? { status: 200, body: [{ user_id: 'u1' }] } : { status: 200, body: { Key: 'x' } },
     )
     const rest = createSupabaseRest(CONFIG, deps)
     await rest.signIn('s')
@@ -144,7 +144,7 @@ describe('gravação no Supabase (CatalogBackend)', () => {
 
 describe('pedidos no painel do vendedor (pedido de 2026-11-20, etapa 2)', () => {
   const signedIn = async (routes: (call: Call) => { status: number; body?: unknown }) => {
-    const fake = fakeRest((call) => (call.url.includes('/auth/v1/token') ? { status: 200, body: TOKEN } : call.url.includes('/sellers') ? { status: 200, body: [{ user_id: 'u1' }] } : routes(call)))
+    const fake = fakeRest((call) => (call.url.includes('/functions/v1/conta') ? { status: 200, body: TOKEN } : call.url.includes('/sellers') ? { status: 200, body: [{ user_id: 'u1' }] } : routes(call)))
     const rest = createSupabaseRest(CONFIG, fake.deps)
     await rest.signIn('senha-certa')
     fake.calls.length = 0

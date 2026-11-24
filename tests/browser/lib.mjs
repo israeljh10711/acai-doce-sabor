@@ -70,6 +70,14 @@ export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
 
   let lastId = 0
   const pending = new Map()
+  const rejectPending = (message) => {
+    for (const waiter of pending.values()) {
+      clearTimeout(waiter.timer)
+      waiter.reject(new Error(message))
+    }
+    pending.clear()
+  }
+  socket.onclose = () => rejectPending('O Edge de teste encerrou a conexão de depuração.')
   /** Eventos recebidos desde a última navegação (console, erros, carregamento). */
   const events = []
 
@@ -82,6 +90,8 @@ export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
     }
     if (data.id) {
       const waiter = pending.get(data.id)
+      if (!waiter) return
+      clearTimeout(waiter.timer)
       pending.delete(data.id)
       if (data.error) waiter.reject(new Error(data.error.message))
       else waiter.resolve(data.result)
@@ -93,7 +103,11 @@ export async function openBrowser(profileDir, port = 9333, extraArgs = []) {
   const send = (method, params = {}) =>
     new Promise((resolve, reject) => {
       const id = ++lastId
-      pending.set(id, { resolve, reject })
+      const timer = setTimeout(() => {
+        pending.delete(id)
+        reject(new Error(`O Edge de teste demorou mais de 90 s para responder a ${method}.`))
+      }, 90_000)
+      pending.set(id, { resolve, reject, timer })
       socket.send(JSON.stringify({ id, method, params }))
     })
 

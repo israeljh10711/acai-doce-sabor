@@ -148,6 +148,11 @@ function rest(db, method, url, headers, body, state = {}) {
     db.refreshTokens.set(refresh, id)
     return { status: 200, body: { access_token: access, refresh_token: refresh, expires_in: 3600, token_type: 'bearer', user: { id, is_anonymous: true } } }
   }
+  if (url.pathname === '/functions/v1/conta' && method === 'POST') {
+    const data = JSON.parse(body || '{}')
+    if (data.action !== 'seller' || data.password !== SELLER_PASSWORD) return { status: 401, body: { message: 'Identificador ou senha incorretos.' } }
+    return { status: 200, body: { access_token: SELLER_TOKEN, refresh_token: 'refresh-teste', expires_in: 3600, token_type: 'bearer' } }
+  }
   if (url.pathname === '/auth/v1/token' && method === 'POST') {
     const data = JSON.parse(body || '{}')
     const grant = url.searchParams.get('grant_type')

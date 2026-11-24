@@ -36,14 +36,46 @@ let attempts: Attempts | null = null
 let api: TrackingApi | null = null
 let live: CustomerLive | null = null
 let storageWatched = false
+let owner: string | null = null
+const noAccount = () => null
+const noSubscription = () => () => undefined
+
+export function useCustomerAccount() {
+  const session = getCustomerSession()
+  return useSyncExternalStore(session?.subscribe ?? noSubscription, session?.account ?? noAccount, noAccount)
+}
+
+function selectOwner() {
+  const customer = getCustomerSession()
+  const next = customer?.account() ? customer.userId() : null
+  if (owner === next) return
+  owner = next
+  tracked = null
+  addMode = null
+  attempts = null
+  api = null
+  live = null
+}
+
+function ownedStorage(kind: 'localStorage' | 'sessionStorage') {
+  const store = browserStorage(kind)
+  if (!store || !owner) return store
+  const suffix = ':' + owner
+  return {
+    getItem: (key: string) => store.getItem(key + suffix),
+    setItem: (key: string, value: string) => store.setItem(key + suffix, value),
+    removeItem: (key: string) => store.removeItem(key + suffix),
+  }
+}
 
 /** As outras abas mudaram a lista de pedidos ou o modo de adição: avisa as telas desta. */
 function watchStorage() {
   if (storageWatched || typeof window === 'undefined') return
   storageWatched = true
   window.addEventListener('storage', (event) => {
-    if (event.key === TRACKED_KEY || event.key === null) tracked?.changed()
-    if (event.key === ADD_MODE_KEY || event.key === null) addMode?.changed()
+    const suffix = owner ? ':' + owner : ''
+    if (event.key === TRACKED_KEY + suffix || event.key === null) tracked?.changed()
+    if (event.key === ADD_MODE_KEY + suffix || event.key === null) addMode?.changed()
   })
 }
 
@@ -57,22 +89,26 @@ export function getCustomerSession(): CustomerSession | null {
 
 export function getTrackedOrders(): TrackedStore {
   watchStorage()
-  tracked ??= createTrackedOrders(browserStorage('localStorage'), () => Date.now())
+  selectOwner()
+  tracked ??= createTrackedOrders(ownedStorage('localStorage'), () => Date.now())
   return tracked
 }
 
 export function getAddMode(): AddModeStore {
   watchStorage()
-  addMode ??= createAddMode(browserStorage('localStorage'), () => Date.now())
+  selectOwner()
+  addMode ??= createAddMode(ownedStorage('localStorage'), () => Date.now())
   return addMode
 }
 
 export function getAttempts(): Attempts {
-  attempts ??= createAttempts(browserStorage('sessionStorage'), randomId)
+  selectOwner()
+  attempts ??= createAttempts(ownedStorage('sessionStorage'), randomId)
   return attempts
 }
 
 export function getTrackingApi(): TrackingApi {
+  selectOwner()
   if (api) return api
   const config = supabaseConfig()
   const customer = getCustomerSession()
@@ -139,6 +175,7 @@ const demoListen: CustomerListen = (onChange, onState) => {
 }
 
 export function getCustomerLive(): CustomerLive {
+  selectOwner()
   if (live) return live
   const config = supabaseConfig()
   const customer = getCustomerSession()
@@ -159,16 +196,19 @@ export function getCustomerLive(): CustomerLive {
 
 /** Os pedidos guardados neste aparelho (mais novos primeiro). */
 export function useTrackedOrders(): readonly TrackedOrder[] {
+  useCustomerAccount()
   const store = getTrackedOrders()
   return useSyncExternalStore(store.subscribe, store.list, store.list)
 }
 
 export function useAddMode(): AddMode | null {
+  useCustomerAccount()
   const store = getAddMode()
   return useSyncExternalStore(store.subscribe, store.get, store.get)
 }
 
 export function useCustomerLive(): CustomerLiveSnapshot {
+  useCustomerAccount()
   const store = getCustomerLive()
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
 }
@@ -178,6 +218,7 @@ export function useCustomerLive(): CustomerLiveSnapshot {
  * voltar para a aba. Com `orderId`, aquele pedido é conferido mesmo encerrado.
  */
 export function useCustomerConnection(enabled: boolean, orderId?: string | null): void {
+  const account = useCustomerAccount()
   useEffect(() => {
     if (!enabled) return
     const store = getCustomerLive()
@@ -192,5 +233,5 @@ export function useCustomerConnection(enabled: boolean, orderId?: string | null)
       store.stop()
       unwatch?.()
     }
-  }, [enabled, orderId])
+  }, [enabled, orderId, account])
 }

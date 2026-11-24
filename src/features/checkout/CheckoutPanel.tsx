@@ -3,7 +3,9 @@ import { type ComponentType, type ReactNode, useEffect, useId, useRef, useState 
 import { useNavigate } from 'react-router'
 import { Bag, Banknote, Check, CreditCard, IceCreamBowl, QrCode, Scooter } from '../../components/ui/icons.tsx'
 import { paths } from '../../paths.ts'
+import { type CustomerAddress, loadCustomerAddress, saveCustomerAddress } from '../../services/customerHistory.ts'
 import { formatBRL } from '../../utils/money.ts'
+import { formatBrazilPhone } from '../../utils/whatsapp.ts'
 import { type Cart, cartItemProblem, cartTotalCents, serializeCart } from '../cart/cart.ts'
 import { cartActions } from '../cart/cartStore.ts'
 import { useStoreSettings } from '../catalog/catalogStore.ts'
@@ -12,7 +14,7 @@ import type { OrderDraft } from '../orders/orderMessage.ts'
 import { type SubmitResult, submitOrder } from '../orders/orderService.ts'
 import { refreshCatalogNow, supabaseConfig } from '../seller/sellerBackend.ts'
 import type { TrackState } from '../tracking/trackState.ts'
-import { getAttempts, getCustomerLive, getCustomerSession, getTrackedOrders } from '../tracking/trackingRuntime.ts'
+import { getAttempts, getCustomerLive, getCustomerSession, getTrackedOrders, useCustomerAccount } from '../tracking/trackingRuntime.ts'
 import { StoreClosedCard } from '../store-hours/StoreClosedCard.tsx'
 import { serverNow } from '../store-hours/serverClock.ts'
 import { useStoreStatus } from '../store-hours/useStoreStatus.ts'
@@ -99,6 +101,8 @@ function rejectionText(result: Extract<SubmitResult, { kind: 'rejected' }>): str
         : 'Um item do carrinho não está mais no cardápio. Remova o item marcado e finalize de novo.'
     case 'dados-invalidos':
       return `Confira seus dados: ${result.detail ?? ''}`
+    case 'sem-sessao':
+      return 'Sua sessão expirou. Entre na conta novamente para finalizar o pedido.'
     case 'pagamento-invalido':
       return `Confira o pagamento: ${result.detail ?? ''}`
     default:
@@ -132,13 +136,38 @@ const FIELD_ORDER: readonly CustomerField[] = ['name', 'phone', 'kind', 'street'
  * bloqueado, como o vendedor escolheu; com item esgotado no carrinho, espera o cliente tirar.
  */
 export function CheckoutPanel({ cart }: { cart: Cart }) {
+  const account = useCustomerAccount()
+  return <CheckoutForm key={account ? `conta-${account}` : 'visitante'} account={account} cart={cart} />
+}
+
+function CheckoutForm({ cart, account }: { cart: Cart; account: string | null }) {
   const settings = useStoreSettings()
   const status = useStoreStatus()
   const uid = useId()
   const navigate = useNavigate()
   // "Lembrar meus dados" (2026-11-21): marcada quando já há dados lembrados neste aparelho.
   const [remember, setRemember] = useState(() => loadRemembered(deviceStorage()) !== null)
-  const [customer, setCustomer] = useState<CustomerDraft>(() => initialCustomer(loadCustomer(), loadRemembered(deviceStorage())))
+  const [customer, setCustomer] = useState<CustomerDraft>(() => account
+    ? { ...EMPTY_CUSTOMER, phone: /^[+\d(]/.test(account) ? formatBrazilPhone(account) ?? '' : '' }
+    : initialCustomer(loadCustomer(), loadRemembered(deviceStorage())))
+  const [addressMessage, setAddressMessage] = useState('')
+  const [savingAddress, setSavingAddress] = useState(false)
+  const addressEdited = useRef(false)
+  useEffect(() => {
+    if (!account) return
+    let current = true
+    loadCustomerAddress().then(address => {
+      if (!current || !address || addressEdited.current) return
+      const available = zoneList(settings.delivery)
+      const zone = available.find(entry => entry.id === address.zoneId)
+        ?? available.find(entry => entry.name.localeCompare(address.district, 'pt-BR', { sensitivity: 'base' }) === 0)
+      setCustomer(value => ({ ...value, ...address, zoneId: zone?.id ?? (available.length ? OTHER_ZONE : null) }))
+      setAddressMessage('Endereço preenchido com os dados da sua conta.')
+    }, () => {
+      if (current && !addressEdited.current) setAddressMessage('Não conseguimos carregar seu endereço. Você pode digitá-lo abaixo.')
+    })
+    return () => { current = false }
+  }, [account, settings.delivery])
   const [draft, setDraft] = useState<PaymentDraft>(EMPTY_PAYMENT)
   // Os avisos de "falta escolher" só aparecem depois da primeira tentativa de envio.
   const [attempted, setAttempted] = useState(false)
@@ -154,18 +183,20 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
   const changeField = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    if (account) return
     try {
       globalThis.sessionStorage?.setItem(CUSTOMER_KEY, JSON.stringify(draftForStorage(customer)))
     } catch {
       // Sem armazenamento: os dados ficam só nesta tela.
     }
-  }, [customer])
+  }, [account, customer])
 
   // Marcada: guarda e atualiza a cada mudança. Desmarcada: apaga o que estava lembrado.
   useEffect(() => {
+    if (account) return
     if (remember) saveRemembered(deviceStorage(), customer)
     else forgetRemembered(deviceStorage())
-  }, [remember, customer])
+  }, [account, remember, customer])
 
   const subtotalCents = cartTotalCents(cart)
   const fee = feeFor(customer, settings.delivery)
@@ -183,11 +214,18 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
   const paymentProblem = attempted && !paymentCheck.ok ? paymentCheck.problem : null
   const changeProblem = liveChangeProblem(draft, totalCents) ?? (paymentProblem && paymentProblem !== 'no-method' ? paymentProblem : null)
   const changeDue = feePending ? null : changeDueCents(draft, totalCents)
-  const orderKey = JSON.stringify([serializeCart(cart), customerCheck, paymentCheck, antecipado])
+  const orderParts = [serializeCart(cart), customerCheck, paymentCheck, antecipado]
+  const orderKey = JSON.stringify(account ? [account, ...orderParts] : orderParts)
   const outcome = finalize && finalize.key === orderKey ? finalize : null
   const sending = finalize?.state === 'sending'
 
-  const updateCustomer = (patch: Partial<CustomerDraft>) => setCustomer((current) => ({ ...current, ...patch }))
+  const updateCustomer = (patch: Partial<CustomerDraft>) => {
+    if ('street' in patch || 'number' in patch || 'district' in patch || 'zoneId' in patch || 'reference' in patch) {
+      addressEdited.current = true
+      setAddressMessage('')
+    }
+    setCustomer(current => ({ ...current, ...patch }))
+  }
   const updatePayment = (patch: Partial<PaymentDraft>) => setDraft((current) => ({ ...current, ...patch }))
   const field = (name: CustomerField | 'reference') => `${uid}-${name}`
   const problemProps = (name: CustomerField) =>
@@ -251,8 +289,13 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
         return
       }
       // A sessão anônima do cliente (criada no primeiro pedido): é ela que liga o pedido a ele.
-      const token = (await getCustomerSession()?.token({ create: true })) ?? null
-      const result = await submitOrder({ cart, customer, payment: draft, expectedTotalCents: totalCents, attemptId }, { ...functionConfig, token })
+      const session = getCustomerSession()
+      const accountId = session?.userId()
+      if (account !== (session?.account() ?? null)) throw new Error('sessao')
+      const token = (await session?.token({ create: !account })) ?? null
+      if (account !== (session?.account() ?? null) || (account && (!token || !accountId || session?.userId() !== accountId))) throw new Error('sessao')
+      const result = await submitOrder({ cart, customer, payment: draft, expectedTotalCents: totalCents, attemptId }, { ...functionConfig, token, requireSession: Boolean(account) })
+      if (account !== (session?.account() ?? null) || (account && accountId !== session?.userId())) return
       if (result.kind === 'registered') {
         placed({
           id: result.id ?? `codigo-${result.code}`,
@@ -279,6 +322,10 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
               ? 'Parece que a internet caiu.'
               : 'O sistema da loja não respondeu como esperado.',
       })
+    } catch (error) {
+      setFinalize({ key, state: 'failed', text: error instanceof Error && error.message === 'sessao'
+        ? 'Sua sessão mudou. Entre na conta novamente para finalizar.'
+        : 'Não conseguimos comunicar com a loja.' })
     } finally {
       submitting.current = false
     }
@@ -288,7 +335,33 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
   const zoneValue = customer.zoneId === OTHER_ZONE || zones.some((zone) => zone.id === customer.zoneId) ? (customer.zoneId ?? '') : ''
   const typedDistrict = zones.length === 0 || customer.zoneId === OTHER_ZONE
   /** Endereço sugerido pelo GPS: só os campos ainda vazios, conferidos no estado mais novo. */
-  const applyGuess = (guess: AddressGuess) => setCustomer((current) => ({ ...current, ...addressPatch(current, guess, zones) }))
+  const applyGuess = (guess: AddressGuess) => {
+    addressEdited.current = true
+    setAddressMessage('')
+    setCustomer(current => ({ ...current, ...addressPatch(current, guess, zones) }))
+  }
+  const saveAddress = async () => {
+    const zone = zones.find(candidate => candidate.id === customer.zoneId)
+    const address: CustomerAddress = {
+      street: customer.street.trim(), number: customer.number.trim(),
+      district: (zone?.name ?? customer.district).trim(), zoneId: zone?.id ?? (typedDistrict && zones.length ? OTHER_ZONE : null),
+      reference: customer.reference.trim(),
+    }
+    if (!address.street || !address.number || !address.district || (!typedDistrict && !zone)) {
+      setAddressMessage('Preencha rua, número e bairro para salvar o endereço.')
+      return
+    }
+    addressEdited.current = true
+    setSavingAddress(true)
+    try {
+      await saveCustomerAddress(address)
+      setAddressMessage('Endereço salvo na sua conta para os próximos pedidos.')
+    } catch {
+      setAddressMessage('Não foi possível salvar o endereço. Tente de novo.')
+    } finally {
+      setSavingAddress(false)
+    }
+  }
   const feeLabel =
     customer.kind === 'retirada'
       ? 'Retirada na loja'
@@ -365,7 +438,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
             {...problemProps('phone')}
           />
         </Field>
-        <div className="flex flex-col gap-0.5">
+        {!account && <div className="flex flex-col gap-0.5">
           <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-semibold text-acai-950">
             <input
               type="checkbox"
@@ -379,7 +452,7 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
           <p className="pl-8 text-xs leading-relaxed text-ink-soft">
             Nome, telefone e endereço ficam salvos só neste aparelho para a próxima compra. Desmarque para apagar.
           </p>
-        </div>
+        </div>}
       </fieldset>
 
       <fieldset
@@ -508,6 +581,15 @@ export function CheckoutPanel({ cart }: { cart: Cart }) {
                 className={`${inputClass} ring-line focus:ring-acai-700`}
               />
             </Field>
+            {account && (
+              <div>
+                <p className="mb-2 text-sm text-ink-soft">Ao finalizar a entrega, este endereço fica salvo na sua conta.</p>
+                <button type="button" disabled={savingAddress} onClick={() => void saveAddress()} className="inline-flex min-h-11 items-center justify-center rounded-full bg-white px-4 text-sm font-bold text-acai-800 ring-1 ring-acai-800/30 hover:bg-acai-100 focus-visible:outline-3 focus-visible:outline-offset-2 disabled:opacity-60">
+                  {savingAddress ? 'Salvando…' : 'Salvar endereço na minha conta'}
+                </button>
+                {addressMessage && <p role="status" className="mt-2 text-sm text-acai-800">{addressMessage}</p>}
+              </div>
+            )}
             {feePending && (
               <p data-combinar-note="" className="rounded-xl bg-orchid-100 px-3 py-2.5 text-sm font-semibold text-acai-950 ring-1 ring-orchid-400">
                 📞 Frete a combinar: a loja vai entrar em contato pelo telefone informado em “Seus dados” para confirmar o valor da entrega.

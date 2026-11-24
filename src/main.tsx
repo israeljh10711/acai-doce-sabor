@@ -5,11 +5,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router/dom'
 import './index.css'
-import { initCatalog } from './features/seller/sellerBackend.ts'
+import { initCatalog, supabaseConfig } from './features/seller/sellerBackend.ts'
 import { router } from './router.ts'
 
 // Mudanças do modo vendedor (preços, fotos, itens novos) antes de desenhar o site.
-initCatalog()
+const configured = import.meta.env.DEV || Boolean(supabaseConfig())
+if (configured) initCatalog()
 
 const rootElement = document.getElementById('root')
 
@@ -25,7 +26,12 @@ createRoot(rootElement).render(
   <StrictMode>
     <MotionConfig reducedMotion="user">
       <LazyMotion features={loadMotionFeatures} strict>
-        <RouterProvider router={router} />
+        {configured ? <RouterProvider router={router} /> : (
+          <main className="mx-auto max-w-xl px-5 py-12">
+            <h1 className="text-2xl font-bold">Loja temporariamente indisponível</h1>
+            <p className="mt-2">Tente acessar novamente em alguns minutos.</p>
+          </main>
+        )}
       </LazyMotion>
     </MotionConfig>
   </StrictMode>,

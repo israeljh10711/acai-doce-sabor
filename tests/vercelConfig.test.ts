@@ -50,6 +50,14 @@ describe('vercel.json: cabeçalhos de segurança', () => {
   const rule = config.headers.find((entry) => sourceToRegExp(entry.source).test('/'))
   const value = (key: string) => rule?.headers.find((header) => header.key === key)?.value
 
+  it('bloqueia scripts embutidos, plugins e enquadramento e mantém o GPS do checkout', () => {
+    const policy = value('Content-Security-Policy')?.split(';').map(part => part.trim())
+    expect(policy).toEqual(expect.arrayContaining(["default-src 'none'", "script-src 'self'", "frame-ancestors 'none'", "object-src 'none'", "base-uri 'none'"]))
+    expect(value('Strict-Transport-Security')).toMatch(/max-age=\d{8,}/)
+    expect(value('Permissions-Policy')).toContain('geolocation=(self)')
+    expect(value('Permissions-Policy')).toContain('microphone=()')
+  })
+
   it('valem para todo endereço (páginas e arquivos)', () => {
     expect(rule).toBeDefined()
     for (const path of ['/', '/vendedor', '/acompanhar/ADS-0001', '/assets/index-M6TQZpMM.js', '/favicon-32.png']) {

@@ -21,6 +21,41 @@ function fake(routes: (url: string, body: unknown) => { status: number; body?: u
   return { deps, calls, map }
 }
 
+describe('conta do cliente', () => {
+  const ACCOUNT = {
+    ...SESSION, access_token: 'acesso-conta', refresh_token: 'renova-conta',
+    user: { id: 'uid-conta', app_metadata: { customer_account: true, customer_identifier: 'joão da silva' } },
+  }
+  it('preserva o visitante ao cadastrar, entrar e sair da conta no mesmo aparelho', async () => {
+    const { deps, calls } = fake((url) => ({ status: 200, body: url.includes('/functions/v1/conta') ? ACCOUNT : SESSION }))
+    const session = createCustomerSession(deps)
+    const changes: (string | null)[] = []
+    session.subscribe(() => changes.push(session.account()))
+    await session.token({ create: true })
+    await session.signUp('João da Silva', 'senha12345')
+    expect(session.userId()).toBe('uid-conta')
+    expect(session.account()).toBe('joão da silva')
+    expect(await session.token({ create: false })).toBe('acesso-conta')
+    await session.signOut()
+    expect(session.userId()).toBe(SESSION.user.id)
+    expect(await session.token({ create: false })).toBe('acesso-1')
+    await session.signIn('João da Silva', 'senha12345')
+    expect(calls.filter(call => call.url.includes('/functions/v1/conta')).map(call => call.body)).toEqual([
+      { action: 'signup', identifier: 'João da Silva', password: 'senha12345' },
+      { action: 'signin', identifier: 'João da Silva', password: 'senha12345' },
+    ])
+    expect(changes).toEqual([null, 'joão da silva', null, 'joão da silva'])
+  })
+  it('falha transitória ao renovar a conta mantém seu UID e não cria um visitante', async () => {
+    const { deps, calls } = fake(url => url.includes('refresh_token') ? { status: 503 } : { status: 200, body: ACCOUNT })
+    await createCustomerSession(deps).signIn('João da Silva', 'senha12345')
+    const later = createCustomerSession({ ...deps, now: () => deps.now() + 4_000_000 })
+    expect(await later.token({ create: true })).toBeNull()
+    expect(later.account()).toBe('joão da silva')
+    expect(calls).toHaveLength(2)
+  })
+})
+
 describe('sessão anônima do cliente (pedido 100% no site, 2026-11-20)', () => {
   it('ao finalizar: cria a sessão anônima com a chave pública e guarda com chave própria', async () => {
     const { deps, calls, map } = fake(() => ({ status: 200, body: SESSION }))

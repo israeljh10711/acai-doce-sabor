@@ -7,7 +7,7 @@ Com o Supabase ligado:
 - o cliente finaliza o pedido no próprio site, sem WhatsApp (desde 2026-11-20). A função `pedido` confere e grava cada pedido com o código ADS-0001, ADS-0002...;
 - o cliente acompanha cada etapa ao vivo e pode acrescentar itens ao mesmo pedido enquanto ele está em Novo ou Preparando.
 
-Sem ele, o site funciona em modo de demonstração: as mudanças e os pedidos ficam só no navegador em que foram feitos, e a loja não recebe os pedidos.
+Em desenvolvimento, sem o Supabase, a demonstração usa os dados deste navegador. Em produção a conexão é obrigatória. A autenticação atual de clientes e vendedor usa a Edge Function `conta`. Consulte a [configuração de contas](conta-cliente.md).
 
 O plano gratuito do Supabase basta. Não cadastre cartão de crédito.
 
@@ -99,7 +99,7 @@ Na pasta do projeto (`C:\Users\johra\Projetos\acai-doce-sabor`), crie um arquivo
 ```
 VITE_SUPABASE_URL=https://abcdxyz.supabase.co
 VITE_SUPABASE_ANON_KEY=cole-aqui-a-chave-anon-ou-publishable
-VITE_SELLER_EMAIL=vendedor@acaidocesabor.app
+# SELLER_EMAIL é definido no ambiente privado da função conta.
 ```
 
 O `.env.local` não vai para o Git. Depois de salvar, reinicie o site (`npm run dev -- --host`).
@@ -251,7 +251,7 @@ Há dois sons, os dois feitos pela Web Audio do navegador, sem arquivo de som:
 
 ### Modo de demonstração local (sem o Supabase)
 
-Sem as três variáveis do Supabase no `.env.local`, o painel funciona em **modo de demonstração local**:
+No servidor de desenvolvimento, sem a configuração pública do Supabase no `.env.local`, o painel funciona em **modo de demonstração local**:
 - O pedido finalizado no carrinho fica guardado no `localStorage` do próprio navegador, com o código `DEMO-0001`, `DEMO-0002`... e a mesma estrutura da tabela `orders`. A mesma tentativa mandada duas vezes não é repetida.
 - O cliente vai para o acompanhamento, marcado como demonstração, e pode acrescentar itens (veja "Pedido 100% no site").
 - O painel mostra esses pedidos com a marca "Modo de demonstração local". Dá para filtrar, mudar a situação e cancelar, e tudo fica guardado no navegador.

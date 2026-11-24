@@ -144,7 +144,7 @@ export async function passwordToken(secrets, email, password) {
 export async function startSite(secrets, port = 5190) {
   process.env.VITE_SUPABASE_URL = secrets.url
   process.env.VITE_SUPABASE_ANON_KEY = secrets.publicKey
-  process.env.VITE_SELLER_EMAIL = secrets.seller.email
+  // O e-mail do vendedor é configuração privada da Edge Function conta.
   const { createServer } = await import('vite')
   const site = await createServer({
     configFile: join(PROJECT, 'vite.config.ts'),

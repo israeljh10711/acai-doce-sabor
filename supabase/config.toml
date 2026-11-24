@@ -1,0 +1,8 @@
+project_id = "acai-doce-sabor"
+
+[functions.conta]
+verify_jwt = false
+
+# A função aceita checkout visitante e valida o token antes de acessar a conta.
+[functions.pedido]
+verify_jwt = false

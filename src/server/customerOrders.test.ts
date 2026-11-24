@@ -106,6 +106,15 @@ describe('criar: pedido ligado à sessão do cliente (2026-11-20)', () => {
     expect(orders).toHaveLength(1)
   })
 
+  it('conta com sessão vencida pode tentar de novo sem perder o vínculo do pedido', async () => {
+    const { deps, orders } = fakeDeps()
+    const patch = { requireSession: true, customer_user_id: 'bia' }
+    expect(await create(deps, 'token-falso', patch)).toEqual({ ok: false, reason: 'sem-sessao' })
+    expect(orders).toHaveLength(0)
+    expect(await create(deps, 'token-ana', patch)).toMatchObject({ ok: true, tracked: true })
+    expect(orders[0].customer_user_id).toBe('ana')
+  })
+
   it('o mesmo carrinho numa tentativa nova (outro dia): pedido novo, não o antigo', async () => {
     const { deps } = fakeDeps()
     await create(deps, 'token-ana')
@@ -116,6 +125,18 @@ describe('criar: pedido ligado à sessão do cliente (2026-11-20)', () => {
     const { deps } = fakeDeps()
     await create(deps, 'token-ana')
     expect(await create(deps, 'token-bia')).toEqual({ ok: false, reason: 'pedido-invalido' })
+    expect(await create(deps, null)).toEqual({ ok: false, reason: 'pedido-invalido' })
+    // A mesma conferência vale quando a tentativa concorrente venceu o INSERT.
+    let firstRead = true
+    const racing = {
+      ...deps,
+      findOrder: async (key: string) => {
+        if (!firstRead) return deps.findOrder(key)
+        firstRead = false
+        return null
+      },
+    }
+    expect(await create(racing, 'token-bia')).toEqual({ ok: false, reason: 'pedido-invalido' })
   })
 
   it('site antigo (sem id de tentativa e sem op): continua funcionando como antes', async () => {

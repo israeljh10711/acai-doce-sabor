@@ -69,8 +69,16 @@ export const CATALOG_KEY = 'acai_doce_sabor_seller_catalog_v1'
 export const IMAGES_DB = 'acai_doce_sabor_seller_images'
 const PASSWORD_KEY = 'acai_doce_sabor_seller_password_v1'
 const SESSION_KEY = 'acai_doce_sabor_seller_session_v1'
-/** Hash SHA-256 da senha inicial definida pelo responsável (ajuste de 2026-11-16; vale até ser trocada). */
-const INITIAL_PASSWORD_HASH = 'c6cad5eff701c2484eb0561f073a564c3562dcf6335a6d8af8d4ddcded34051e'
+/** Verificador inicial exclusivo da demonstração. Cada instalação ganha um salt próprio no primeiro acesso. */
+const INITIAL_PASSWORD_HASH = 'pbkdf2-sha256$600000$deee6afe891d48f0f524404542c530b6$60e43af999957cd39980aeee4b9ec9da1840afe027fb4cd16adc432eec39d229'
+const PASSWORD_RECORD = /^pbkdf2-sha256\$600000\$([0-9a-f]{32})\$[0-9a-f]{64}$/
+
+async function localPasswordRecord(text: string, salt = crypto.getRandomValues(new Uint8Array(16))): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(text), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', iterations: 600_000, salt }, key, 256)
+  const hex = (bytes: Uint8Array) => Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+  return ['pbkdf2-sha256', '600000', hex(salt), hex(new Uint8Array(bits))].join('$')
+}
 /** Hash da senha inicial anterior: se ficou guardada (testes), dá lugar à senha nova. */
 const PREVIOUS_INITIAL_HASH = '158a323a7ba44870f23d96f1516dd70aa48e9a72db4ebb026b0a89e212a208ab'
 export const MIN_PASSWORD_LENGTH = 4
@@ -183,16 +191,25 @@ export function createLocalBackend(deps: LocalDeps): CatalogBackend {
       return Object.fromEntries(entries.map(([id, blob]) => [`idb:${id}`, deps.objectUrl(blob)]))
     },
     async signIn(password) {
-      const ok = (await deps.hash(password)) === passwordHash()
-      if (ok) store.setItem(SESSION_KEY, '1')
-      return ok
+      const saved = passwordHash()
+      const saltHex = PASSWORD_RECORD.exec(saved)?.[1]
+      if (saltHex) {
+        const salt = Uint8Array.from(saltHex.match(/../g)!, pair => parseInt(pair, 16))
+        if (await localPasswordRecord(password, salt) !== saved) return false
+      } else {
+        // Formato SHA-256 de instalações anteriores. Somente para conferir e converter uma vez.
+        if (!/^[a-f0-9]{64}$/.test(saved) || await deps.hash(password) !== saved) return false
+      }
+      if (!saltHex || saved === INITIAL_PASSWORD_HASH) store.setItem(PASSWORD_KEY, await localPasswordRecord(password))
+      store.setItem(SESSION_KEY, '1')
+      return true
     },
     async signOut() {
       store.removeItem(SESSION_KEY)
     },
     async changePassword(next) {
       if (store.getItem(SESSION_KEY) !== '1' || next.trim().length < MIN_PASSWORD_LENGTH) return false
-      store.setItem(PASSWORD_KEY, await deps.hash(next.trim()))
+      store.setItem(PASSWORD_KEY, await localPasswordRecord(next.trim()))
       return true
     },
     isSignedIn: () => store.getItem(SESSION_KEY) === '1',

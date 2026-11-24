@@ -6,6 +6,7 @@ import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { ArrowLeft, Check, Clock } from '../components/ui/icons.tsx'
 import { useStoreSettings } from '../features/catalog/catalogStore.ts'
 import { PixCard } from '../features/checkout/PixCard.tsx'
+import { CustomerAccountLink } from '../features/checkout/CustomerAccountLink.tsx'
 import { ComandaItems } from '../features/orders/ComandaItems.tsx'
 import { ModalityBadge } from '../features/orders/OrderCard.tsx'
 import { feeLine } from '../features/orders/ordersPanel.ts'
@@ -66,6 +67,7 @@ function TrackedList() {
           <BackToMenu />
           <h1 className="mt-1 font-display text-4xl font-black tracking-tight uppercase sm:text-5xl">Meus pedidos</h1>
           <p className="mt-2 text-lg text-white/85">Os pedidos feitos neste aparelho nos últimos 30 dias.</p>
+          <CustomerAccountLink from="tracking" />
         </Container>
       </div>
       <Container className="py-8 sm:py-12">
@@ -160,6 +162,7 @@ function OrderTracking({ code }: { code: string }) {
           <h1 className="nums font-display text-4xl font-black tracking-tight sm:text-5xl">Pedido #{code}</h1>
           {order && <p className="mt-1 text-white/85">Feito em {whenText(view?.createdAt ?? order.createdAt) ?? '—'}</p>}
           <p className="mt-2 text-lg text-white/85">Acompanhe cada etapa da preparação do seu pedido.</p>
+          <CustomerAccountLink from="tracking" />
         </Container>
       </div>
 

@@ -15,8 +15,8 @@ export default async function vendedor({ secrets, db, site, seller, state, recor
   await seller.set('#senha-vendedor', 'senha-errada-e2e')
   await seller.run(`__q('#senha-vendedor').form.requestSubmit(); true`)
   const wrong = await seller.waitFor(`__q('#senha-vendedor-erro')`)
-  const tokenCalls = seller.calls(since, '/auth/v1/token')
-  ok('senha errada: "Senha incorreta" e o Auth recusa (400)', wrong && tokenCalls.some((call) => call.status === 400), JSON.stringify(tokenCalls.map((call) => call.status)))
+  const tokenCalls = seller.calls(since, '/functions/v1/conta')
+  ok('senha errada: "Senha incorreta" e a função recusa (401)', wrong && tokenCalls.some((call) => call.status === 401), JSON.stringify(tokenCalls.map((call) => call.status)))
   since = Date.now()
   await seller.set('#senha-vendedor', secrets.seller.password)
   await seller.run(`__q('#senha-vendedor').form.requestSubmit(); true`)
@@ -25,7 +25,7 @@ export default async function vendedor({ secrets, db, site, seller, state, recor
     'senha certa: Modo Vendedor ligado (aba "Painel" no topo), token 200 e sellers 200',
     logged &&
       (await seller.run(`!!__q('[data-seller-panel-link]')`)) &&
-      seller.calls(since, '/auth/v1/token').some((call) => call.status === 200) &&
+      seller.calls(since, '/functions/v1/conta').some((call) => call.status === 200) &&
       seller.calls(since, '/rest/v1/sellers').some((call) => call.status === 200),
   )
   await seller.shot('01-vendedor-logado')
@@ -131,9 +131,9 @@ export default async function vendedor({ secrets, db, site, seller, state, recor
   )
   await seller.run(`__dialog()?.close(); true`)
   state.categoryId = id
-  // A senha errada de propósito (lá em cima) deixa um único 400 do Auth no console; ele é o esperado.
-  const wrongPassword = (entry) => /status of 400/.test(entry.text) && entry.text.includes('/auth/v1/token?grant_type=password')
+  // A tentativa com senha errada gera um único 401 da função conta no console.
+  const wrongPassword = (entry) => /status of 401/.test(entry.text) && entry.text.includes('/functions/v1/conta')
   const consoleProblems = seller.problems()
   const unexpected = [...consoleProblems.filter((entry) => !wrongPassword(entry)), ...consoleProblems.filter(wrongPassword).slice(1)]
-  ok('console do vendedor sem erros nesta seção (fora o 400 esperado da senha errada)', unexpected.length === 0, JSON.stringify(unexpected).slice(0, 300))
+  ok('console do vendedor sem erros nesta seção (fora o 401 esperado da senha errada)', unexpected.length === 0, JSON.stringify(unexpected).slice(0, 300))
 }

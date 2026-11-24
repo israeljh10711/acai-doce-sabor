@@ -38,7 +38,7 @@ process.env.VITE_SELLER_EMAIL = ''
 const site = await createServer({
   configFile: join(process.cwd(), 'vite.config.ts'),
   cacheDir: join(tmpdir(), 'acai-doce-sabor-vite-modalidades'),
-  server: { port: PORT, host: '127.0.0.1', strictPort: true },
+  server: { port: PORT, host: '127.0.0.1', strictPort: true, hmr: false, watch: null },
   logLevel: 'error',
 })
 await site.listen()
@@ -60,15 +60,17 @@ const helpers = `
   window.__demoOrders = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders } catch { return [] } };
   window.__openedText = () => __demoOrders().at(-1)?.message ?? null;
   // GPS de mentira: 'ok' devolve um ponto; um número é o código de erro do navegador (1 negado).
-  window.__geo = (mode, delay = 0) => {
+  window.__geo = (mode, manual = false) => {
     window.__geoCalls = [];
     const fake = {
       getCurrentPosition(success, failure, options) {
         window.__geoCalls.push(options);
-        setTimeout(() => {
+        const respond = () => {
           if (mode === 'ok') success({ coords: { latitude: -7.2209871234, longitude: -37.2541239876, accuracy: 8 }, timestamp: Date.now() });
           else failure({ code: mode, message: 'teste' });
-        }, delay);
+        };
+        if (manual) window.__finishGeo = respond;
+        else setTimeout(respond, 0);
       },
     };
     Object.defineProperty(navigator, 'geolocation', { value: fake, configurable: true });
@@ -250,17 +252,18 @@ try {
   await set(`__field('street')`, '')
   await set(`__field('number')`, '')
   await set(`__field('zone')`, '', 300)
-  await run(`__geo('ok', 700); __nominatim(${JSON.stringify(NOMINATIM)}, 200)`)
+  await run(`__geo('ok', true); __nominatim(${JSON.stringify(NOMINATIM)})`)
   await run(`(() => { const b = __q('[data-gps-capture]'); b.click(); b.click(); return true })()`)
-  await sleep(150)
+  await waitFor(`__q('[data-gps-capture]')?.disabled`)
   check(
     'carregando: "Buscando sua localização...", botão desligado, um pedido só ao aparelho',
     await run(`[__q('[data-gps-capture]')?.textContent.trim(), __q('[data-gps-capture]')?.disabled, window.__geoCalls.length]`),
     ['Buscando sua localização...', true, 1],
   )
   check('pedido ao aparelho com alta precisão, tempo limite e posição nova', await run(`window.__geoCalls[0]`), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 })
-  await waitFor(`__q('[data-gps="anexado"]')`)
-  await sleep(500)
+  await run('window.__finishGeo()')
+  await waitFor(`__q('[data-gps="anexado"] [data-gps-map]') && __q('[data-gps-remove]')`)
+  await waitFor(`__field('zone')?.value === 'centro'`)
   check(
     'sucesso: selo verde, link do pino e "Remover GPS"',
     await run(`(() => { const a = __q('[data-gps-map]'); return [__q('[data-gps="anexado"] [role="status"]')?.textContent.trim(), a?.textContent.trim(), a?.href, a?.target, a?.rel, __q('[data-gps-remove]')?.textContent.trim()] })()`),

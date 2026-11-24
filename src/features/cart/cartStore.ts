@@ -8,6 +8,7 @@ import { useSyncExternalStore } from 'react'
 import { getCatalogRecords, subscribeCatalog } from '../catalog/catalogState.ts'
 import type { ProductSlug } from '../catalog/menu.ts'
 import type { Selection } from '../catalog/selection.ts'
+import { repeatOrder } from './repeatOrder.ts'
 import {
   type Cart,
   EMPTY_CART,
@@ -79,6 +80,11 @@ if (typeof window !== 'undefined') {
 }
 
 export const cartActions = {
+  repeat(snapshots: readonly string[]) {
+    const result = repeatOrder(current(), snapshots)
+    commit(result.cart)
+    return result
+  },
   /** Põe a montagem no carrinho. Devolve o item criado, ou `null` se a montagem está incompleta. */
   add(slug: ProductSlug, selection: Selection): ProductCartItem | null {
     const { cart, item } = addItem(current(), slug, selection)

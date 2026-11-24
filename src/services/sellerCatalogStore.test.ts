@@ -64,6 +64,23 @@ describe('gravação no aparelho (modo vendedor sem Supabase)', () => {
     expect([...deps.storage.values()].some((value) => value.includes('acai2027'))).toBe(false)
   })
 
+  it('migra hash legado após login correto e usa salt independente por aparelho', async () => {
+    const key = 'acai_doce_sabor_seller_password_v1'
+    const hashes = []
+    for (let index = 0; index < 2; index++) {
+      const deps = fakeDeps()
+      const previous = await deps.hash('senha-antiga')
+      deps.storage.set(key, previous)
+      const backend = createLocalBackend(deps)
+      expect(await backend.signIn('incorreta')).toBe(false)
+      expect(deps.storage.get(key)).toBe(previous)
+      expect(await backend.signIn('senha-antiga')).toBe(true)
+      hashes.push(deps.storage.get(key))
+      expect(hashes.at(-1)).toMatch(/^pbkdf2-sha256\$600000\$[a-f0-9]{32}\$[a-f0-9]{64}$/)
+    }
+    expect(hashes[0]).not.toBe(hashes[1])
+  })
+
   it('gravar, ler e restaurar o original', async () => {
     const deps = fakeDeps()
     const backend = createLocalBackend(deps)

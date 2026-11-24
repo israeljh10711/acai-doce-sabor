@@ -4031,6 +4031,7 @@ function changedSelection(rawCart, cart) {
 	}
 	return null;
 }
+var MAX_LINES = 60;
 /** Marca do código na comanda, trocada pelo código de verdade depois de sair o número. */
 var CODE_MARK = "{{CODIGO_DO_PEDIDO}}";
 var reject$1 = (reason, detail) => detail ? {
@@ -4089,7 +4090,7 @@ function declaredLines(cart) {
 */
 function prepare(input, now) {
 	const lines = declaredLines(input.cart);
-	if (lines > 60) return reject$1("pedido-invalido");
+	if (lines > MAX_LINES) return reject$1("pedido-invalido");
 	const cart = parseCart(input.cart);
 	if (cart.items.length === 0) return reject$1(lines === 0 ? "carrinho-vazio" : "item-indisponivel");
 	if (cart.items.length !== lines) return reject$1("item-indisponivel");
@@ -4142,17 +4143,20 @@ function prepare(input, now) {
 		})
 	};
 }
-var accepted = (order, repeated) => ({
-	ok: true,
-	id: order.id,
-	code: order.code,
-	createdAt: order.created_at,
-	tracked: order.customer_user_id !== null,
-	totalCents: order.total_cents,
-	repeated,
-	message: order.message,
-	whatsapp: order.whatsapp
-});
+function accepted(order, customerId, repeated) {
+	if (order.customer_user_id !== customerId) return reject$1("pedido-invalido");
+	return {
+		ok: true,
+		id: order.id,
+		code: order.code,
+		createdAt: order.created_at,
+		tracked: order.customer_user_id !== null,
+		totalCents: order.total_cents,
+		repeated,
+		message: order.message,
+		whatsapp: order.whatsapp
+	};
+}
 /**
 * A chave de repetição: com o id da tentativa que o site sorteou (2026-11-20), o mesmo pedido
 * reenviado por toque duplo ou internet caída devolve o mesmo código, e um pedido igual feito
@@ -4175,10 +4179,7 @@ async function handleOrder(raw, deps, customerId = null) {
 	if (!input) return reject$1("pedido-invalido");
 	const attemptKey = await attemptKeyOf(input, deps);
 	const existing = await deps.findOrder(attemptKey);
-	if (existing) {
-		if (existing.customer_user_id && customerId && existing.customer_user_id !== customerId) return reject$1("pedido-invalido");
-		return accepted(existing, true);
-	}
+	if (existing) return accepted(existing, customerId, true);
 	await loadServerCatalog(deps);
 	const prepared = prepare(input, deps.now());
 	if (!prepared.ok) return prepared;
@@ -4194,7 +4195,7 @@ async function handleOrder(raw, deps, customerId = null) {
 	};
 	const stored = await deps.insertOrder(row) ?? await deps.findOrder(attemptKey);
 	if (!stored) throw new Error("O pedido não foi gravado.");
-	return accepted(stored, stored.code !== code);
+	return accepted(stored, customerId, stored.code !== code);
 }
 // src/server/customerOrders.ts
 /**
@@ -4274,7 +4275,7 @@ async function addItems(raw, deps, customerId) {
 	if (!ADDABLE_STATUSES.includes(order.status)) return reject("situacao", order.status);
 	await loadServerCatalog(deps);
 	const lines = cartLines(cart);
-	if (lines > 60) return reject("pedido-invalido");
+	if (lines > MAX_LINES) return reject("pedido-invalido");
 	const parsed = parseCart(cart);
 	if (parsed.items.length === 0) return reject(lines === 0 ? "carrinho-vazio" : "item-indisponivel");
 	if (parsed.items.length !== lines) return reject("item-indisponivel");
@@ -4353,7 +4354,12 @@ async function handleRequest(raw, deps, token) {
 	const op = isRecord(raw) && typeof raw.op === "string" ? raw.op : "criar";
 	const customerId = token ? await deps.verifyCustomer(token) : null;
 	switch (op) {
-		case "criar": return handleOrder(raw, deps, customerId);
+		case "criar":
+			if (isRecord(raw) && raw.requireSession === true && !customerId) return {
+				ok: false,
+				reason: "sem-sessao"
+			};
+			return handleOrder(raw, deps, customerId);
 		case "consultar": return lookupOrder(raw, deps, customerId);
 		case "meus": return listOrders(deps, customerId);
 		case "adicionar": return addItems(raw, deps, customerId);

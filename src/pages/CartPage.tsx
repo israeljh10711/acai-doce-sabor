@@ -1,6 +1,6 @@
 import { m } from 'motion/react'
 import { type ReactNode, Suspense, lazy, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
 import { ArrowLeft, Bag, Minus, Pencil, Plus, Trash } from '../components/ui/icons.tsx'
@@ -23,6 +23,7 @@ import { cartActions, useCart } from '../features/cart/cartStore.ts'
 import { ILLUSTRATIVE_NOTICE } from '../features/catalog/notices.ts'
 import { SoldOut } from '../features/catalog/CatalogSections.tsx'
 import { CheckoutPanel } from '../features/checkout/CheckoutPanel.tsx'
+import { CustomerAccountLink } from '../features/checkout/CustomerAccountLink.tsx'
 import { getExtraItem } from '../features/catalog/extras.ts'
 import { ExtraVisual, ProductVisual } from '../features/catalog/ItemVisual.tsx'
 import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
@@ -42,6 +43,7 @@ export function CartPage() {
   useCatalogVersion()
   usePageTitle('Carrinho', { noindex: true })
   const cart = useCart()
+  const location = useLocation()
   // Adicionar itens a um pedido já feito (2026-11-20): o carrinho confirma a adição no lugar da finalização.
   const addMode = useAddMode()
   const [announcement, setAnnouncement] = useState('')
@@ -71,10 +73,14 @@ export function CartPage() {
                 : `${count} ${count === 1 ? 'item' : 'itens'} para acrescentar ao pedido #${addMode.code}.`
               : count === 0 ? 'Nenhum item ainda.' : `${count} ${count === 1 ? 'item' : 'itens'}, salvos neste aparelho.`}
           </p>
+          <CustomerAccountLink from="cart" />
         </Container>
       </div>
 
       <Container className="py-8 sm:py-12">
+        {typeof location.state?.reorderNotice === 'string' && (
+          <p role="status" className="mb-5 rounded-xl bg-orchid-100 px-4 py-3 text-sm font-bold text-acai-950">{location.state.reorderNotice}</p>
+        )}
         {cart.items.length === 0 ? (
           <>
             {/* Loja fechada (pedido de 2026-11-17): o aviso com o endereço e o WhatsApp. */}

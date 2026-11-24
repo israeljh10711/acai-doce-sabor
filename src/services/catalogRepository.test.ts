@@ -25,7 +25,7 @@ describe('cardápio do Supabase', () => {
   it('chama a RPC com a chave pública, sem token na URL', async () => {
     const calls: { url: string; init: RequestInit }[] = []
     const rest = createSupabaseRest(
-      { url: 'https://exemplo.supabase.co/', key: 'sb_publishable_x', sellerEmail: '' },
+      { url: 'https://exemplo.supabase.co/', key: 'sb_publishable_x' },
       {
         fetch: (async (url: string, init: RequestInit) => {
           calls.push({ url, init })

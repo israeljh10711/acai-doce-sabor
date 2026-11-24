@@ -289,6 +289,8 @@ try {
     ['⏳ Em andamento 6', 'Todos 6', '🆕 Novos 5', '🍨 Preparando 0', '🛵 Saiu / Pronto 1', '✅ Concluídos 0'],
   )
   check('título da aba com os pedidos novos', await run(`document.title`), '(5) Pedidos | Açaí Doce Sabor')
+  // A faixa global de som carrega em um chunk separado da tela de pedidos.
+  await waitFor(`__q('[data-seller-bar]')`)
   check(
     'som: antes de um toque o painel não diz "Som Ativo" e pede para ativar',
     await run(`[__text(__q('[data-orders-sound-on]')), __q('[data-orders-sound-on]').getAttribute('aria-pressed'), !!__q('[data-orders-sound-hint]')]`),

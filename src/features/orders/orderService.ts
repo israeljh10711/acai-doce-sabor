@@ -16,7 +16,7 @@ import type { PaymentDraft } from '../checkout/payment.ts'
 export type OrderSubmission = { cart: Cart; customer: CustomerDraft; payment: PaymentDraft; expectedTotalCents: number; attemptId?: string }
 
 /** `token`: a sessão anônima do cliente (sem ela, o pedido é gravado, mas sem acompanhamento). */
-export type FunctionConfig = { url: string; key: string; token?: string | null }
+export type FunctionConfig = { url: string; key: string; token?: string | null; requireSession?: boolean }
 
 export type SubmitResult =
   | { kind: 'registered'; id: string | null; code: string; createdAt: string | null; tracked: boolean; totalCents: number; repeated: boolean }
@@ -24,7 +24,7 @@ export type SubmitResult =
   | { kind: 'failed'; why: 'rede' | 'servidor' | 'tempo' | 'resposta' }
 
 /** Recusas que o cliente resolve no carrinho; as outras viram falha (o cliente tenta de novo). */
-const FIXABLE: readonly RejectReason[] = ['esgotado', 'loja-fechada', 'dados-invalidos', 'pagamento-invalido', 'total-mudou', 'item-indisponivel']
+const FIXABLE: readonly RejectReason[] = ['esgotado', 'loja-fechada', 'dados-invalidos', 'pagamento-invalido', 'total-mudou', 'item-indisponivel', 'sem-sessao']
 
 /** Tempo máximo esperando a função antes de dizer que não deu para confirmar. */
 export const SUBMIT_TIMEOUT_MS = 15_000
@@ -56,6 +56,7 @@ export async function submitOrder(
       headers: { 'Content-Type': 'application/json', apikey: config.key, ...authorization(config) },
       body: JSON.stringify({
         op: 'criar',
+        ...(config.requireSession ? { requireSession: true } : {}),
         cart: serializeCart(order.cart),
         customer: order.customer,
         payment: order.payment,

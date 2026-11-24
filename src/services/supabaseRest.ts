@@ -9,7 +9,7 @@
 import type { OrderStatus } from '../features/orders/ordersPanel.ts'
 import type { AnyChange, ChangeKind } from './sellerCatalogStore.ts'
 
-export type SupabaseConfig = { url: string; key: string; sellerEmail: string }
+export type SupabaseConfig = { url: string; key: string }
 
 /** Erro ao gravar o cardápio, com o código e a mensagem do banco. */
 export class CatalogWriteError extends Error {
@@ -25,6 +25,10 @@ export class CatalogWriteError extends Error {
   }
 }
 
+class LoginLimitError extends Error {
+  constructor() { super('Muitas tentativas. Aguarde alguns minutos e tente novamente.') }
+}
+
 export type RestDeps = {
   fetch: typeof fetch
   now(): number
@@ -36,7 +40,7 @@ export type ChangeRow = { kind: ChangeKind; id: string; data: unknown }
 
 type Session = { accessToken: string; refreshToken: string; expiresAt: number }
 
-const SESSION_KEY = 'acai_doce_sabor_seller_supabase_session_v1'
+const SESSION_KEY = 'acai_doce_sabor_seller_supabase_session_v2'
 export const PHOTO_BUCKET = 'catalogo'
 
 /** O que o painel de pedidos lê de cada pedido (pedido de 2026-11-20, etapa 2). */
@@ -73,6 +77,8 @@ const OPEN_FILTER = 'status.in.(novo,confirmado,preparando,pronto,pronto_retirad
 
 export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
   const base = config.url.replace(/\/+$/, '')
+  // A sessão anterior à proteção por sessão precisa de um novo login e contém tokens antigos.
+  try { deps.store.removeItem('acai_doce_sabor_seller_supabase_session_v1') } catch { /* Armazenamento indisponível. */ }
   // A chave anon antiga é um JWT e vai também no Authorization; a publishable vai só no apikey.
   const publicHeaders: Record<string, string> = config.key.startsWith('eyJ')
     ? { apikey: config.key, Authorization: `Bearer ${config.key}` }
@@ -196,19 +202,22 @@ export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
     /** Login do vendedor: senha certa e conta na tabela `sellers`. */
     async signIn(password: string): Promise<boolean> {
       try {
-        const response = await request('/auth/v1/token?grant_type=password', {
+        const response = await deps.fetch(base + '/functions/v1/conta', {
           method: 'POST',
           headers: { ...publicHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: config.sellerEmail, password }),
+          body: JSON.stringify({ action: 'seller', password }),
         })
+        if (response.status === 429) throw new LoginLimitError()
+        if (!response.ok) return false
         writeSession(sessionFrom(await response.json()))
         const sellers = await request('/rest/v1/sellers?select=user_id', { headers: await authed() })
         const rows = (await sellers.json()) as unknown
         if (Array.isArray(rows) && rows.length > 0) return true
         writeSession(null)
         return false
-      } catch {
+      } catch (error) {
         writeSession(null)
+        if (error instanceof LoginLimitError) throw error
         return false
       }
     },
@@ -224,10 +233,10 @@ export function createSupabaseRest(config: SupabaseConfig, deps: RestDeps) {
 
     async changePassword(next: string): Promise<boolean> {
       try {
-        await request('/auth/v1/user', {
-          method: 'PUT',
+        await request('/functions/v1/conta', {
+          method: 'POST',
           headers: await authed({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ password: next }),
+          body: JSON.stringify({ action: 'seller-password', password: next }),
         })
         return true
       } catch {

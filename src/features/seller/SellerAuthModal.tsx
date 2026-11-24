@@ -11,7 +11,7 @@ export function SellerAuthModal({ onClose }: { onClose: () => void }) {
   const seller = useSellerMode()
   const [password, setPassword] = useState('')
   const [visible, setVisible] = useState(false)
-  const [wrong, setWrong] = useState(false)
+  const [wrong, setWrong] = useState('')
   const [busy, setBusy] = useState(false)
 
   return (
@@ -27,13 +27,17 @@ export function SellerAuthModal({ onClose }: { onClose: () => void }) {
           // O formulário antes de esperar: depois do await o evento já não tem `currentTarget`.
           const form = event.currentTarget
           setBusy(true)
-          const ok = await seller.signIn(password).catch(() => false)
+          let message = 'Senha incorreta. Tente novamente.'
+          const ok = await seller.signIn(password).catch((error: unknown) => {
+            if (error instanceof Error) message = error.message
+            return false
+          })
           setBusy(false)
           if (ok) {
             form.closest('dialog')?.close()
             return
           }
-          setWrong(true)
+          setWrong(message)
           setPassword('')
         }}
         className="flex flex-col gap-3 pb-2"
@@ -48,11 +52,11 @@ export function SellerAuthModal({ onClose }: { onClose: () => void }) {
             value={password}
             autoFocus
             autoComplete="current-password"
-            aria-invalid={wrong || undefined}
+            aria-invalid={Boolean(wrong) || undefined}
             aria-describedby={wrong ? 'senha-vendedor-erro' : undefined}
             onChange={(event) => {
               setPassword(event.target.value)
-              setWrong(false)
+              setWrong('')
             }}
             className="min-h-12 w-full rounded-xl bg-acai-50 pr-14 pl-4 text-base text-acai-950 ring-1 ring-line outline-none focus:bg-white focus:ring-2 focus:ring-acai-700"
           />
@@ -68,7 +72,7 @@ export function SellerAuthModal({ onClose }: { onClose: () => void }) {
         </div>
         {wrong && (
           <p id="senha-vendedor-erro" role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200">
-            Senha incorreta. Tente novamente.
+            {wrong}
           </p>
         )}
         <button

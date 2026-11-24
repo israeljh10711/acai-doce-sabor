@@ -1,9 +1,9 @@
 /**
  * A gravação do modo vendedor em uso e a carga das mudanças ao abrir o site (pedido de
  * 2026-11-16):
- * - com `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` e `VITE_SELLER_EMAIL` no `.env.local`, o
+ * - com `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` no `.env.local`, o
  *   Supabase (para todos os clientes);
- * - sem elas, este aparelho.
+ * - sem elas, demonstração somente no servidor de desenvolvimento.
  */
 import { acceptRecords, createCatalogLive } from '../catalog/catalogLive.ts'
 import {
@@ -37,13 +37,12 @@ const REFRESH_MS = 60_000
 let backend: CatalogBackend | null = null
 let photoUrls: Record<string, string> = {}
 
-/** O Supabase está ligado quando o `.env.local` tem as três: endereço, chave pública e e-mail do vendedor. */
-export function supabaseConfig(): { url: string; key: string; sellerEmail: string } | null {
+/** O Supabase está ligado quando o site tem o endereço e a chave pública do projeto. */
+export function supabaseConfig(): { url: string; key: string } | null {
   const url = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim()
   // O nome pedido em 2026-11-16 (ANON_KEY) ou o do .env.example da Fase 0 (PUBLISHABLE_KEY).
   const key = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '').trim()
-  const sellerEmail = String(import.meta.env.VITE_SELLER_EMAIL ?? '').trim()
-  return url && key && sellerEmail ? { url, key, sellerEmail } : null
+  return url && key ? { url, key } : null
 }
 
 let rest: SupabaseRest | null = null
@@ -67,7 +66,9 @@ export function getSupabaseRest(): SupabaseRest | null {
 export function getSellerBackend(): CatalogBackend {
   if (backend) return backend
   const supabase = getSupabaseRest()
-  backend = supabase ? createSupabaseBackend(supabase, window.localStorage) : createLocalBackend(browserLocalDeps())
+  if (supabase) backend = createSupabaseBackend(supabase, window.localStorage)
+  else if (import.meta.env.DEV) backend = createLocalBackend(browserLocalDeps())
+  else throw new Error('A loja precisa de conexão com o Supabase.')
   return backend
 }
 

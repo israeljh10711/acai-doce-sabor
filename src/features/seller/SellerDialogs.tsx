@@ -16,7 +16,7 @@ const primaryButton =
 
 export function ChangePassword({ onClose }: { onClose: () => void }) {
   const seller = useSellerMode()
-  const min = seller.backendKind === 'supabase' ? 6 : MIN_PASSWORD_LENGTH
+  const min = seller.backendKind === 'supabase' ? 8 : MIN_PASSWORD_LENGTH
   const [next, setNext] = useState('')
   const [again, setAgain] = useState('')
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)

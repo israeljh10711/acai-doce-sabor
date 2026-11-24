@@ -6,6 +6,7 @@ export const routePatterns = {
   buildOrder: '/monte-seu-pedido',
   configurator: '/monte-seu-pedido/:categoria',
   cart: '/carrinho',
+  account: '/minha-conta',
   credits: '/creditos',
   /** Painel de pedidos do Modo Vendedor (2026-11-20). */
   orders: '/pedidos',
@@ -30,6 +31,7 @@ export const paths = {
   configurator: (slug: ProductSlug, itemId?: string) =>
     `${routePatterns.buildOrder}/${slug}${itemId ? `?item=${encodeURIComponent(itemId)}` : ''}`,
   cart: routePatterns.cart,
+  account: routePatterns.account,
   credits: routePatterns.credits,
   orders: routePatterns.orders,
   panel: routePatterns.panel,

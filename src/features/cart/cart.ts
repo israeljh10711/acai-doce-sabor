@@ -44,6 +44,7 @@ import { formatBRL } from '../../utils/money.ts'
 
 /** Limite técnico de unidades de um mesmo item. Não é regra do cardápio. */
 export const MAX_ITEM_QUANTITY = 20
+export const MAX_CART_LINES = 60
 
 export type ProductCartItem = {
   /** Identificador do item, para editar e remover. */

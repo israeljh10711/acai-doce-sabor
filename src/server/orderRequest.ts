@@ -18,6 +18,7 @@ export async function handleRequest(raw: unknown, deps: PedidoDeps, token: strin
   const customerId = token ? await deps.verifyCustomer(token) : null
   switch (op) {
     case 'criar':
+      if (isRecord(raw) && raw.requireSession === true && !customerId) return { ok: false, reason: 'sem-sessao' }
       return handleOrder(raw, deps, customerId)
     case 'consultar':
       return lookupOrder(raw, deps, customerId)

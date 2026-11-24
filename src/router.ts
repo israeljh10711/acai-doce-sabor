@@ -17,6 +17,11 @@ export const router = createBrowserRouter([
       { path: routePatterns.buildOrder, Component: BuildOrderPage },
       { path: routePatterns.cart, Component: CartPage },
       {
+        path: routePatterns.account,
+        HydrateFallback: PageLoading,
+        lazy: async () => ({ Component: (await import('./pages/CustomerAccountPage.tsx')).CustomerAccountPage }),
+      },
+      {
         // Os créditos (com a lista das fontes de cada foto) também só carregam quando abertos.
         path: routePatterns.credits,
         HydrateFallback: PageLoading,
