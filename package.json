@@ -28,6 +28,7 @@
     "build:pedido": "vite build --config vite.pedido.config.ts",
     "check:pedido-funcao": "node tests/server/check-pedido-funcao.mjs",
     "check:pedido": "node tests/browser/check-pedido.mjs",
+    "check:conta-cliente": "node tests/browser/check-conta-cliente.mjs",
     "check:modalidades": "node tests/browser/check-modalidades.mjs",
     "check:painel": "node tests/browser/check-pedidos-painel.mjs",
     "check:pedidos-demo": "node tests/browser/check-pedidos-demo.mjs",

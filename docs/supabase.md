@@ -64,8 +64,8 @@ Fora dessa ordem:
 ## 3. Criar a conta do vendedor
 
 1. Abra **Authentication > Users** e clique em **Add user > Create new user**.
-2. E-mail: um e-mail só para o login, por exemplo `vendedor@acaidocesabor.app`. Ele não precisa receber mensagens, porque a confirmação fica marcada no passo seguinte. Esse e-mail fica visível no código do site, então use um que não seja pessoal.
-3. Senha: a senha que o vendedor vai digitar no site. O Supabase exige **pelo menos 6 caracteres**.
+2. Use um e-mail exclusivo para o vendedor, por exemplo `vendedor@acaidocesabor.app`. Informe esse endereço no segredo `SELLER_EMAIL` da função `conta`.
+3. Escolha uma senha de pelo menos oito caracteres. O vendedor usará essa senha no site.
 4. Marque **Auto Confirm User** e crie.
 5. Volte ao **SQL Editor** e rode esta linha, com o e-mail do passo 2:
 
@@ -79,9 +79,7 @@ Fora dessa ordem:
    - schema `public`;
    - função `antes_de_criar_usuario` (criada no passo 2.7).
 
-   Salve. A partir daí, só a sessão anônima de acompanhamento pode ser criada pelo site; cadastro com e-mail ou telefone é recusado.
-
-   Para criar outra conta de vendedor depois, desligue o gancho por um instante, crie a conta (passos 1 a 5) e ligue de novo.
+   Salve. Com as quatro migrations de contas aplicadas, o gancho permite visitantes anônimos e clientes cadastrados pela função `conta`. O vendedor usa a conta vinculada nos passos 1 a 5.
 
 ## 4. Pegar o endereço e a chave pública
 
@@ -298,7 +296,7 @@ O cliente finaliza, acompanha e complementa o pedido sem sair do site. O WhatsAp
   - soma ao total sem cobrar a entrega de novo e registra o evento.
 
   Só a função `pedido` pode chamá-la (chave de servidor).
-- **`antes_de_criar_usuario`:** o gancho "Before User Created" (passo 3.7). Ele só deixa criar a sessão anônima de acompanhamento. Cadastro com e-mail ou telefone é recusado.
+- **`antes_de_criar_usuario`** permite a sessão anônima de acompanhamento e o cadastro de cliente pela função `conta`. Cadastros diretos com e-mail ou telefone são recusados.
 
 O SQL não apaga nenhum pedido. Pode rodar de novo sem duplicar nada.
 
@@ -631,7 +629,7 @@ Se o cardápio não carrega ou vem fora do formato, a função responde erro (50
 
 ## Se algo der errado
 
-- **Senha certa não entra:** confira se o e-mail do `.env.local` é igual ao da conta e se a linha do passo 3.5 foi rodada.
+- Se a senha do vendedor for recusada, confira o segredo `SELLER_EMAIL` da função `conta` e o vínculo em `public.sellers` do passo 3.5.
 - **Supabase fora do ar ou chave errada:** a loja mostra "Cardápio indisponível agora" com **Tentar de novo** (desde 2026-11-21 ela não usa o cardápio do código no lugar). Quem já estava com a página aberta continua com o último cardápio lido até a próxima leitura.
 - **"Cardápio indisponível agora" logo depois de publicar o site novo:** falta rodar o `20261121120000_catalogo_dinamico.sql` (passo 2.8).
 - **O vendedor salva e aparece "Sua sessão de vendedor acabou":** saia e entre de novo no Modo Vendedor.
