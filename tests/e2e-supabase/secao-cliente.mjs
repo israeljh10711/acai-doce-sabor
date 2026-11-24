@@ -107,11 +107,11 @@ export default async function cliente({ db, site, customer, state, ok }) {
   ok('produto com sabores e produto direto no carrinho', await waitFor(`__cartCount() === 3`))
 
   // ------------------------------------------------------------------ Completo e SEM (açaí da semente)
-  await fresh('/monte-seu-pedido/acai-oca')
-  await waitFor(`__q('input[value="pote-200"]')`)
-  await click(`__q('input[value="pote-200"]')`, 400)
+  await fresh('/monte-seu-pedido/acai-tradicional')
+  await waitFor(`__q('input[value="copo-400"]')`)
+  await click(`__q('input[value="copo-400"]')`, 400)
   await click(`[...__q('[data-complete-bar]').querySelectorAll('button')].find((b) => b.textContent.trim().startsWith('Completo'))`, 700)
-  await click(`__topping('Tirar Granola')`, 500)
+  await click(`__topping('Granola')`, 500)
   ok('Completo sem a granola: "COMPLETO (SEM: Granola)" por R$ 10,00', await waitFor(`__text(__q('#resumo')).includes('SEM: Granola') && __text(__q('#resumo')).includes('R$ 10,00')`), await run(`__text(__q('#resumo')).slice(0, 160)`))
   await click(`__button('Adicionar ao carrinho')`, 600)
   await waitFor(`__confirm()?.open`)
@@ -144,7 +144,7 @@ export default async function cliente({ db, site, customer, state, ok }) {
   ok('editar o montável: subtotal R$ 34,00 e os outros 3 itens iguais', await waitFor(`__values().includes('Subtotal R$ 34,00') && __all('[aria-label="Itens do carrinho"] > li').length === 4`), await run(`__values()`))
   // Remover 2 itens (ficam montável e direto para a entrega).
   await click(`[...__cartItem('${PREFIX}Produto-Sabores').querySelectorAll('button')].find((b) => b.textContent.includes('Remover'))`, 600)
-  await click(`[...__cartItem('Açaí Oca').querySelectorAll('button')].find((b) => b.textContent.includes('Remover'))`, 600)
+  await click(`[...__cartItem('Açaí Tradicional').querySelectorAll('button')].find((b) => b.textContent.includes('Remover'))`, 600)
   ok('remover 2 itens: ficam 2, subtotal R$ 16,00 (12 + 4)', await waitFor(`__all('[aria-label="Itens do carrinho"] > li').length === 2 && __values().includes('Subtotal R$ 16,00')`), await run(`__values()`))
 
   // ------------------------------------------------------------------ pedido 1: entrega
@@ -210,7 +210,7 @@ export default async function cliente({ db, site, customer, state, ok }) {
 
   // ------------------------------------------------------------------ pedido 2: retirada (dados lembrados)
   const cartOf = (wanted) => JSON.stringify({ v: 2, items: state.uiCartItems.filter((item) => wanted(item)) })
-  await run(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(cartOf((item) => item.itemId === SABORES_PRODUTO || item.slug === 'acai-oca'))}); sessionStorage.clear(); ${QUIET}`)
+  await run(`localStorage.setItem('acai-doce-sabor:carrinho', ${JSON.stringify(cartOf((item) => item.itemId === SABORES_PRODUTO || item.slug === 'acai-tradicional'))}); sessionStorage.clear(); ${QUIET}`)
   await fresh('/carrinho')
   await waitFor(`__q('[data-finalize]')`, 15000)
   ok('"Lembrar meus dados": nome, telefone e endereço voltam numa visita nova', (await run(`[__q('input[autocomplete="name"]').value, __q('[data-field="phone"]')?.value].join('|')`)) === `${PREFIX}Cliente Entrega|(83) 98888-0001`)
