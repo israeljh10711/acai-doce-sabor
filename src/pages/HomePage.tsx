@@ -2,12 +2,10 @@ import { m } from 'motion/react'
 import { Logo } from '../components/brand/Logo.tsx'
 import { Container } from '../components/layout/Container.tsx'
 import { ButtonLink } from '../components/ui/ButtonLink.tsx'
-import { Depth, TiltStage } from '../components/ui/TiltStage.tsx'
 import { ArrowRight, Camera, Chat, Clock, Crown, Pin } from '../components/ui/icons.tsx'
 import { legacyAnchors, MONTE_TITLE } from '../features/catalog/catalogNav.ts'
 import { useCatalogVersion } from '../features/catalog/catalogStore.ts'
 import { MenuBrowser } from '../features/catalog/MenuBrowser.tsx'
-import { ProductPhoto } from '../features/catalog/ProductPhoto.tsx'
 import { useStoreSettings } from '../features/catalog/catalogStore.ts'
 import { scheduleText } from '../features/store-hours/hours.ts'
 import { StoreClosedCard } from '../features/store-hours/StoreClosedCard.tsx'
@@ -117,38 +115,27 @@ function Hero() {
   )
 }
 
-/**
- * Fotos reais dos produtos, com profundidade: inclinam de leve com o ponteiro. Oca e Tradicional
- * em quadros brancos; o milk-shake recortado (fundo transparente), direto sobre o roxo.
- */
 function HeroPhoto() {
-  const frame = 'overflow-hidden rounded-[1.75rem] bg-white shadow-[0_24px_50px_-18px_rgb(10_1_7/0.75)] ring-4 ring-white/15'
   return (
-    <m.figure
-      className="relative mx-auto w-full max-w-[34rem]"
-      initial={{ opacity: 0, scale: 0.94 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.8, ease: EASE_OUT }}
-    >
-      <TiltStage enabled maxDegrees={5} className="relative aspect-square">
-        <Depth depth={0.3} className={`absolute top-[4%] left-[14%] w-[68%] ${frame}`}>
-          <ProductPhoto slug="acai-oca" sizes="(min-width: 64rem) 370px, 68vw" priority decorative />
-        </Depth>
-        <Depth depth={0.9} className={`absolute bottom-[3%] left-[0%] w-[40%] -rotate-3 ${frame}`}>
-          <ProductPhoto slug="acai-tradicional" sizes="(min-width: 64rem) 220px, 40vw" priority decorative />
-        </Depth>
-        <Depth
-          depth={1.1}
-          className="absolute right-[-2%] bottom-[2%] w-[42%] rotate-3 drop-shadow-[0_22px_22px_rgb(10_1_7/0.6)]"
-        >
-          <ProductPhoto slug="milk-shake" sizes="(min-width: 64rem) 230px, 42vw" priority decorative />
-        </Depth>
-      </TiltStage>
-      <figcaption className="sr-only">
-        Fotos dos produtos: pote de Açaí Oca com sucrilhos, morango e amendoim; açaí na tigela de isopor com morango,
-        confete, banana e chocoball; e milk-shake de chocolate no copo com tampa bolha.
-      </figcaption>
-    </m.figure>
+    <picture className="mx-auto block w-full max-w-[34rem] overflow-hidden rounded-3xl shadow-2xl">
+      <source
+        media="(min-width: 64rem)"
+        srcSet="/images/campanha/mesa-de-acai-640.webp 640w, /images/campanha/mesa-de-acai-1080.webp 1080w"
+        sizes="(min-width: 72rem) 33rem, 46vw"
+        width={1080}
+        height={1080}
+      />
+      <img
+        src="/images/campanha/primeira-colherada-600.webp"
+        srcSet="/images/campanha/primeira-colherada-600.webp 600w, /images/campanha/primeira-colherada-1080.webp 1080w"
+        sizes="(min-width: 36rem) 34rem, calc(100vw - 2rem)"
+        width={600}
+        height={400}
+        fetchPriority="high"
+        alt="Imagem de campanha com Açaí Oca em camadas, morangos e crocantes, uma tigela de açaí com banana e confeitos e um milk-shake de chocolate."
+        className="block h-auto w-full"
+      />
+    </picture>
   )
 }
 

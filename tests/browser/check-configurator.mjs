@@ -54,16 +54,6 @@ const helpers = `
   window.__demoOrders = () => { try { return JSON.parse(localStorage.getItem('acai_doce_sabor_pedidos_demo_v1')).orders } catch { return [] } };
   window.__demoCount = () => __demoOrders().length;
   window.__openedText = () => __demoOrders().at(-1)?.message ?? null;
-  // Transparência (alfa, 0 a 255) de pontos de uma foto, em frações da largura e da altura.
-  window.__alpha = async (img, points) => {
-    await img.decode();
-    const canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return points.map(([fx, fy]) => ctx.getImageData(Math.floor(fx * (canvas.width - 1)), Math.floor(fy * (canvas.height - 1)), 1, 1).data[3]);
-  };
   window.__liveText = () => [...document.querySelectorAll('p[aria-live]')].map((p) => p.textContent).join('|');
   window.__groupNames = (title) => {
     const section = [...document.querySelectorAll('section')].find((s) => s.querySelector('h2')?.textContent.includes(title));
@@ -143,28 +133,19 @@ try {
     await page('/', viewport)
     await browser.evaluate(`localStorage.clear(); true`)
 
-    // --- Página inicial: milk-shake recortado sobre o roxo ---
-    const heroShake = `document.querySelector('figure [data-product-photo="milkshake"]')`
-    check(
-      `${at} início: milk-shake carregado, da pasta das fotos da loja, inteiro`,
-      await browser.evaluate(`(async () => { const img = ${heroShake}; await img.decode(); return [img.naturalWidth > 0, new URL(img.currentSrc).pathname.split('/').slice(-2, -1)[0], getComputedStyle(img).objectFit] })()`),
-      [true, 'produtos', 'contain'],
-    )
-    check(
-      `${at} início: milk-shake com fundo transparente de verdade (cantos 0, copo 255)`,
-      await browser.evaluate(`__alpha(${heroShake}, [[0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.55]])`),
-      [0, 0, 0, 0, 255],
-    )
-    check(
-      `${at} início: tampa bolha translúcida (nem opaca nem apagada)`,
-      await browser.evaluate(`__alpha(${heroShake}, [[0.5, 0.1], [0.5, 0.15]]).then((values) => values.every((a) => a > 20 && a < 120))`),
-      true,
-    )
-    check(
-      `${at} início: sem quadro branco em volta do milk-shake`,
-      await browser.evaluate(`[getComputedStyle(${heroShake}).backgroundColor, getComputedStyle(${heroShake}.parentElement).backgroundColor]`),
-      ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'],
-    )
+    const campaign = await browser.evaluate(`(async () => {
+      const img = document.querySelector('section[aria-labelledby="inicio-titulo"] picture img[fetchpriority="high"]')
+      await img.decode()
+      return {
+        file: new URL(img.currentSrc).pathname,
+        ratio: img.naturalWidth / img.naturalHeight,
+        displayedRatio: img.clientWidth / img.clientHeight,
+      }
+    })()`)
+    check(`${at} início: foto de campanha para esta tela`, campaign.file.startsWith(
+      desktop ? '/images/campanha/mesa-de-acai-' : '/images/campanha/primeira-colherada-',
+    ), true)
+    check(`${at} início: composição inteira, sem distorção`, Math.abs(campaign.displayedRatio - campaign.ratio) < 0.01, true)
 
     // --- Açaí Tradicional: ordem livre ---
     await page('/monte-seu-pedido/acai-tradicional', viewport)
